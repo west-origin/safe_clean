@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="ApiApplication (local)" type="Application" factoryName="Application">
+    <option name="ALTERNATIVE_JRE_PATH" value="jbr-21" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <option name="MAIN_CLASS_NAME" value="kr.ansimclean.api.ApiApplication" />
+    <module name="api" />
+    <option name="VM_PARAMETERS" value="-Dspring.profiles.active=local" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/backend" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
