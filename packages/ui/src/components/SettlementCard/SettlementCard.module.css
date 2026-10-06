@@ -1,0 +1,52 @@
+/* 정산 내역 카드(SettlementCard) 모양. div 로도 button 으로도 그려진다. */
+
+/* 카드 바깥: 1px 테두리 + radius md, 패딩 16/18, 두 줄 사이 6. button 으로 그려져도 같은 모양이 되게 여백·정렬을 직접 준다 */
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing-xs);
+  width: 100%;
+  margin: 0;
+  padding: var(--spacing-xl) var(--spacing-2xl);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-default);
+  color: var(--color-text-primary);
+  text-align: left;
+}
+
+/* 누를 수 있는 카드(onClick 있음)에만: 손가락 커서, 모바일 기본 탭 하이라이트 끔 */
+button.card {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 누르고 있는 동안 배경을 바꾼다 (:active) */
+button.card:active {
+  background: var(--color-surface-pressed);
+}
+
+/* 키보드로 이동했을 때만 보이는 포커스 테두리 */
+button.card:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* 한 줄: 왼쪽(날짜·업무명) ↔ 오른쪽(배지·금액) */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+/* 날짜: 보조 글자색 */
+.date {
+  color: var(--color-text-secondary);
+}
+
+/* 금액: 줄바꿈 없이 한 줄 ("120,000원" 이 쪼개지지 않게) */
+.amount {
+  white-space: nowrap;
+}

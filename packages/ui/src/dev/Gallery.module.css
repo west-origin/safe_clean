@@ -1,0 +1,135 @@
+/* 컴포넌트 갤러리(Gallery.jsx) 의 레이아웃 전용 CSS Module.
+ * 두 앱의 routes.jsx 가 개발 모드(import.meta.env.DEV)에서만 /dev/gallery 로 연다. 프로덕션 빌드에는 없다.
+ * 견본 컴포넌트 자체의 모양은 각 컴포넌트 CSS 에 있고, 여기는 견본을 늘어놓는 틀만 정한다. */
+
+/* 갤러리 전체(main). 화면 폭 상한(--screen-max-width) 안에서 가운데 정렬, 섹션을 세로로 쌓는다 */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4xl);
+  max-width: var(--screen-max-width);
+  margin: 0 auto;
+  padding: var(--spacing-4xl) var(--spacing-4xl);
+}
+
+/* 제목 아래 안내 문단 */
+.intro {
+  color: var(--color-text-secondary);
+}
+
+/* Section 하나 (컴포넌트 하나의 견본 묶음). 위쪽 선으로 앞 섹션과 나눈다 */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  padding-top: var(--spacing-4xl);
+  border-top: 1px solid var(--color-border-default);
+}
+
+/* Section 머리: 제목 + "Figma: …" 안내 줄 */
+.sectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+}
+
+/* Section 머리의 Figma 노드 안내 글자 */
+.figma {
+  color: var(--color-text-secondary);
+}
+
+/* Row 하나: 위에 variant 이름, 아래에 견본 */
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* Row 의 variant 이름 글자 */
+.rowLabel {
+  color: var(--color-text-secondary);
+}
+
+/* Row 의 견본 영역 (견본을 세로로 쌓는다) */
+.rowBody {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 버튼 같은 견본을 가로로 나란히 (줄바꿈 없음) */
+.inline {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+/* Icons 섹션의 아이콘 칸 하나 (44×44).
+ * 브랜드 배경 위에 inverse 글자색을 주어, 아이콘이 currentColor 로 부모 글자색을 따르는지 눈으로 확인한다 */
+.iconBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border-radius: var(--radius-sm);
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+}
+
+/* 칩·아이콘·라이브 컨트롤처럼 여러 개를 가로로 놓고, 넘치면 다음 줄로 넘긴다 */
+.wrapRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+/* 테두리 있는 카드 틀. Skeleton 카드 로딩 예시와 LoadingBar 견본을 담는다 */
+.skeletonCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-3xl);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+
+/* 세로로 쌓는 묶음 (RadioOption 견본의 radiogroup) */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* 같은 폭 2열 격자 (NoticeChip 견본 전부) */
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xs);
+}
+
+/* 점선 테두리. StatusBar 는 높이만 차지하는 빈 영역이라, 자리가 보이도록 둘레를 그린다 */
+.outline {
+  border: 1px dashed var(--color-border-default);
+}
+
+/* 갤러리 컨테이너(.page) 좌우 패딩(24)을 무시하고 full-width 로 보여준다 */
+.bleed {
+  margin: 0 calc(-1 * var(--spacing-4xl));
+}
+
+/* 오버레이형 라이브 컨트롤(CircleControl·PillControl) 견본의 바탕. 실제 영상 대신 회색 판을 깐다 */
+.videoMock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xl);
+  padding: var(--spacing-4xl);
+  border-radius: var(--radius-md);
+  background: var(--color-text-secondary); /* 영상 대신 회색 */
+}
+
+/* 하단바형 라이브 컨트롤(LabeledControl) 견본을 가로로 고르게 벌려 놓는다 */
+.spread {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-around;
+}

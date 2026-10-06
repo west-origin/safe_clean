@@ -1,0 +1,45 @@
+/* 자동 생성 파일 — 직접 수정 금지.
+ * 원본: design/figma-tokens.json  (Figma 컬렉션 "Design Tokens")
+ * 생성: npm run tokens  (scripts/build-tokens.js)
+ */
+
+:root,
+:root[data-theme="default"] {
+  /* color */
+  --color-accent-mint: #bce8dd; /* FRAME_FILL, SHAPE_FILL */
+  --color-border-default: #dadada; /* SHAPE_FILL, STROKE_COLOR */
+  --color-border-disabled: #e0e0e0; /* STROKE_COLOR */
+  --color-brand-primary: #2284fc; /* FRAME_FILL, SHAPE_FILL, TEXT_FILL, STROKE_COLOR */
+  --color-brand-primary-pressed: #1a6ad1; /* FRAME_FILL, SHAPE_FILL */
+  --color-brand-subtle: #edf5fe; /* FRAME_FILL, SHAPE_FILL */
+  --color-status-live: #ff0707; /* FRAME_FILL, SHAPE_FILL */
+  --color-status-live-subtle: #fdecec; /* FRAME_FILL, SHAPE_FILL */
+  --color-status-success: #1f8a4c; /* TEXT_FILL */
+  --color-status-warning: #b8720a; /* TEXT_FILL */
+  --color-status-warning-subtle: #fff2df; /* FRAME_FILL, SHAPE_FILL */
+  --color-surface-default: #ffffff; /* FRAME_FILL, SHAPE_FILL */
+  --color-surface-field: #f2f2f2; /* FRAME_FILL, SHAPE_FILL */
+  --color-surface-pressed: #e4e4e4; /* FRAME_FILL, SHAPE_FILL */
+  --color-surface-subtle: #f5f5f5; /* FRAME_FILL, SHAPE_FILL */
+  --color-text-disabled: #a8a8a8; /* TEXT_FILL */
+  --color-text-inverse: #ffffff; /* TEXT_FILL */
+  --color-text-primary: #16171e; /* TEXT_FILL */
+  --color-text-secondary: #767676; /* TEXT_FILL, STROKE_COLOR */
+
+  /* radius */
+  --radius-md: 20px; /* CORNER_RADIUS */
+  --radius-pill: 32px; /* CORNER_RADIUS */
+  --radius-sm: 10px; /* CORNER_RADIUS */
+  --radius-xs: 5px; /* CORNER_RADIUS */
+
+  /* spacing */
+  --spacing-2xl: 18px; /* WIDTH_HEIGHT, GAP */
+  --spacing-2xs: 4px; /* WIDTH_HEIGHT, GAP */
+  --spacing-3xl: 20px; /* WIDTH_HEIGHT, GAP */
+  --spacing-4xl: 24px; /* WIDTH_HEIGHT, GAP */
+  --spacing-lg: 12px; /* WIDTH_HEIGHT, GAP */
+  --spacing-md: 10px; /* WIDTH_HEIGHT, GAP */
+  --spacing-sm: 8px; /* WIDTH_HEIGHT, GAP */
+  --spacing-xl: 16px; /* WIDTH_HEIGHT, GAP */
+  --spacing-xs: 6px; /* WIDTH_HEIGHT, GAP */
+}

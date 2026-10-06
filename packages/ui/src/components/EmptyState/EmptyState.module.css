@@ -1,0 +1,32 @@
+/* EmptyState.jsx 의 스타일 */
+/* 전체: 원 → 제목 → 설명을 가운데 정렬로 세로로 쌓는다 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px; /* Figma 원본값 */
+  width: 100%;
+  padding: 72px 0; /* Figma 원본값 */
+  text-align: center;
+}
+
+/* 84px 회색 원. 안의 아이콘은 color(text/secondary)를 따른다 */
+.circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+}
+
+/* 제목은 기본 글자색, 설명은 회색 */
+.title {
+  color: var(--color-text-primary);
+}
+
+.description {
+  color: var(--color-text-secondary);
+}

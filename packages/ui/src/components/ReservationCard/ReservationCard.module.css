@@ -1,0 +1,144 @@
+/* ReservationCard.jsx 의 스타일 */
+/* 카드 바탕: 흰 배경 + 안쪽 1px 테두리, 윗줄·정보·버튼을 세로로 쌓는다 */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px; /* Figma 원본값 */
+  width: 100%;
+  padding: var(--spacing-2xl);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1px var(--color-border-default); /* Figma INSIDE stroke */
+  background: var(--color-surface-default);
+  box-sizing: border-box;
+}
+
+/* 윗줄: 왼쪽 제목, 오른쪽 상태 배지 */
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 서비스 이름 (h3 기본 여백 제거) */
+.title {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+/* StatusBadge 알약: 상하 6 / 좌우 10, radius 10 */
+.badge {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+/* 방문 예정: brand 색 배지 */
+.badge-brand {
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-primary);
+}
+
+/* 청소 진행 중: LIVE 배지 색 */
+.badge-live {
+  background: var(--color-status-live-subtle);
+  color: var(--color-status-live);
+}
+
+/* 배정 중·완료·취소: 회색 배지 */
+.badge-muted {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+}
+
+/* 정보 목록(일정·주소·매니저). dl 기본 여백 제거 */
+.infoList {
+  display: flex;
+  flex-direction: column;
+  gap: 7px; /* Figma 원본값 */
+  margin: 0;
+}
+
+/* 정보 한 줄: 라벨 + 값 */
+.infoRow {
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+/* 라벨 칸은 폭 52 고정이라 값이 줄마다 같은 자리에서 시작한다 */
+.infoLabel {
+  flex: 0 0 52px;
+  color: var(--color-text-secondary);
+}
+
+/* 값 칸: 남은 폭을 쓰고, 긴 주소는 이 안에서 줄바꿈된다 (min-width 0) */
+.infoValue {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+/* 정보와 아래 버튼·안내 사이 가로줄 */
+.divider {
+  height: 1px;
+  background: var(--color-border-default);
+}
+
+/* 버튼 줄. 버튼들이 폭을 똑같이 나눈다 */
+.actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+/* changeable=false: 버튼 자리에 안내 한 줄 (코드에서 정함) */
+.note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+/* Button/Secondary 151×39: surface/subtle, radius 10, 상하 11 */
+.action {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  height: 39px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* 모바일 브라우저가 탭할 때 덮는 회색 박스를 끈다 */
+}
+
+/* 시각 높이 39 → 터치 영역 44 */
+.action::before {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto; /* 위쪽을 버튼 세로 가운데에 두고 */
+  min-height: var(--touch-target);
+  transform: translateY(-50%); /* 자기 높이 절반만큼 올려 44 영역이 버튼 가운데에 오게 한다 */
+}
+
+/* 누르는 동안의 배경 */
+.action:active {
+  background: var(--color-surface-pressed);
+}
+
+/* 키보드로 옮겨 왔을 때만 보이는 초점 테두리 */
+.action:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* 실시간 영상 보기 (코드에서 정함): brand/subtle 배경 + brand 글자 */
+/* "녹화 영상 보기" 버튼도 이 모양을 쓴다 */
+.actionBrand {
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-primary);
+}

@@ -1,0 +1,20 @@
+/* 영상 위 알약: 반투명 검정 바탕 + 흰 글자 (영상 위 전용 원본색 --raw-*) */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2xs);
+  padding: var(--spacing-2xs) 9px var(--spacing-2xs) var(--spacing-sm); /* Figma 원본값 우 9 */
+  border-radius: var(--radius-pill);
+  background: var(--raw-overlay-dark);
+  color: var(--raw-on-video);
+}
+
+/* 사람 아이콘 — 줄어들지 않는다 */
+.icon {
+  flex-shrink: 0;
+}
+
+/* 시청자 수 숫자 — 줄바꿈되지 않는다 */
+.count {
+  white-space: nowrap;
+}

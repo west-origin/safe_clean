@@ -1,0 +1,113 @@
+/* Auth/SignUp 화면 레이아웃 (SignUp.jsx). 다른 인증 화면과 달리 auth.module.css 를 쓰지 않는다 */
+
+/* 화면 전체 배경: 위쪽 하늘색 → 흰색 그라데이션 (Figma 원본색, extra.css 의 --raw-signup-gradient) */
+.screen {
+  background: var(--raw-signup-gradient);
+}
+
+/* Figma PageBody: 상 56 / 좌 24 / 우 23 / 하 128 */
+.body {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  padding: 56px var(--spacing-4xl) 128px;
+}
+
+/* 제목 + 부제 묶음. position: relative + z-index(--z-raised) 로 일러스트(.hero) 위에 그린다 */
+.header {
+  position: relative;
+  z-index: var(--z-raised); /* 일러스트 위 */
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: 3px; /* Figma 원본값 */
+  white-space: nowrap;
+}
+
+/* 부제 글자색 (Figma 원본색 — text/secondary 와 다른 회색) */
+.muted {
+  color: var(--raw-text-muted);
+}
+
+/* "또는" 글자색 */
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+/* HeroArt: Figma 절대 위치 (left 131, top 140 — 화면 기준. PageBody 는 StatusBar 44 아래이므로 top 96).
+ * Figma 레이어 순서는 버튼 위였지만 사용자 결정(2026-09-21)으로 글·버튼 **뒤**에 둔다. 탭은 통과시킨다. */
+/* 뒤로 가는 것은 이 z-index 0 과 .header·.social 의 z-index(--z-raised) 가 함께 있어서다 — 그림이 DOM 에서 .header 뒤에 오기 때문.
+ * 같은 결정을 따르는 로그인 화면도 같은 방식이다 (LoginPhone.module.css .stack) */
+.hero {
+  position: absolute;
+  z-index: 0;
+  top: 96px;
+  left: calc(50% + 65.5px); /* Figma left 131 → 중심 262 (가운데보다 65.5 오른쪽) */
+  width: 262px;
+  transform: translateX(-50%);
+  height: 253px;
+  pointer-events: none;
+}
+
+/* SocialWrap: 상단 114, 버튼 3개가 -35px 씩 겹침 (이미지에 투명 여백 포함) */
+.social {
+  position: relative;
+  z-index: var(--z-raised); /* 일러스트 위 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 114px;
+}
+
+/* 위 두 소셜 버튼에 붙는다 */
+.overlap {
+  margin-bottom: -35px; /* 음수 여백: 다음 버튼을 35 만큼 끌어올려 겹친다 */
+}
+
+/* OrDivider: Figma 절대 위치 left 27 / top 526 (393 기준). 폭이 달라져도 가운데 오게 50% 기준 (CLAUDE §2-9) */
+.or {
+  position: absolute;
+  top: 526px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 9px; /* Figma 원본값 */
+}
+
+/* "또는" 양옆의 가로선 */
+.line {
+  width: 118px;
+  height: 1px;
+  background: var(--color-text-secondary);
+}
+
+/* 전화번호로 가입하기 버튼 자리 */
+.phone {
+  padding-top: 33px; /* Figma 원본값 */
+}
+
+/* "이미 계정이 있으신가요? 로그인하기" 줄 */
+.footer {
+  padding-top: 25px; /* Figma 원본값 */
+  color: var(--raw-text-muted);
+  white-space: pre; /* JSX 의 공백 4칸을 하나로 합치지 않고 그대로 보인다 (자동 줄바꿈도 없다) */
+}
+
+/* "로그인하기" 버튼: 버튼 기본 모양을 지운 파란 글자 (Figma 원본색 --raw-link) */
+.link {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--raw-link);
+  cursor: pointer;
+}
+
+/* 소셜 로그인 안내 시트 (코드에서 정함 — 사용성 검토 2026-09-22) */
+.sheetText {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

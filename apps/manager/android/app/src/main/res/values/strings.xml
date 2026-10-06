@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">안심클린 매니저</string>
+    <string name="title_activity_main">안심클린 매니저</string>
+    <string name="package_name">kr.ansimclean.manager</string>
+    <string name="custom_url_scheme">kr.ansimclean.manager</string>
+</resources>

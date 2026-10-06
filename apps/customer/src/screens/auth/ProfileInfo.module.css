@@ -1,0 +1,39 @@
+/* Auth/ProfileInfo-* 화면 레이아웃 (ProfileInfo.jsx). 공통 틀(뒤로 버튼 위치, 세로 배치)은 auth.module.css */
+
+/* Figma PageBody: 상 27 / 우 44 / 하 106 / 좌 46 */
+.body {
+  padding: 27px 44px 106px 46px; /* Figma 원본값 */
+}
+
+/* ContentStack: 간격 35 */
+.stack {
+  gap: 35px; /* Figma 원본값 */
+}
+
+/* FormStack: Phone 18, Social 20 */
+.formPhone {
+  gap: var(--spacing-2xl);
+}
+
+/* 소셜 형 — ProfileInfo.jsx 가 지금은 항상 phone 형이라 쓰이지 않는다 (소셜 가입이 생기면 쓴다) */
+.formSocial {
+  gap: var(--spacing-3xl);
+}
+
+/* "휴대폰 인증이 완료됐어요" 문구 */
+.verifiedNote {
+  margin: 0;
+  color: var(--color-brand-primary);
+}
+
+/* 이미 가입한 번호 안내 뒤의 "로그인하기" 버튼: 버튼 기본 모양을 지운 밑줄 글자. 탭 높이는 44 (--touch-target) */
+.link {
+  min-height: var(--touch-target);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-brand-primary);
+  cursor: pointer;
+  text-decoration: underline;
+}

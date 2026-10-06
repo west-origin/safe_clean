@@ -1,0 +1,57 @@
+/* SuccessHeader: 완료 화면 위쪽의 체크 원 + 제목 + 안내 배치와 색 */
+
+/* 머리글 전체: 체크 원 ↔ 문구 간격 12, 가운데 정렬 */
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+  width: 100%;
+}
+
+/* 바깥 80 원 (accent/mint) — 안쪽 원을 가운데 둔다 */
+.halo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--color-accent-mint);
+}
+
+/* 안쪽 44 초록 원. 이 초록은 Figma 변수에 없는 원본색이라 extra.css 의 --raw-success-green 을 쓴다 */
+.circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--raw-success-green);
+}
+
+/* 체크 아이콘 색: 흰색(text/inverse). 아이콘은 이 글자색을 따라 칠해진다 */
+.check {
+  color: var(--color-text-inverse);
+}
+
+/* 제목 + 안내 묶음: 간격 8, 가운데 정렬 */
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 100%;
+  text-align: center;
+}
+
+/* 제목·안내: h1·p 의 브라우저 기본 여백을 없애고 색만 정한다 */
+.title {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.description {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

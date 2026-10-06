@@ -1,0 +1,64 @@
+/* 프로필 아래 화면 공통 레이아웃 (Figma 없음). 글자색·구분선은 여기서 토큰으로 정하고, 카드 배경 등은 ui 컴포넌트가 정한다 */
+/* profile 폴더의 하위 화면들이 같이 쓴다 (예: Support · NoticeDetail) */
+
+/* 고객센터(Support)의 긴급 전화 안내 묶음과 문의 입력 묶음 */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3xl);
+}
+
+/* 정보 화면(ProfileDetail)의 칩 묶음 — 폭이 모자라면 다음 줄로 넘긴다 */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+/* 공지 본문(NoticeDetail) 머리: 제목 + 날짜 */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+}
+
+/* 회색 보조 문구 (날짜·안내·라벨). p 의 기본 여백을 없앤다 */
+.secondary {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* 공지 본문 글자 */
+.primary {
+  margin: 0;
+  color: var(--color-text-primary);
+  white-space: pre-line; /* 서버 본문의 줄바꿈을 그대로 보인다 (연속 공백은 하나로) */
+}
+
+/* 내 문의 목록 (코드에서 정함) */
+.inquiries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* 문의·답변 본문 — 입력한 줄바꿈을 그대로 보인다 */
+.preLine {
+  margin: 0;
+  white-space: pre-line;
+}
+
+/* 문의 카드 안의 답변 칸: 위쪽 구분선 한 줄 아래에 '안심클린 답변 · 날짜' 와 답변 */
+.answer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border-default);
+}
+
+/* 긴급 연락 안내 (코드에서 정함 — 사용성 검토 2026-09-22) */
+.urgentTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+}

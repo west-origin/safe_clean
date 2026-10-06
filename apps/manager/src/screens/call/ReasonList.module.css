@@ -1,0 +1,13 @@
+/* 시트 안 사유 목록(ReasonList.jsx)의 레이아웃. 거절 시트·중단 시트가 같이 쓴다. */
+
+/* Figma ReasonList: 세로 간격 10 → md */
+.reasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* 사유를 받는 동안의 자리 표시 — 시트 폭을 꽉 채운다 */
+.skeleton {
+  width: 100%;
+}

@@ -1,0 +1,91 @@
+/* LiveProgress(녹화본 진행 막대) 스타일. 모양(크기·위치)은 아래 기본 규칙에, 트랙·손잡이·시간 글자·포커스 테두리 색은 맨 아래 tone 규칙에 있다.
+   tone 을 둘로 나눈 이유: Figma 가로 라이브 화면은 막대를 영상 위에 놓아 흰색(--raw-*)이지만, 세로 화면(ServiceLivePortrait)은
+   영상 아래 흰 화면 배경에 놓아 흰 손잡이·시간 글자가 배경에 묻힌다 — 그래서 밝은 배경용 토큰 색(onLight)을 따로 둔다.
+   빨간 채움(.fill)은 두 배경 모두에서 보이므로 tone 과 상관없이 같다. */
+/* 막대 + 시간 글자 묶음 */
+.progress {
+  position: relative;
+  width: 100%;
+}
+
+/* Track 6, 터치 영역은 ::before 로 44 */
+.track {
+  position: relative;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+/* 44 높이 투명 영역을 트랙 세로 가운데에 겹친다: 위 50% 에서 시작해 translateY(-50%) 로 반만큼 올린다 */
+.track::before {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto;
+  min-height: var(--touch-target);
+  transform: translateY(-50%);
+}
+
+/* 키보드 포커스 테두리 (트랙에서 4px 띄운다). 색은 tone 규칙이 정한다 */
+.track:focus-visible {
+  outline: 2px solid;
+  outline-offset: 4px;
+}
+
+/* 진행된 부분(빨강). 폭은 JSX 가 style 로 준다 */
+.fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--raw-danger);
+}
+
+/* Knob 16, 트랙 가운데 (Figma y 401 = 트랙 406 − 5) */
+.knob {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%); /* left(JSX style) 지점에 손잡이 가운데가 오게 */
+}
+
+/* 시간: 트랙 아래 18 (Figma 430 − 412) */
+.time {
+  display: block;
+  margin-top: var(--spacing-2xl);
+  white-space: nowrap;
+}
+
+/* tone="onVideo"(기본): 영상 위. Figma LiveLandscape 의 색 — 트랙 흰 32%, 손잡이·시간 글자·포커스 테두리 흰색 */
+.onVideo .track {
+  background: var(--raw-progress-track);
+}
+
+.onVideo .track:focus-visible {
+  outline-color: var(--raw-on-video);
+}
+
+.onVideo .knob {
+  background: var(--raw-on-video);
+}
+
+.onVideo .time {
+  color: var(--raw-on-video);
+}
+
+/* tone="onLight": 밝은 화면 배경 위(세로 녹화본). Figma 에 없어 코드에서 정한 토큰 색 —
+   트랙은 회색 선 색, 손잡이는 본문 글자색, 시간 글자는 보조 글자색, 포커스 테두리는 다른 컴포넌트와 같은 브랜드 파랑 */
+.onLight .track {
+  background: var(--color-border-default);
+}
+
+.onLight .track:focus-visible {
+  outline-color: var(--color-brand-primary);
+}
+
+.onLight .knob {
+  background: var(--color-text-primary);
+}
+
+.onLight .time {
+  color: var(--color-text-secondary);
+}

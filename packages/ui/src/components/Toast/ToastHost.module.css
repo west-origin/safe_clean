@@ -1,0 +1,44 @@
+/* 화면 아래 가운데, 컨테이너 폭 안 (코드에서 정함) */
+.host {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--spacing-4xl) + env(safe-area-inset-bottom)); /* 아이폰 홈 표시줄 같은 아래 안전 영역만큼 더 띄운다 */
+  z-index: var(--z-toast);
+  width: min(100% - 2 * var(--spacing-4xl), calc(var(--screen-max-width) - 2 * var(--spacing-4xl))); /* 좌우 24씩 비우고, 넓은 화면에서도 앱 컨테이너 폭 안에 둔다 */
+  transform: translateX(-50%); /* left: 50% 와 짝을 이뤄 가운데 정렬 */
+  display: flex;
+  justify-content: center;
+  pointer-events: none; /* 빈 영역은 아래 화면의 터치를 막지 않는다 (토스트 버튼만 다시 켠다) */
+}
+
+/* 토스트 한 개: 어두운 알약 모양 버튼 (글자색 토큰을 배경으로 뒤집어 쓴다). 누르면 닫힌다 */
+.toast {
+  pointer-events: auto;
+  max-width: 100%;
+  padding: var(--spacing-md) var(--spacing-3xl);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-text-primary);
+  color: var(--color-surface-default);
+  cursor: pointer;
+  animation: rise var(--duration-fast) ease-out;
+}
+
+/* 나타날 때 8px 아래에서 올라오며 서서히 보인다 */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 기기에서 '동작 줄이기' 를 켠 사용자에게는 애니메이션 없이 바로 보인다 */
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}

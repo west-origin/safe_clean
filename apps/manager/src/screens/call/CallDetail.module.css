@@ -1,0 +1,14 @@
+/* 매니저 콜 상세(CallDetail.jsx) 화면의 레이아웃. */
+
+/* 고객 요청사항 카드 본문의 보조 글자색 */
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+/* Figma ReasonList: 세로 간격 10 */
+/* 지금 CallDetail.jsx 는 이 클래스를 쓰지 않는다. 사유 목록 간격은 ReasonList.module.css 가 정한다. */
+.reasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}

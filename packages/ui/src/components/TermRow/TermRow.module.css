@@ -1,0 +1,38 @@
+/* Figma: TermRow — 가로 배치, 간격 9, 세로 가운데 */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 9px; /* Figma 원본값 */
+  width: 100%;
+}
+
+/* 체크박스 + 라벨: 남은 폭을 채운다. min-width: 0 이 있어야 긴 약관 문구가 "보기>" 를 밀어내지 않는다 */
+.checkbox {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* ViewLink "보기>" — 시각 높이 13, 터치 영역은 ::before 로 44 */
+.view {
+  position: relative;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* 모바일 브라우저가 탭할 때 칠하는 회색 사각형을 끈다 */
+}
+
+/* 보이지 않는 44×44 터치 영역을 글자 가운데에 겹쳐 둔다 (position: relative 인 .view 가 기준) */
+.view::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  transform: translate(-50%, -50%);
+}

@@ -1,0 +1,77 @@
+/* ScreenLayout.jsx 의 스타일 */
+/* 화면 전체 틀: 폭은 꽉 채우되 --screen-max-width 까지만, 넘으면 가운데(margin auto). 최소 높이는 보이는 화면 높이 */
+.screen {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--screen-max-width);
+  min-height: 100dvh; /* dvh: 모바일 주소창이 접히고 펴져도 실제로 보이는 높이 기준 */
+  margin: 0 auto;
+  background: var(--color-surface-default);
+}
+
+/* Figma Content: 상 20 / 좌우 24 / 하 32 */
+.content {
+  display: flex;
+  flex: 1 1 auto; /* 남은 높이를 채워, 내용이 짧아도 하단 영역이 화면 맨 아래에 온다 */
+  flex-direction: column;
+  align-items: stretch;
+  padding: var(--spacing-3xl) var(--spacing-4xl) 32px;
+}
+
+.withNav {
+  padding-top: var(--spacing-sm); /* Figma: NavBar 아래 Content 상단 8 */
+}
+
+.topLg {
+  padding-top: 32px; /* Figma Job/Complete Content py-32 */
+}
+
+/* Content 자식 사이 세로 간격 (props.gap). lg=24, md=20, sm=16, 원본값 ml=22·xl=28, none=0 */
+.gap-lg {
+  gap: var(--spacing-4xl);
+}
+
+.gap-ml {
+  gap: 22px; /* Figma 원본값 (Job/InProgress Content). 토큰 없음 */
+}
+
+.gap-md {
+  gap: var(--spacing-3xl);
+}
+
+.gap-sm {
+  gap: var(--spacing-xl);
+}
+
+.gap-xl {
+  gap: 28px; /* Figma 원본값 (Schedule/Availability Content). 토큰 없음 */
+}
+
+.gap-none {
+  gap: 0;
+}
+
+/* full-bleed 화면: 여백은 화면이 직접 정한다. 위의 여백 규칙들보다 뒤에 있어서 그것들을 덮는다 */
+.noPadding {
+  padding: 0;
+}
+
+/* 하단 고정 영역(StickyCTA + TabBar). 내용이 길면 Content 만 스크롤되고 이 영역은 화면 아래에 붙어 있다 (Figma 프레임은 길게 펼쳐져 있지만 앱 동작은 고정) */
+.bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-default);
+}
+
+/* Figma StickyCTA: 상단 1px border/default, 패딩 상 14 / 좌우 24 / 하 28 (safe-area 가 더 크면 그만큼), 버튼 세로 간격 10 */
+.stickyCta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: 14px var(--spacing-4xl) max(28px, calc(14px + env(safe-area-inset-bottom))); /* safe-area-inset-bottom: 아이폰 홈 막대처럼 OS 가 가리는 아래 높이 */
+  border-top: 1px solid var(--color-border-default);
+}

@@ -1,0 +1,37 @@
+/* MY 화면 (Profile.jsx) 레이아웃: 프로필 카드의 통계 줄, 로그아웃·회원 탈퇴 텍스트 버튼 */
+
+/* ProfileCard StatRow: 간격 24, 각 Stat 은 라벨/값 간격 2 */
+.stats {
+  display: flex;
+  gap: var(--spacing-4xl);
+  margin: 0;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px; /* Figma 원본값 */
+}
+
+/* 값(dd)에 붙는 브라우저 기본 들여쓰기 여백을 없앤다 (dl 의 기본 여백은 .stats 에서) */
+.stat dd {
+  margin: 0;
+}
+
+/* 통계 라벨(평점·완료 청소)의 회색 글자 */
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+/* 로그아웃 (Figma 없음 → 코드에서 정함): 메뉴 아래 가운데 텍스트 버튼, 44 터치 영역 */
+/* 회원 탈퇴 버튼도 이 클래스를 쓴다. border·background 를 없애 버튼 기본 모양 대신 글자만 보인다 */
+.logout {
+  align-self: center;
+  min-height: var(--touch-target);
+  margin: 0;
+  padding: 0 var(--spacing-xl);
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}

@@ -1,0 +1,126 @@
+/* 수리 예약 화면들(Repair*.jsx)이 화면마다 파일을 두지 않고 함께 쓰는 레이아웃. 규칙 하나를 고치면 그 클래스를 쓰는 화면이 모두 같이 바뀐다 (예: .cta) */
+/* 수리 예약 플로우 공통 레이아웃 (Figma: 상단 내비게이션 → 내용(상 20 / 좌우 24) ↔ 하단 고정 행동(상 14 / 하 22, 버튼 304)) */
+/* 화면 본문: 위에 내용(stack), 아래에 버튼(cta). space-between 으로 내용이 짧아도 버튼은 맨 아래에 붙는다 */
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--spacing-3xl) var(--spacing-4xl) 0;
+}
+
+/* 본문 위쪽 내용 묶음 (질문 머리글 → 입력 요소들) — 기본 간격 */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3xl);
+}
+
+/* stack 과 같이 붙여 간격만 바꾼다: 날짜·시간 화면과 현장 상황 화면 */
+.stackWide {
+  gap: 22px; /* Figma 원본값 (일정·요청 화면) */
+}
+
+/* stack 과 같이 붙여 간격만 넓힌다: 주소 확인 화면과 최종 확인 화면 */
+.stackXl {
+  gap: var(--spacing-4xl);
+}
+
+/* 하단 버튼 영역 ('다음'·'예약하기' 와 그 아래 실패 문구) */
+.cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 14px 0 22px; /* Figma 원본값 */
+}
+
+/* 하단 주 버튼 폭: Figma 304 고정, 화면이 더 좁으면 폭에 맞춰 줄어든다 */
+.ctaButton {
+  width: 304px; /* Figma 원본값 */
+  max-width: 100%;
+}
+
+/* 현장 상황 화면의 '현장 상황 · 중복 선택' 구역 (제목 + 칩 목록) */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+/* 위 구역의 제목 */
+.blockTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+/* Figma 상황 칩(1:341): 세로로 한 줄씩 (flex-col), 간격 8 */
+.chips {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+}
+
+/* 주소 확인 화면의 "주소가 다르면 변경해주세요" 안내 글 */
+.changeHint {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* 주소 확인 화면: 위 안내 글 + '다른 주소로 변경' 버튼 묶음 */
+.changeBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* 예약 요약(1:285): 1px border/default + radius sm, 패딩 20, 항목 간격 22 */
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 22px; /* Figma 원본값 */
+  padding: var(--spacing-3xl);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+}
+
+/* 예약 완료(1:236): 그라디언트 배경, 내용 상 24 / 좌우 24, 간격 18 */
+.completeScreen {
+  background: var(--raw-repair-complete-gradient);
+}
+
+/* 완료 화면 본문: 위에 완료 안내·예약 정보, 아래에 '예약 확인' 버튼 (.body 와 같은 배치, 안쪽 여백은 completeStack 이 갖는다) */
+.completeBody {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* 완료 화면 위쪽 내용 묶음 (완료 머리글 → 예약 정보 카드 → 배정 안내) */
+.completeStack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px; /* Figma 원본값 */
+  padding: var(--spacing-4xl) var(--spacing-4xl) 0;
+}
+
+/* 완료 화면 하단 버튼 영역: 그라디언트 배경 위에 기본 바탕색 띠로 깐다 (cta 와 같이 붙인다) */
+.completeCta {
+  background: var(--color-surface-default);
+}
+
+/* 완료 화면 예약 정보 카드의 '기사 배정' 칸: '신규' 배지 아래에 배정 상태 글 */
+.assignment {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+}
+
+/* 배정 상태 글 ('배정 중' 또는 배정된 기사 문구) */
+.assignmentStatus {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,84 @@
+/* OptionItem.jsx 가 쓰는 스타일. .item(공통) 에 .free 또는 .paid 하나, 선택되면 .selected 가 더 붙는다 */
+
+/* 옵션 하나 전체 (button): 위 아이콘 박스, 아래 글자. 버튼 기본 모양(테두리·배경)은 지운다 */
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 무료: 아이콘 박스 80×91, 간격 13 / 유료: 80×86, 간격 10 */
+.free {
+  gap: 13px; /* Figma 원본값 */
+}
+
+.paid {
+  gap: var(--spacing-md);
+}
+
+/* 아이콘 박스: 아이콘마다 높이가 달라서 바닥(flex-end)에 맞춰 가로 가운데 둔다. 선택되면 여기에 테두리·배경이 생긴다 */
+.iconBox {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 80px;
+  height: 91px;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+/* 유료형 아이콘 박스는 조금 낮다 */
+.paid .iconBox {
+  height: 86px;
+}
+
+/* img 를 block 으로: 글자처럼 줄 위에 놓인(inline) img 는 아래에 빈틈이 생긴다.
+ * (.iconBox 가 flex 라 지금은 이 규칙이 없어도 block 으로 다뤄진다) */
+.iconBox img {
+  display: block;
+}
+
+/* Selected (코드에서 정함) */
+.selected .iconBox {
+  box-shadow: inset 0 0 0 1.5px var(--color-brand-primary); /* 테두리를 안쪽에 그려 박스 크기가 그대로 */
+  background: var(--color-brand-subtle);
+}
+
+/* 키보드 초점: 버튼 전체가 아니라 아이콘 박스에 테두리를 그린다 */
+.item:focus-visible .iconBox {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* Disabled (무료 옵션 개수가 찼을 때 등): 흐리게 */
+.item:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* TextBlock: 라벨 ↔ 가격 5 */
+.textBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px; /* Figma 원본값 */
+}
+
+/* 옵션 이름: 가운데 정렬, 라벨 안의 줄바꿈(\n)을 그대로 보여 준다(pre-line) */
+.label {
+  color: var(--color-text-primary);
+  text-align: center;
+  white-space: pre-line;
+}
+
+/* 유료 옵션 가격: 회색, 한 줄 */
+.price {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}

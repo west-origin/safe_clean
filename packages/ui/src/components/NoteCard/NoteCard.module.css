@@ -1,0 +1,53 @@
+/* Figma: PrivacyNoteCard 346×80 — 패딩 상하 16 / 좌 19 / 우 24, 간격 10, 세로 가운데 */
+/* NoteCard.jsx 가 쓰는 스타일. 항상 .card 가 붙고, tone="brand" 이면 .brand 가 함께 붙는다.
+ * .default 규칙은 없다 — 기본 tone 은 .card 만으로 그린다. */
+
+/* 카드 바깥 틀 (기본 tone: 흰 배경 + 회색 테두리) */
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  width: 100%;
+  height: 80px;
+  padding: var(--spacing-xl) var(--spacing-4xl) var(--spacing-xl) 19px; /* Figma 원본값 좌 19 */
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--color-border-default); /* Figma INSIDE stroke — 안쪽 폭 243 유지 */
+  background: var(--color-surface-default);
+  box-sizing: border-box;
+}
+
+/* 왼쪽 3D 아이콘 (래스터 이미지). 비율을 유지한 채 칸 안에 맞춘다 */
+.icon {
+  flex-shrink: 0;
+  width: 50px;
+  height: 48px;
+  object-fit: contain;
+}
+
+/* 오른쪽 안내문: 남는 폭을 다 쓴다 */
+.text {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  color: var(--raw-note-text);
+  white-space: pre-wrap; /* Figma 문구의 줄바꿈 유지 */
+}
+
+/* InfoBox (tone=brand): 높이 64, 패딩 우 12 / 좌 10, 간격 11, brand/subtle 배경, 안내문 text/secondary */
+.brand {
+  gap: 11px; /* Figma 원본값 */
+  height: 64px;
+  padding: 0 var(--spacing-lg) 0 var(--spacing-md);
+  background: var(--color-brand-subtle);
+}
+
+/* brand tone 아이콘 크기 (Figma InfoBox 치수) */
+.brand .icon {
+  width: 50px;
+  height: 49px;
+}
+
+/* brand tone 안내문 색 */
+.brand .text {
+  color: var(--color-text-secondary);
+}

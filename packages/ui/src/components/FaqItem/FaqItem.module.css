@@ -1,0 +1,63 @@
+/* FaqItem.jsx 의 스타일 */
+/* 항목 하나: 질문 버튼 → 답변을 세로로 */
+.item {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 두 번째 항목부터 위쪽에 1px 구분선. 높이에 더해지지 않게 border 대신 inset 그림자로 그린다 */
+.item + .item {
+  box-shadow: inset 0 1px 0 var(--color-border-default);
+}
+
+/* 질문 줄 전체가 버튼: 높이 최소 48(터치 영역 44 보다 크다), 글자 왼쪽 · 화살표 오른쪽 */
+.question {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: var(--spacing-md) var(--spacing-xl);
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* 모바일 브라우저의 기본 탭 하이라이트 대신 아래 :active 색을 쓴다 */
+}
+
+/* Pressed: 누르는 동안 회색 배경 */
+.question:active {
+  background: var(--color-surface-pressed);
+}
+
+.question:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px; /* 링을 버튼 안쪽에 그린다 */
+}
+
+/* 질문 글자: 남은 폭을 차지한다 */
+.label {
+  flex: 1 1 0;
+}
+
+/* 오른쪽 화살표. 열릴 때 회전은 .chevronOpen 이 준다 */
+.chevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform var(--duration-fast);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+/* 답변 문단: pre-line 이라 답변 문자열의 줄바꿈이 그대로 보인다 */
+.answer {
+  margin: 0;
+  padding: 0 var(--spacing-xl) var(--spacing-xl);
+  color: var(--color-text-secondary);
+  white-space: pre-line;
+}

@@ -1,0 +1,59 @@
+/* 영상 틀: 영상·스크림·오버레이(children)를 겹쳐 놓는 기준. 영상이 나오기 전에는 검정 바탕 */
+.surface {
+  position: relative; /* 안쪽 absolute 요소(영상·스크림)의 위치 기준 */
+  overflow: hidden; /* 둥근 모서리 밖으로 영상이 삐져나오지 않게 */
+  width: 100%;
+  background: var(--raw-video-bg);
+}
+
+/* 세로 화면의 VideoCard: 높이 430, 모서리 20 */
+.portrait {
+  height: 430px;
+  border-radius: var(--radius-md);
+}
+
+/* 가로 전체 화면: 부모 높이를 그대로 채운다 */
+.landscape {
+  height: 100%;
+}
+
+/* <video> 를 틀 전체에 깐다. cover: 영상 비율이 틀과 달라도 빈틈 없이 채우고 넘치는 부분은 잘린다 */
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 위·아래 그라디언트 공통: 좌우 끝까지 덮고, 터치는 아래 요소로 통과시킨다 */
+.scrim {
+  position: absolute;
+  right: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+/* Scrim/Top: portrait 96 / landscape 132 */
+.scrimTop {
+  top: 0;
+  height: 96px;
+  background: var(--raw-scrim-top);
+}
+
+.landscape .scrimTop {
+  height: 132px;
+  background: var(--raw-scrim-top-landscape);
+}
+
+/* Scrim/Bottom: portrait 130 / landscape 160 */
+.scrimBottom {
+  bottom: 0;
+  height: 130px;
+  background: var(--raw-scrim-bottom);
+}
+
+.landscape .scrimBottom {
+  height: 160px;
+  background: var(--raw-scrim-bottom-landscape);
+}

@@ -1,0 +1,82 @@
+/* 바텀시트(Sheet) 모양. 스크림(배경) 안에 패널이 아래쪽 가운데에 붙는다. */
+
+/* 스크림: Figma 에 없음. text/primary 를 40% 로 (코드에서 정함) */
+.scrim {
+  position: fixed; /* 스크롤과 상관없이 화면 전체를 덮는 오버레이 */
+  inset: 0;
+  z-index: var(--z-sheet); /* extra.css 의 층 순서값: 하단 고정 탭바·CTA(--z-sticky)와 --z-overlay 보다 위, 토스트(--z-toast)보다 아래 */
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-text-primary) 40%, transparent); /* 글자색 토큰 40% + 투명 60% 를 섞은 반투명 */
+}
+
+/* Figma: 흰 배경, 상단 radius md, 패딩 12 / 24 / 32, 간격 16 */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing-xl);
+  width: 100%;
+  max-width: var(--screen-max-width);
+  max-height: calc(100% - var(--touch-target)); /* 위에 44 만큼 배경을 남긴다. 내용이 길면 아래 overflow-y 로 패널 안에서 스크롤 */
+  padding: var(--spacing-lg) var(--spacing-4xl) calc(32px + env(safe-area-inset-bottom)); /* 하단 32 는 Figma 값, safe-area 는 코드에서 더함 */
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--color-surface-default);
+  overflow-y: auto;
+  outline: none; /* 열릴 때 패널 자체에 포커스가 가도 테두리를 그리지 않는다 */
+  animation: slideUp var(--duration-fast) ease-out;
+}
+
+/* gap="lg": 세로 간격 18 (Schedule/AddUnavailable) */
+.gapLg {
+  gap: var(--spacing-2xl);
+}
+
+/* DragHandle: 36×4, border/default, pill. 터치 영역은 44 로 넓힌다 */
+.handle {
+  position: relative;
+  align-self: center;
+  width: 36px;
+  height: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-border-default);
+  cursor: pointer;
+}
+
+/* 보이지 않는 터치 영역: 사방 20 씩 넓혀 36×4 막대를 76×44 로 누를 수 있게 한다 */
+.handle::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  bottom: -20px;
+  left: -20px;
+}
+
+/* 제목 h2 글자색 */
+.title {
+  color: var(--color-text-primary);
+}
+
+/* 열릴 때 16px 아래에서 올라오며 나타난다 (시간은 --duration-fast) */
+@keyframes slideUp {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 기기 설정에서 '동작 줄이기' 를 켠 사용자는 애니메이션 없이 바로 보인다 */
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    animation: none;
+  }
+}

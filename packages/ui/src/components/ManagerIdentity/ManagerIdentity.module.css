@@ -1,0 +1,71 @@
+/* ManagerIdentity(라이브 화면의 매니저 소개 줄) 스타일. 한 줄 전체: 아바타 · 글 묶음 · 우측 슬롯을 가로로 */
+.row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* variant 별 칸 사이 간격 (light 12, onVideo 10) */
+.light {
+  gap: var(--spacing-lg);
+}
+
+.onVideo {
+  gap: var(--spacing-md);
+}
+
+/* 아바타 원 48 (light). object-fit: cover 라 사진 비율이 달라도 찌그러지지 않고 원을 채운다 */
+.avatar {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* onVideo 아바타는 44 */
+.onVideo .avatar {
+  width: 44px;
+  height: 44px;
+}
+
+/* 이름 줄 + 소개를 세로로. min-width: 0 이라 긴 소개가 우측 슬롯을 밀어내지 않고 남은 폭 안에서 줄어든다 */
+.text {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 3px; /* Figma 원본값 */
+  min-width: 0;
+}
+
+/* onVideo 글 간격 4 */
+.onVideo .text {
+  gap: var(--spacing-2xs);
+}
+
+/* 이름 + LIVE 배지 (간격 8) */
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* light 의 이름·소개 색 */
+.name {
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.description {
+  color: var(--color-text-secondary);
+}
+
+/* onVideo: 검정 영상 위라 흰색 계열 원본색(extra.css 의 --raw-on-video*) */
+.onVideo .name {
+  color: var(--raw-on-video);
+}
+
+.onVideo .description {
+  color: var(--raw-on-video-muted);
+  white-space: nowrap;
+}

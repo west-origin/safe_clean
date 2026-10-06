@@ -1,0 +1,34 @@
+/* CameraStatusItem.jsx 의 스타일. 상태 색은 .ok / .issue 가 오른쪽 값(.value)에만 입힌다. */
+
+/* Figma: Manager/CameraStatusItem — 상하 14, 간격 6, 아이콘 18 */
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+  width: 100%;
+  padding: 14px 0; /* Figma 원본값 (상하 14 는 토큰에 없음) */
+}
+
+/* 왼쪽 항목명 (회색) */
+.label {
+  color: var(--color-text-secondary);
+}
+
+/* 오른쪽 아이콘 + 상태 문구 */
+.value {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  white-space: nowrap;
+}
+
+/* 정상: 초록. 아이콘도 currentColor 라 글자색을 따라 같이 바뀐다 */
+.ok .value {
+  color: var(--color-status-success);
+}
+
+/* Figma 아이콘 원본 stroke 는 토큰에 없는 색이라 status/live 로 통일 (PROGRESS.md 판단 항목) */
+.issue .value {
+  color: var(--color-status-live);
+}

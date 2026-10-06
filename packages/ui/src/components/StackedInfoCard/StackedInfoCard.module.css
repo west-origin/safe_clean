@@ -1,0 +1,47 @@
+/* 아이콘·라벨·값을 세로로 쌓은 정보 카드(StackedInfoCard) 모양. */
+
+/* 카드 바깥: 흰 바탕 + 그림자(원본값 --raw-repair-card-shadow), 패딩 20, 항목 사이 14 */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px; /* Figma 원본값 */
+  width: 100%;
+  padding: var(--spacing-3xl);
+  border-radius: var(--radius-md);
+  box-shadow: var(--raw-repair-card-shadow);
+  background: var(--color-surface-default);
+  box-sizing: border-box;
+}
+
+/* 항목 하나: 아이콘 → 라벨 → 값을 세로로, 왼쪽 정렬, 간격 10 */
+.row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+/* 항목 아이콘: 브랜드색 */
+.icon {
+  color: var(--color-brand-primary);
+}
+
+/* 항목 라벨 (예: "방문 일정") */
+.label {
+  color: var(--color-text-primary);
+}
+
+/* 값 상자: 높이 34, 회색 입력칸 바탕, 글자는 세로 가운데 */
+.value {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 34px;
+  margin: 0;
+  padding: 0 var(--spacing-lg);
+  border-radius: 8px; /* Figma 원본값 */
+  background: var(--color-surface-field);
+  color: var(--color-text-secondary);
+  box-sizing: border-box;
+}

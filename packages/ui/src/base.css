@@ -1,0 +1,82 @@
+/* 전역 기본값. 두 앱이 공통으로 쓴다. 색·크기 값은 전부 토큰(var(--…))만 쓴다. */
+/* styles.css 가 폰트·토큰 파일 다음 마지막에 import 한다. 여기서 쓰는 var(--…) 는 그 앞 파일들(tokens/)에 정의돼 있다.
+ * 아래 규칙은 .sr-only 만 빼고 클래스 없이 걸리는 선택자(태그·전체·id 선택자·:focus-visible)라,
+ * import 만 하면 두 앱의 모든 화면에 바로 적용된다. */
+
+/* 모든 요소의 width/height 에 안쪽 여백(padding)과 테두리를 포함해 계산한다 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* 앱 전체 기본 글꼴·줄 높이. text-size-adjust 는 휴대폰 브라우저가 가로 회전 때 글자를 임의로 키우지 않게,
+ * font-smoothing 은 맥 브라우저에서 글자 가장자리를 얇고 매끄럽게 그리게 한다 */
+html {
+  font-family: var(--font-family-sans);
+  line-height: var(--line-height-auto);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* html·body·index.html 의 id="root" div(React 화면이 들어가는 곳)의 브라우저 기본 바깥 여백을 없앤다 */
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  /* 컨테이너(--screen-max-width) 밖(태블릿·PC)은 살짝 어두운 배경 — 앱이 가운데 있다는 것이 보이게. 폰에서는 .screen 이 전부 덮는다 */
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+  /* 한글: 어절 단위로 줄바꿈하고, 너무 긴 단어는 강제로 끊는다 */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* 제목·문단의 브라우저 기본 위아래 여백을 없앤다 — 간격은 각 컴포넌트·화면 CSS 가 정한다 */
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+/* 폼 요소는 브라우저가 자기 글꼴·글자색을 따로 쓰므로, 부모(앱 글꼴·색)를 물려받게 한다 */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* 키보드 포커스 링 기본값 — 컴포넌트마다 복사하던 규칙의 기준값. 영상 위(어두운 배경) 컴포넌트는 자기 색으로 덮어쓴다 */
+:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* 화면이 바뀌면 RouteShell 이 첫 제목으로 포커스를 옮긴다 — 프로그램 포커스에는 링을 그리지 않는다 */
+h1[tabindex='-1']:focus {
+  outline: none;
+}
+
+/* 스크린리더 전용 텍스트 (한 곳에서만 정의한다) */
+/* 1px 크기로 잘라 화면에서는 안 보이지만 스크린리더는 읽는다. display: none 으로 숨기면 스크린리더도 읽지 않는다.
+ * CSS Module 이 아닌 전역 클래스라 JSX 에서 className="sr-only" 로 그대로 쓴다 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

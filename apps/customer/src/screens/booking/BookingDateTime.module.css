@@ -1,0 +1,22 @@
+/* 날짜·시간 선택 화면(BookingDateTime.jsx) 여백. 세로 배치·CTA 폭은 booking.module.css 공통 */
+/* NavBar 아래 4, 하 52 */
+.body {
+  padding: var(--spacing-2xs) 0 52px; /* Figma 원본값 하 52 */
+}
+
+/* CalendarPanel ↔ TimePanel 9 */
+.stack {
+  gap: 9px; /* Figma 원본값 */
+}
+
+/* TimePanel ↔ Button 12 */
+.cta {
+  margin-top: var(--spacing-lg);
+}
+
+/* '다음'·'변경 완료' 실패 문구 (코드에서 정함): ActionError 에 className 으로 넘겨 버튼 아래 8 띄우고 가운데 정렬한다. 글자색은 ActionError 의 빨강.
+   위 여백을 margin 이 아니라 padding 으로 주는 이유: ActionError 의 margin: 0 과 같은 무게라 CSS 가 읽히는 순서에 따라 여백이 사라질 수 있다 */
+.error {
+  padding-top: var(--spacing-sm);
+  text-align: center;
+}

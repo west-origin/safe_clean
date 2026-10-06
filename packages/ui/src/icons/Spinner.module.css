@@ -1,0 +1,15 @@
+/* Spinner.jsx 전용 CSS Module. 원호 svg 를 제자리에서 계속 돌린다 */
+
+/* 도는 svg 자체 */
+.spinner {
+  display: block;
+  flex-shrink: 0; /* Button 같은 flex 부모 안에서 폭이 줄어 찌그러지지 않게 */
+  animation: spin var(--duration-spin) linear infinite; /* 한 바퀴에 --duration-spin(extra.css), 일정한 속도로 끝없이 */
+}
+
+/* 한 바퀴 회전. from 을 적지 않으면 원래 상태(0도)에서 시작해 360도까지 돈다 */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,51 @@
+/* Auth/ProfileHousing 화면 레이아웃 (ProfileHousing.jsx). 공통 틀(뒤로 버튼 위치, 세로 배치)은 auth.module.css */
+
+/* Figma PageBody: 상 27 / 우 22 / 하 78 / 좌 24 */
+.body {
+  padding: 27px 22px 78px var(--spacing-4xl); /* Figma 원본값 27·22·78 */
+}
+
+/* ContentStack: 간격 43 */
+.stack {
+  gap: 43px; /* Figma 원본값 */
+}
+
+/* 항목 묶음(거주형태 · 평수 · 반려동물): 안의 요소를 세로로 쌓는다. 간격은 아래 sectionXs/sectionSm 이 정한다 */
+.section {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
+
+/* Section/HousingType 간격 4, Section/Size·Pet 간격 6 */
+.sectionXs {
+  gap: var(--spacing-2xs);
+}
+
+.sectionSm {
+  gap: var(--spacing-xs);
+}
+
+/* 묶음 제목(h2 "거주형태" · "반려동물 여부"): 기본 여백 제거 */
+.sectionLabel {
+  margin: 0;
+}
+
+/* HousingTypeGrid · PetGrid: 양끝 정렬 */
+.grid {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+/* InfoWrap: 상 11 */
+.infoWrap {
+  padding-top: 11px; /* Figma 원본값 */
+}
+
+/* CheckRow: 오른쪽 정렬, 상 8 / 우 13 */
+.checkRow {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--spacing-sm) 13px 0 0; /* Figma 원본값 우 13 */
+}

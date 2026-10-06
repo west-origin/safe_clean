@@ -1,0 +1,6 @@
+/* DeleteAccountSheet.jsx 의 스타일. 시트의 모양·간격은 Sheet 가 맡고 여기엔 안내문만 있다 */
+/* 제목 아래 안내문: p 기본 여백을 없애고 회색 글자 */
+.description {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,14 @@
+/* Job/Paused 화면 레이아웃 (JobPaused.jsx) */
+
+/* 중단 안내 카드 첫 줄: 왼쪽 제목, 오른쪽 일시정지 배지 */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+/* 안내 문구(note)의 보조 글자색 */
+.secondary {
+  color: var(--color-text-secondary);
+}

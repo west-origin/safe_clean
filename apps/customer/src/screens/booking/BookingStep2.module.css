@@ -1,0 +1,18 @@
+/* 예약 플로우 3단계 '기존 주소를 사용할까요?' 화면(BookingStep2.jsx)의 레이아웃.
+   섹션·선택지·버튼의 공통 틀은 booking.module.css 에 있고, 여기는 이 화면의 위아래 여백과 간격만 정한다. */
+
+/* PageBody: 상 72 / 하 52 */
+.body {
+  padding: 72px 0 52px; /* Figma 원본값 */
+}
+
+/* ContentStack: 간격 79 */
+.stack {
+  gap: 79px; /* Figma 원본값 */
+}
+
+/* 기존 주소 한 줄 (코드에서 정함 — 사용성 검토 2026-09-22) */
+.savedAddress {
+  margin: var(--spacing-md) var(--spacing-2xl) 0;
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,9 @@
+/* ScreenLoading.jsx 의 스타일 */
+/* 스켈레톤(제목 한 줄 + 카드 3개)을 세로로 16 간격으로 쌓는 칸 */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  width: 100%;
+}
+

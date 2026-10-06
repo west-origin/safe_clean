@@ -1,0 +1,7 @@
+/* 상태바 자리(StatusBar). 화면 맨 위 빈 여백: 세로 flex 안에서 줄어들지 않고 가로는 꽉 채운다 */
+.statusBar {
+  flex-shrink: 0;
+  width: 100%;
+  /* OS 가 준 inset 만큼. Android(Capacitor 기본 insetsHandling=css)는 WebView 를 상태바 아래에 두어 inset 이 0 — 44px 를 무조건 잡으면 빈 띠가 생긴다. env() 가 없는 브라우저는 Figma 값 44 */
+  height: env(safe-area-inset-top, 44px);
+}

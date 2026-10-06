@@ -1,0 +1,43 @@
+/* CleaningStatusCard.jsx 의 스타일. 검은 영상 위에 올라가서 배경·글자 색은 영상용 원본색(--raw-*)을 쓴다. */
+/* 반투명 검정 카드 (Figma 265 폭 고정) */
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  width: 265px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  background: var(--raw-overlay-card);
+  box-sizing: border-box;
+}
+
+/* 왼쪽 반투명 흰 원 + 집 아이콘 (아이콘 색은 color 를 따른다) */
+.iconCircle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--raw-overlay-icon-circle);
+  color: var(--raw-on-video);
+}
+
+/* 제목·부제 두 줄 묶음. min-width 0 이 있어야 flex 항목이 글자 폭보다 줄어들어 긴 글이 카드 안에서 줄바꿈된다 */
+.text {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px; /* Figma 원본값 */
+  min-width: 0;
+}
+
+/* 제목(흰색)과 부제(조금 옅은 흰색) */
+.title {
+  color: var(--raw-on-video);
+}
+
+.description {
+  color: var(--raw-on-video-subtle);
+}

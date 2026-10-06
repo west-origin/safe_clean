@@ -1,0 +1,13 @@
+/* 정산 상세 (SettlementDetail.jsx) */
+
+/* 머리: 제목 + 부제 */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+/* 부제 — 회색 */
+.secondary {
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,60 @@
+{
+  "chips": [
+    {
+      "key": "secure",
+      "label": "보안 구역이 있어요",
+      "icon": "lock"
+    },
+    {
+      "key": "access",
+      "label": "출입 등록이 필요해요",
+      "icon": "lock"
+    },
+    {
+      "key": "night",
+      "label": "야간 작업이 필요해요",
+      "icon": "clock"
+    },
+    {
+      "key": "weekend",
+      "label": "주말만 가능해요",
+      "icon": "clock"
+    },
+    {
+      "key": "server",
+      "label": "서버실이 있어요",
+      "icon": "server"
+    },
+    {
+      "key": "elevator",
+      "label": "엘리베이터 제한 있어요",
+      "icon": "elevator"
+    },
+    {
+      "key": "desk",
+      "label": "개인 자리는 제외해주세요",
+      "icon": "desk"
+    },
+    {
+      "key": "caution",
+      "label": "특별히 주의할 공간이 있어요",
+      "icon": "warning"
+    },
+    {
+      "key": "etc",
+      "label": "기타",
+      "icon": "dots"
+    }
+  ],
+  "copy": {
+    "title": "주의사항/\n요청사항을 알려주세요",
+    "description": "더 꼼꼼하고 만족스러운\n청소를 위해 미리 알려주세요",
+    "noticeTitle": "주의사항",
+    "noticeDescription": "해당되는 내용이 있다면 선택해주세요.",
+    "requestTitle": "요청사항",
+    "requestDescription": "청소 시 요청사항이 있다면 자유롭게 입력해주세요.",
+    "requestPlaceholder": "여기에 작성해주세요",
+    "tipTitle": "이렇게 요청해보세요!",
+    "tipBody": "-특히 신경 써줬으면 하는 공간이나 가구가 있다면 알려주세요.\n-청소 전 확인이 필요한 사항이 있다면 미리 알려주세요.\n-기타 특별한 요청사항이 있다면 자세히 적어주세요."
+  }
+}

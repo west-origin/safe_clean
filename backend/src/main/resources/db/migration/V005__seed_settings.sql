@@ -1,0 +1,23 @@
+-- V005__seed_settings.sql — 운영 값 (코드에 상수로 두지 않는다). 바꿀 때는 새 마이그레이션에서 update
+insert into app_settings (key, value) values
+  (E'platform_fee_rate', '0.1'::jsonb),
+  (E'offer_ttl_minutes', '30'::jsonb),
+  (E'preferred_offer_ttl_minutes', '10'::jsonb),
+  (E'free_option_limit', '2'::jsonb),
+  (E'time_slots', '{"am":["09:00","10:00","11:00","12:00"],"pm":["13:00","14:00","15:00","16:00","17:00","18:00"]}'::jsonb),
+  (E'cancel_deadline_hours', '24'::jsonb),
+  (E'duration_hours', '{"home":3,"office":3,"appliance":2,"move-in":4}'::jsonb),
+  (E'dispatch_lead_days', '7'::jsonb),
+  (E'series_term_months', '1'::jsonb),
+  (E'recording_retention_days', '90'::jsonb),
+  (E'home_slides', '[{"id":"realtime","eyebrow":"안심되는 청소,","headline":"지금 시작해요","title":"실시간 청소","description":"내가 없는 순간에도, \n보이니까 더 안심되는 청소","image":"heroRealtime","peek":"heroRealtimePeek"},{"id":"standard","eyebrow":"깨끗한 하루,","headline":"지금 시작해요","title":"일반 청소","description":"깨끗함이 만드는\n기분 좋은 당신의 하루","image":"heroRoom","peek":"heroPeek"}]'::jsonb),
+  (E'repair_hero', '{"eyebrow":"머리 아픈 집수리, ","headline":"안심클린에 맡겨요","title":"수리 서비스","description":"전문 기사가 방문해 진단부터\n수리까지 한 번에 해결해드려요.","image":"repairHero"}'::jsonb),
+  (E'notes_copy', '{"title":"주의사항/\n요청사항을 알려주세요","description":"더 꼼꼼하고 만족스러운\n청소를 위해 미리 알려주세요","noticeTitle":"주의사항","noticeDescription":"해당되는 내용이 있다면 선택해주세요.","requestTitle":"요청사항","requestDescription":"청소 시 요청사항이 있다면 자유롭게 입력해주세요.","requestPlaceholder":"여기에 작성해주세요","tipTitle":"이렇게 요청해보세요!","tipBody":"-특히 신경 써줬으면 하는 공간이나 가구가 있다면 알려주세요.\n-청소 전 확인이 필요한 사항이 있다면 미리 알려주세요.\n-기타 특별한 요청사항이 있다면 자세히 적어주세요."}'::jsonb),
+  (E'confirm_copy', '{"title":"예약내용을\n확인해주세요","description":"아래 내용으로 예약을 진행할게요.\n다시 한번 확인해주세요."}'::jsonb),
+  (E'reservations_header', '{"title":"내 예약을\n확인해주세요","description":"예정된 일정과 지난 이용 내역을\n한 곳에서 볼 수 있어요."}'::jsonb),
+  (E'reservation_tabs', '[{"key":"upcoming","label":"예정"},{"key":"done","label":"완료"},{"key":"cancelled","label":"취소"}]'::jsonb),
+  (E'settings_header', '{"title":"내 정보와\n설정을 관리해요","description":"계정, 알림, 결제 수단을\n한 곳에서 관리할 수 있어요."}'::jsonb),
+  (E'settings_groups', '[{"title":"계정","rows":[{"key":"editProfile","label":"내 정보 수정"},{"key":"addresses","label":"주소 관리"},{"key":"payment","label":"결제 수단"}]},{"title":"알림","rows":[{"key":"push","label":"푸시 알림","toggle":true},{"key":"marketing","label":"마케팅 정보 수신","toggle":true}]},{"title":"고객지원","rows":[{"key":"faq","label":"자주 묻는 질문"},{"key":"inquiry","label":"1:1 문의하기"},{"key":"notice","label":"공지사항"}]},{"title":"약관 및 정보","rows":[{"key":"terms","label":"이용약관"},{"key":"privacy","label":"개인정보 처리방침"},{"key":"version","label":"버전 정보","value":"v1.0.0"}]}]'::jsonb),
+  (E'customer_privacy_note', '"수집된 개인정보는 안전하게 보호되며, \n서비스 제공 목적 외로 사용되지 않습니다."'::jsonb),
+  (E'manager_privacy_note', '"수집된 개인정보는 안전하게 보호되며,\n매니저 활동 목적 외로 사용되지 않습니다."'::jsonb),
+  (E'cleaner_pending_label', '"배정 후 알려드려요"'::jsonb);

@@ -1,0 +1,59 @@
+/* Auth/LoginPhone 화면 레이아웃 (LoginPhone.jsx). 공통 틀(.screen 기준 위치, .body 세로 배치)은 auth.module.css */
+
+/* 화면 전체 배경: 위쪽 하늘색 → 흰색 그라데이션 (Figma 원본색, extra.css 의 --raw-login-gradient) */
+.screen {
+  background: var(--raw-login-gradient);
+}
+
+/* Figma PageBody: 상 38 / 우 23 / 하 107 / 좌 24 */
+.body {
+  padding: 38px 23px 107px var(--spacing-4xl); /* Figma 원본값 38·23·107 */
+}
+
+/* ContentStack: 제목 ↔ 폼 261 (사이에 HeroArt 가 절대 위치로 놓인다).
+ * position: relative + z-index(--z-raised) 로 일러스트(.hero, z-index 0) 위에 그린다 — 가입 화면(SignUp .header·.social)과 같은 방식.
+ * 이것이 없으면 DOM 에서 뒤에 오는 그림이 겹치는 곳(전화번호 칸 이름표)에서 글 위에 그려진다 */
+.stack {
+  position: relative;
+  z-index: var(--z-raised); /* 일러스트 위 */
+  gap: 261px; /* Figma 원본값 */
+}
+
+/* FormStack: 간격 56 */
+.form {
+  gap: 56px; /* Figma 원본값 */
+}
+
+/* HeroArt 방 일러스트. Figma 에서도 절대 위치라 absolute — 기준은 position: relative 인 화면 틀(auth.module.css .screen),
+ * 그래서 top 95 는 StatusBar 를 포함한 화면 맨 위부터다. pointer-events: none 으로 탭은 아래 요소로 통과한다.
+ * 사용자 결정(2026-09-21)대로 글·입력칸 뒤에 둔다: 이 그림은 z-index 0 이고, 겹치는 .stack·.forgot 은 --z-raised 라 그 위에 그려진다.
+ * 그림이 DOM 에서 .body 뒤에 오므로 글 쪽 z-index 를 빼면 그림이 다시 글 위로 올라온다 */
+.hero {
+  position: absolute;
+  z-index: 0; /* 글·입력칸(--z-raised) 뒤 */
+  top: 95px;
+  left: 50%; /* Figma left 66 → 가운데 */
+  width: 262px;
+  transform: translateX(-50%);
+  height: 263px;
+  pointer-events: none;
+}
+
+/* 비밀번호 재설정 링크 (코드에서 정함 — 사용성 검토 2026-09-22) */
+.forgot {
+  z-index: var(--z-raised); /* HeroArt 위 (flex 항목이라 position 없이도 z-index 가 먹는다) */
+  margin: 0 0 var(--spacing-lg);
+  text-align: center;
+}
+
+/* "비밀번호를 잊으셨나요?" 버튼: 버튼 기본 모양을 지운 밑줄 글자. 글자는 작아도 탭 높이는 44 (--touch-target) */
+.link {
+  min-height: var(--touch-target);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-brand-primary);
+  cursor: pointer;
+  text-decoration: underline;
+}

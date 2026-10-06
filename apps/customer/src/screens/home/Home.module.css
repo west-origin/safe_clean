@@ -1,0 +1,200 @@
+/* 고객 앱 홈 화면(Home.jsx)의 레이아웃: 슬라이드별 배경, 가로로 밀어 넘기는 히어로 트랙,
+   절대 위치 그림(HeroArt·HeroArtPeek), '다가오는 방문' 카드 영역. */
+
+/* 슬라이드별 배경 (Figma 프레임 그라디언트). 그라디언트는 transition 이 안 되므로 두 겹으로 깔고 위 겹의 투명도만 바꾼다
+   — 밀어서 넘길 때 배경이 번쩍 바뀌지 않고 300ms 크로스페이드 (코드에서 정함, 2026-09-24) */
+.screen {
+  position: relative;
+  isolation: isolate; /* 아래 두 겹을 화면 내용 뒤에 가둔다 */
+  background: var(--color-surface-default);
+}
+
+/* 배경 두 겹: 화면 전체를 덮는 가상 요소. z-index -1 로 내용 뒤에 두고, 터치는 통과시킨다(pointer-events: none) */
+.screen::before,
+.screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* 아래 겹: 첫 장(실시간 청소) 배경 — 늘 깔려 있다 */
+.screen::before {
+  background: var(--raw-home-realtime-gradient);
+}
+
+/* 위 겹: 둘째 장(일반 청소) 배경. 평소엔 투명하고, 둘째 장일 때 서서히 나타난다 */
+.screen::after {
+  background: var(--raw-home-gradient);
+  opacity: 0;
+  transition: opacity var(--duration-slow) var(--ease-standard);
+}
+
+/* Home.jsx 가 지금 장의 id 로 bg-<id> 클래스를 붙인다 — 둘째 장(standard)이면 위 겹을 보인다 */
+.bg-standard::after {
+  opacity: 1;
+}
+
+/* HomeContent: 간격 16, 하 66 */
+.content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  padding-bottom: 66px; /* Figma 원본값 */
+}
+
+/* HeroCarousel 393×367: 패딩 상 30 / 좌우 24 / 하 6, 헤더 ↔ 슬라이드 정보 153, 캡션 ↔ 점 17.
+   장(slide)마다 패딩을 갖고 가로 트랙 위에 나란히 놓인다 — 트랙이 손가락을 따라 스크롤되고 한 장 단위로 붙는다 */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 17px; /* Figma 원본값 (캡션 ↔ 점) */
+  padding-bottom: var(--spacing-xs);
+}
+
+/* 가로 스크롤 트랙: 장들이 한 줄로 놓이고 손가락으로 밀면 스크롤된다.
+   scroll-snap(mandatory): 손을 떼면 브라우저가 가장 가까운 장의 시작점에 맞춰 멈춘다. 스크롤 막대는 숨긴다 */
+.track {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain; /* 끝에서 더 밀어도 뒤로가기 제스처·페이지로 번지지 않게 */
+  scrollbar-width: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* scrollbar-width 를 모르는 옛 Safari·Chrome 계열용으로 스크롤 막대를 한 번 더 숨긴다 */
+.track::-webkit-scrollbar {
+  display: none;
+}
+
+/* 키보드로 포커스했을 때만 테두리. offset 이 음수라 테두리가 트랙 바깥이 아닌 안쪽에 그려진다 */
+.track:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+}
+
+/* 장 하나: 트랙 폭을 꽉 채운다(flex 0 0 100%). 안의 그림이 absolute 라 기준점이 되도록 position: relative */
+.slide {
+  position: relative;
+  display: flex;
+  flex: 0 0 100%;
+  flex-direction: column;
+  gap: 153px; /* Figma 원본값 */
+  box-sizing: border-box;
+  padding: 30px var(--spacing-4xl) 0; /* Figma 원본값 상 30 */
+  scroll-snap-align: start;
+  scroll-snap-stop: always; /* 세게 튕겨도 한 장씩 */
+}
+
+/* 점(CarouselDots): 트랙 밖에 있어 장과 같이 움직이지 않는다. 좌우 여백은 장의 패딩과 맞춘다 */
+.dots {
+  padding: 0 var(--spacing-4xl);
+  box-sizing: border-box;
+}
+
+/* HeroArtPeek: 블러 4. 위치는 슬라이드별 — Realtime 오른쪽 (344, 81) 49×183 / Standard 왼쪽 (0, 109) 51×155 */
+.peek {
+  position: absolute;
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+.peek-realtime {
+  top: 81px;
+  right: 0; /* Figma left 344 = 393−49: 오른쪽 끝에 붙는다 */
+  width: 49px;
+  height: 183px;
+}
+
+.peek-standard {
+  top: 109px;
+  left: 0;
+  width: 51px;
+  height: 155px;
+}
+
+/* HeroArt: Realtime (56, 58) 262×253 / Standard (66, 52) 262×263 */
+.heroArt {
+  position: absolute;
+  pointer-events: none;
+}
+
+.art-realtime {
+  top: 58px;
+  left: calc(50% - 9.5px); /* Figma left 56 → 중심 187 (393 의 중심 196.5 보다 9.5 왼쪽) */
+  width: 262px;
+  transform: translateX(-50%);
+  height: 253px;
+}
+
+.art-standard {
+  top: 52px;
+  left: 50%; /* Figma left 66 → 가운데 */
+  width: 262px;
+  transform: translateX(-50%);
+  height: 263px;
+}
+
+/* 장 위쪽 문구(작은 글 + 헤드라인). position: relative 로 absolute 그림보다 위에 그린다. 줄바꿈 없이 한 줄 */
+.heroHeader {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  white-space: nowrap;
+}
+
+/* 히어로 글자들: 브라우저 기본 여백을 없애고, 설명 외에는 기본 글자색 */
+.eyebrow,
+.title,
+.slideTitle,
+.slideDescription {
+  margin: 0;
+}
+
+.eyebrow,
+.title,
+.slideTitle {
+  color: var(--color-text-primary);
+}
+
+/* 장 아래쪽: 장 번호(SlideCounter) + 제목 + 설명 */
+.caption {
+  position: relative; /* 그림(absolute) 위에 */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  white-space: nowrap;
+}
+
+/* 슬라이드 설명: 문구 속 줄바꿈 문자를 그대로 줄바꿈으로 보인다(pre-line) */
+.slideDescription {
+  color: var(--color-text-secondary);
+  white-space: pre-line;
+}
+
+/* 다가오는 방문 (코드에서 정함 — 사용성 검토 2026-09-22) */
+.upcoming {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: 0 var(--spacing-2xl);
+}
+
+/* '다가오는 방문' 제목 */
+.upcomingTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+/* OS '동작 줄이기' 설정이면 배경을 서서히 바꾸지 않고 바로 바꾼다 (Home.jsx 의 reducedMotion 과 같은 조건) */
+@media (prefers-reduced-motion: reduce) {
+  .screen::after {
+    transition: none;
+  }
+}

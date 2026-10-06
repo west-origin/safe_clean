@@ -1,0 +1,41 @@
+/* 내 예약 화면(Reservations.jsx)의 머리글·예약 카드 목록·취소 시트 안 글의 배치 */
+/* PageHeader: 상 46 / 우 23 / 하 18 / 좌 24, 간격 8 */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: 46px 23px var(--spacing-2xl) var(--spacing-4xl); /* Figma 원본값 46·23 */
+}
+
+/* 제목·설명 글 공통: pre-line 으로 문구 안의 줄바꿈 문자를 화면에서도 줄을 바꿔 보이게 한다 */
+.title,
+.description {
+  margin: 0;
+  white-space: pre-line;
+}
+
+/* 머리글 제목 */
+.title {
+  color: var(--color-text-primary);
+}
+
+/* 머리글 설명. 취소 시트 안의 예약 이름·안내 글·정기청소 안내에도 같은 클래스를 쓴다 */
+.description {
+  color: var(--color-text-secondary);
+}
+
+/* ReservationList: 상하 20 / 우 23 / 좌 24, 간격 12 */
+.list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-3xl) 23px var(--spacing-3xl) var(--spacing-4xl); /* Figma 원본값 우 23 */
+}
+
+/* 취소 시트: 정기청소 범위 선택 (코드에서 정함) */
+.scope {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}

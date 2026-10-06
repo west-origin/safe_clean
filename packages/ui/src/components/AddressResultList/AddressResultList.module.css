@@ -1,0 +1,75 @@
+/* 목록 전체 (ul). 기본 목록 점·여백을 없애고 회색 배경 위에 행을 세로로 쌓는다 */
+.list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--color-surface-subtle);
+}
+
+/* 결과 한 행 (버튼): 원 아이콘 + 두 줄 글자 + chevron. 최소 높이 54 는 Figma 이미지에서 잰 값 (터치 영역 44 이상) */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  width: 100%;
+  min-height: 54px;
+  margin: 0;
+  padding: var(--spacing-sm) var(--spacing-xl);
+  border: 0;
+  box-shadow: inset 0 -1px 0 var(--color-border-default); /* 아래 구분선. Figma 선처럼 행 안쪽에 그린다 (CODE_GUIDE.md 2-1) */
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* 모바일 브라우저가 탭할 때 덮는 기본 하이라이트를 끈다 (눌림은 :active 로) */
+}
+
+/* 누르고 있는 동안의 배경 */
+.row:active {
+  background: var(--color-surface-pressed);
+}
+
+/* 키보드 포커스 링을 행 안쪽(-2px)에 그린다 (base.css 기본값은 바깥 2px) */
+.row:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+}
+
+/* 왼쪽 회색 원(32) 안의 핀 아이콘 */
+.circle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-surface-pressed);
+  color: var(--color-text-secondary);
+}
+
+/* 주소(main)·부가 정보(sub) 두 줄. 남은 폭을 모두 차지한다 */
+.text {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0; /* flex 자식은 기본으로 가장 긴 단어 폭보다 좁아지지 않아 행 밖으로 넘칠 수 있다 → 0 으로 풀어 행 폭 안에 두게 */
+}
+
+/* 글자색: 주소는 기본색, 부가 정보와 오른쪽 chevron 은 보조색 */
+.main {
+  color: var(--color-text-primary);
+}
+
+.sub,
+.chevron {
+  color: var(--color-text-secondary);
+}
+
+/* 주소가 길어도 chevron 은 줄어들지 않는다 */
+.chevron {
+  flex-shrink: 0;
+}

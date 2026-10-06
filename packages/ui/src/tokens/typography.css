@@ -1,0 +1,291 @@
+/* 자동 생성 파일 — 직접 수정 금지.
+ * 원본: design/figma-tokens.json 의 textStyles (Figma 텍스트 스타일 23개)
+ * 생성: npm run tokens  (scripts/build-tokens.js)
+ * 사용: <h1 className="text-heading-xl">, <p className="text-body-default"> …
+ */
+
+:root {
+  --font-family-sans: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  --line-height-auto: 1.2; /* Figma line-height AUTO 대응. 코드에서 정한 값 (PLAN.md §5) */
+
+  /* font-size */
+  --font-size-body-bold: 15px;
+  --font-size-body-default: 15px;
+  --font-size-body-l: 20px;
+  --font-size-body-m: 18px;
+  --font-size-body-s: 14px;
+  --font-size-body-xs: 13px;
+  --font-size-button-label: 22px;
+  --font-size-caption: 11px;
+  --font-size-caption-bold: 11px;
+  --font-size-caption-l: 12px;
+  --font-size-caption-l-bold: 12px;
+  --font-size-caption-medium: 11px;
+  --font-size-heading-l: 28px;
+  --font-size-heading-m: 24px;
+  --font-size-heading-s: 20px;
+  --font-size-heading-xl: 32px;
+  --font-size-label-default: 15px;
+  --font-size-label-m: 16px;
+  --font-size-label-s: 13px;
+  --font-size-label-xs: 12px;
+  --font-size-title-card: 16px;
+  --font-size-title-small: 14px;
+  --font-size-title-xs: 13px;
+}
+
+/* Body/Bold — Noto Sans KR Bold 15 */
+.text-body-bold {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body-bold);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Body/Default — Noto Sans KR Regular 15 */
+.text-body-default {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body-default);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Body/L — Noto Sans KR Regular 20 */
+.text-body-l {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body-l);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Body/M — Noto Sans KR Regular 18 */
+.text-body-m {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body-m);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Body/S — Noto Sans KR Regular 14 */
+.text-body-s {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body-s);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Body/XS — Noto Sans KR Regular 13 */
+.text-body-xs {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body-xs);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Button/Label — Noto Sans KR Bold 22 */
+.text-button-label {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-button-label);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Caption — Noto Sans KR Regular 11 */
+.text-caption {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Caption/Bold — Noto Sans KR Bold 11 */
+.text-caption-bold {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-caption-bold);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Caption/L — Noto Sans KR Regular 12 */
+.text-caption-l {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-caption-l);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Caption/L-Bold — Noto Sans KR Bold 12 */
+.text-caption-l-bold {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-caption-l-bold);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Caption/Medium — Noto Sans KR Medium 11 */
+.text-caption-medium {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-caption-medium);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Heading/L — Noto Sans KR Bold 28 */
+.text-heading-l {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-heading-l);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Heading/M — Noto Sans KR Bold 24 */
+.text-heading-m {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-heading-m);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Heading/S — Noto Sans KR Bold 20 */
+.text-heading-s {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-heading-s);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Heading/XL — Noto Sans KR Bold 32 */
+.text-heading-xl {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-heading-xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Label/Default — Noto Sans KR Medium 15 */
+.text-label-default {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-label-default);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Label/M — Noto Sans KR Medium 16 */
+.text-label-m {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-label-m);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Label/S — Noto Sans KR Medium 13 */
+.text-label-s {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-label-s);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Label/XS — Noto Sans KR Medium 12 */
+.text-label-xs {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-label-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Title/Card — Noto Sans KR Bold 16 */
+.text-title-card {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-title-card);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Title/Small — Noto Sans KR Bold 14 */
+.text-title-small {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-title-small);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}
+
+/* Title/XS — Noto Sans KR Bold 13 */
+.text-title-xs {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-title-xs);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-auto);
+  letter-spacing: 0;
+  word-break: keep-all; /* 한글: 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;
+}

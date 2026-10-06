@@ -1,0 +1,39 @@
+/* ErrorState.jsx 의 스타일 */
+/* EmptyState 와 같은 골격 */
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px; /* EmptyState 와 동일 (Figma 원본값) */
+  width: 100%;
+  padding: 72px 0;
+  text-align: center;
+}
+
+/* 84px 회색 원. 안의 경고 아이콘은 color(status/live)를 따른다 */
+.circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-subtle);
+  color: var(--color-status-live);
+}
+
+/* 제목은 기본 글자색, 설명은 회색 */
+.title {
+  color: var(--color-text-primary);
+}
+
+.description {
+  color: var(--color-text-secondary);
+}
+
+/* "다시 시도" 버튼: Button 기본은 가로 꽉 채움이라 폭을 글자에 맞추고 최소 160 으로 둔다 */
+.retry {
+  width: auto;
+  min-width: 160px;
+  margin-top: var(--spacing-md);
+}

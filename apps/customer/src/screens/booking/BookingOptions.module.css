@@ -1,0 +1,43 @@
+/* 예약 플로우 6단계 '옵션 선택' 화면(BookingOptions.jsx)의 레이아웃.
+   흰 시트 틀은 booking.module.css 의 .sheet·.sheetStack 이 그리고, 여기는 이 화면만의 간격과 옵션 줄 배치를 덧붙인다. */
+
+/* ContentStack: 헤더 ↔ 섹션 34 (다른 시트 화면의 47 과 다름) */
+.stack {
+  gap: 34px; /* Figma 원본값 */
+}
+
+/* Sections: 무료 ↔ 유료 126 */
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 126px; /* Figma 원본값 */
+}
+
+/* Section/FreeOptions: 제목 ↔ 행 2 / OptionRow 좌 9 우 7 */
+.freeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 2px; /* Figma 원본값 */
+}
+
+/* 무료 옵션 줄 (Figma 는 3개): 한 줄에 놓고 양 끝을 맞춘다 (사이 간격은 남는 폭으로 자동) */
+.freeRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0 7px 0 9px; /* Figma 원본값 */
+}
+
+/* Section/PaidOptions: 제목 ↔ 행 0 / OptionRow 좌 52 우 59 */
+.paidSection {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 유료 옵션 줄 (Figma 는 2개) — 좌우 안쪽 여백이 무료 줄보다 커서 옵션들이 가운데 쪽으로 모인다 */
+.paidRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0 59px 0 52px; /* Figma 원본값 */
+}

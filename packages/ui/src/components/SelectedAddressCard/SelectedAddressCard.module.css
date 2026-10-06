@@ -1,0 +1,51 @@
+/* 수리 예약의 '현재 선택된 주소' 카드(SelectedAddressCard) 모양. */
+
+/* 카드 바깥: 2px 브랜드색 테두리, 패딩 20, 제목과 주소 묶음 사이 16 */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  width: 100%;
+  padding: var(--spacing-3xl);
+  border: 2px solid var(--color-brand-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-default);
+  box-sizing: border-box;
+}
+
+/* "현재 선택된 주소" 제목. h2 기본 여백을 없앤다 */
+.title {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+/* 안내 줄 + 주소 묶음 (세로, 간격 10) */
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* 핀 아이콘 + "서비스 방문지" 한 줄 */
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* 핀 아이콘: 브랜드색, 줄어들지 않게 */
+.icon {
+  flex-shrink: 0;
+  color: var(--color-brand-primary);
+}
+
+/* "서비스 방문지" 보조 글자 */
+.caption {
+  color: var(--color-text-secondary);
+}
+
+/* 주소 두 줄. p 기본 여백을 없앤다 */
+.address {
+  margin: 0;
+  color: var(--color-text-primary);
+}

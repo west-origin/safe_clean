@@ -1,0 +1,63 @@
+/* 인증 화면 공통 레이아웃 (Auth/TermsConsent · LoginPhone · ProfileInfo-*). Figma 프레임: StatusBar → PageBody(위 내용, 아래 버튼, SPACE_BETWEEN) + 떠 있는 Button/Back */
+/* 그 밖의 가입·비밀번호 재설정 화면도 이 파일을 가져다 쓴다 (예: ProfileAddress, ResetPassword). 화면별 여백은 각 화면의 module.css 에 */
+/* 화면 틀: 아래 .back(absolute)의 위치 기준 */
+.screen {
+  position: relative;
+}
+
+/* Button/Back: 아이콘 24 가 화면 (21, 52) — 44 터치 영역이므로 (11, 42) */
+.back {
+  position: absolute;
+  top: 42px;
+  left: 11px;
+  z-index: 1; /* 뒤에 오는 .body 보다 위에 그려 탭이 가려지지 않게 */
+}
+
+/* PageBody: 위 내용 / 아래 CTA. 패딩은 화면마다 다르다 */
+.body {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ContentStack: 제목·입력칸 등 위쪽 내용을 세로로 쌓고 가로는 꽉 채운다.
+   간격(gap)은 여기 없다 — 쓰는 화면이 자기 module.css 에서 준다 (예: TermsConsent.module.css .stack) */
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
+
+/* PageHeader: StepDots 가운데 + TitleWrap(상단 16) 가운데 정렬 */
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.titleWrap {
+  padding-top: var(--spacing-xl);
+  text-align: center;
+  white-space: pre-line; /* Figma 제목 줄바꿈 */
+}
+
+/* 제목 h1: 브라우저 기본 여백을 없앤다 */
+.title {
+  margin: 0;
+}
+
+/* Button/Primary 286×64 가운데 */
+.cta {
+  width: 286px;
+  flex-shrink: 0;
+}
+
+/* 입력칸 묶음 (예: LoginPhone, ProfileInfo): 세로로 쌓고 가로는 꽉 채운다 */
+.form {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}

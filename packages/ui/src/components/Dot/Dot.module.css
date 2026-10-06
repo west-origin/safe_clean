@@ -1,0 +1,18 @@
+/* Dot.jsx 의 스타일 */
+/* 10px 원. flex 줄 안에서 글이 길어도 찌그러지지 않게 flex-shrink 0 */
+.dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+}
+
+/* tone="live" / tone="success" 의 점 색 */
+.live {
+  background: var(--color-status-live);
+}
+
+.success {
+  background: var(--color-status-success);
+}

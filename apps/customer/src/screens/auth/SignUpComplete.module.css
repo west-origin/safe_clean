@@ -1,0 +1,28 @@
+/* 가입 완료 화면(SignUpComplete.jsx) 레이아웃: 화면을 채우는 이미지 버튼 한 장 + 실패 문구 */
+/* 이미지 401 이 화면 393 보다 넓어 가운데 정렬(Figma x −4) 후 넘치는 부분은 자른다 */
+.screen {
+  overflow: hidden;
+}
+
+/* 이미지 버튼(ImageButton): Figma 이미지 크기 401×852 그대로. 화면이 좁아도 줄어들지 않는다 */
+.image {
+  align-self: center;
+  flex-shrink: 0;
+  width: max(100%, 401px); /* full-bleed 이미지 — 넓은 폰에서도 가득 */
+  height: 852px;
+}
+
+/* 실패 문구(ActionError 에 className 으로 넘긴다): 이미지 위, 보이는 화면 아래쪽 24 에 겹쳐 그린다 (Figma 에 없음 — 코드에서 정함).
+ * absolute 가 아니라 fixed 인 이유: 화면 틀 높이는 이미지 852px 이상이라 틀 기준 아래쪽이면 그보다 짧은 폰(360×800 등)에서 다시 첫 화면 밖이 된다.
+ * 폭은 화면 틀과 같게(--screen-max-width 까지, 가운데 — ActionError 의 margin: 0 과 부딪치지 않게 margin 대신 left 50% + translate).
+ * 문구 아래의 이미지 버튼이 계속 눌리도록 탭은 통과시킨다. 글자색은 공용 ActionError 의 빨강을 따른다 */
+.error {
+  position: fixed;
+  bottom: max(var(--spacing-4xl), env(safe-area-inset-bottom)); /* 아이폰 홈 막대보다 위 */
+  left: 50%;
+  width: min(100%, var(--screen-max-width));
+  padding: 0 var(--spacing-3xl);
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}

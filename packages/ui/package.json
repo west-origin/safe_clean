@@ -1,0 +1,24 @@
+{
+  "name": "@ansimclean/ui",
+  "private": true,
+  "version": "0.1.0",
+  "description": "안심클린 디자인 시스템 — 토큰, 타이포그래피, 프리미티브 컴포넌트 (두 앱 공용)",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./styles.css": "./src/styles.css",
+    "./tokens.css": "./src/tokens/tokens.css",
+    "./typography.css": "./src/tokens/typography.css",
+    "./tokens": "./src/tokens/tokens.js",
+    "./dev": "./src/dev/index.js",
+    "./extra.css": "./src/tokens/extra.css"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@fontsource/noto-sans-kr": "^5.3.0"
+  }
+}

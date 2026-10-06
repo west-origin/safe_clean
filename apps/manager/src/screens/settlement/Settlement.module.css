@@ -1,0 +1,18 @@
+/* 정산 화면 (Settlement.jsx) */
+
+/* 이번 달 합계 카드의 라벨 — 회색 */
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+/* 이번 달 합계 금액 — 브랜드 색 */
+.brand {
+  color: var(--color-brand-primary);
+}
+
+/* '업무별 정산' 묶음: 제목 · 정산 카드들 · 더 보기를 세로로 */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}

@@ -1,0 +1,112 @@
+/* Job/Detail 화면 레이아웃 (JobDetail.jsx, 방문 취소 시트 포함) */
+
+/* 상단 머리: 상태 배지 → 시작 시각 제목 */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* Figma AddressCard: 패딩 16/18, 간격 10 */
+.address {
+  gap: var(--spacing-md);
+}
+
+/* 주소 카드 아래 '지도 보기'·'고객 연락' 버튼 한 줄 */
+.contactRow {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+/* InfoBlock: 행 간격 10, 라벨 폭 88, 라벨↔값 간격 12 */
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin: 0;
+}
+
+/* 정보 한 행: 라벨(dt)과 값(dd)을 가로로 */
+.infoRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+/* dd 의 브라우저 기본 왼쪽 여백을 없앤다 */
+.infoRow dd {
+  margin: 0;
+}
+
+/* 라벨 칸: 폭 88 고정, 값이 길어도 줄어들지 않는다 */
+.infoLabel {
+  flex-shrink: 0;
+  width: 88px;
+  color: var(--color-text-secondary);
+}
+
+/* 예상 정산 금액 강조색 */
+.pay {
+  color: var(--color-brand-primary);
+}
+
+/* ScopeBlock: 제목과 항목 간격 2 */
+/* 실제로 쓰는 값은 --spacing-2xs(4px)다 — spacing 토큰에 2px 이 없다 */
+.scope {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+}
+
+/* 고객 요청사항 블록: 제목 → 요청 카드 → (있으면) 사진 목록 */
+.requests {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* 요청사항 목록: 글머리표는 JSX 의 "•" 문자로 그리므로 목록 기본 기호·여백을 없앤다 */
+.bullets {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 수리 사진 (코드에서 정함): 가로 스크롤, 104px 정사각 — 고객 앱 PhotoPicker 와 같은 크기 */
+.photos {
+  display: flex;
+  gap: var(--spacing-md);
+  margin: var(--spacing-md) 0 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+}
+
+/* 사진 한 칸(탭하면 원본을 새 창으로). overflow: hidden 으로 모서리 radius 밖의 사진을 자른다 */
+.photoLink {
+  display: block;
+  width: 104px;
+  height: 104px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+/* 칸을 꽉 채우고 비율이 다르면 가장자리를 잘라 맞춘다 */
+.photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 방문 취소 시트 (코드에서 정함 — docs/manager-policy.md) */
+.sheetText {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* 사유 목록 */
+.reasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}

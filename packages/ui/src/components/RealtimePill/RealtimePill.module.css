@@ -1,0 +1,25 @@
+/* RealtimePill.jsx 의 스타일. 연한 초록 알약 + 초록 점 + "실시간" 글자 */
+/* 알약 바탕. 옆의 매니저 이름이 길어도 줄어들지 않는다 */
+.pill {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px; /* Figma 원본값 */
+  padding: var(--spacing-xs) 11px var(--spacing-xs) var(--spacing-md); /* Figma 원본값 우 11 */
+  border-radius: var(--radius-pill);
+  background: var(--raw-realtime-pill-bg);
+}
+
+/* 왼쪽 초록 점 (지름 6) */
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--raw-realtime-green);
+}
+
+/* "실시간" 글자. 한 줄로 유지한다 */
+.label {
+  color: var(--raw-realtime-green);
+  white-space: nowrap;
+}

@@ -1,0 +1,74 @@
+/* 예약 플로우 화면들(screens/booking/Booking*.jsx)이 `common` 이라는 이름으로 import 해 쓰는 공통 CSS Module.
+   각 화면은 cx(common.body, styles.body) 처럼 자기 .module.css 클래스와 함께 붙이고, 화면마다 다른 여백·간격은 그쪽에 둔다.
+   .body 가 세로 flex 로 위(내용)와 아래(버튼)를 양 끝에 떼어 놓아, 내용이 짧아도 버튼이 화면 아래에 온다. */
+
+/* 예약 플로우 공통 레이아웃. Figma: StatusBar → NavBar(StepProgress) → PageBody(위 내용 / 아래 Button/Primary 286, SPACE_BETWEEN) */
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 위쪽 내용 묶음. .body 는 가운데 정렬(align-items: center)이라 이것만 가로를 꽉 채우게(stretch) 한다. 간격은 화면별 CSS */
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
+
+/* Section/*: 좌 24 / 우 23, 제목 ↔ 내용 15 */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Figma 원본값 */
+  padding: 0 23px 0 var(--spacing-4xl); /* Figma 원본값 우 23 */
+}
+
+/* 섹션·화면 제목 (h1/h2). 브라우저 기본 여백을 없앤다 */
+.sectionTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+/* 선택지(RadioOption) 세로 목록 — 예: Frequency·Step2 화면 */
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Figma 원본값 (RadioOption 사이) */
+}
+
+/* Button/Primary 286×64 가운데 */
+.cta {
+  width: 286px;
+  flex-shrink: 0;
+}
+
+/* 흰 시트 틀 — 주소 화면 둘 말고 옵션 화면(BookingOptions)도 같은 클래스를 쓴다.
+   테두리를 border 대신 box-shadow inset 으로 그리는 이유는 CODE_GUIDE.md 2-1 */
+/* AddressSearch·AddressConfirm 의 Sheet: 흰 배경 + 1px border/default, 패딩 상 29 / 좌 24 / 우 23 */
+.sheet {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 29px 23px 52px var(--spacing-4xl); /* Figma 원본값 상 29·우 23. 하 272 는 키보드 자리라 52 로 (PROGRESS.md) */
+  box-shadow: inset 0 0 0 1px var(--color-border-default);
+  background: var(--color-surface-default);
+}
+
+/* Sheet › ContentStack: 헤더 ↔ 본문 47 */
+.sheetStack {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: 47px; /* Figma 원본값 */
+}
+
+/* Confirm 의 Button/Primary 는 304 */
+.ctaWide {
+  width: 304px;
+  flex-shrink: 0;
+}

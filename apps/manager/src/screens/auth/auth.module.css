@@ -1,0 +1,101 @@
+/* 로그인·회원가입 화면 공통 레이아웃 (Figma 없음 → 코드에서 정함). 색·글꼴은 ui 컴포넌트와 .text-* 가 정한다 */
+/* screens/auth 폴더의 로그인·가입·재설정·약관 본문 화면이 같이 쓴다 (예: Login, SignUpInfo) */
+
+/* 상단 제목 + 설명 묶음 (Login·ResetPassword) */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* 화면 제목. pre-line: 문구 안의 줄바꿈 문자를 화면에서도 줄바꿈으로 보인다 (예: 약관·정보·재설정 제목은 두 줄) */
+.title {
+  margin: 0;
+  white-space: pre-line;
+}
+
+/* 회색 보조 설명 (Login·ResetPassword 설명, 가입 완료 카드 설명). 줄바꿈 유지 */
+.secondary {
+  margin: 0;
+  color: var(--color-text-secondary);
+  white-space: pre-line;
+}
+
+/* 약관 본문 (TermDetail). 본문의 문단 줄바꿈 유지 */
+.primary {
+  margin: 0;
+  color: var(--color-text-primary);
+  white-space: pre-line;
+}
+
+/* 가입 단계 점(StepDots) — 세로 흐름 안에서 가운데로 */
+.steps {
+  align-self: center;
+}
+
+/* 입력 칸 묶음 (Login·ResetPassword·SignUpInfo) — 칸 사이 세로 간격 */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+
+/* 고객용 Auth/TermsConsent › AgreementCard 와 같은 구성. 패딩은 토큰으로 */
+.agreement {
+  padding: var(--spacing-2xl) var(--spacing-xl) var(--spacing-3xl);
+}
+
+/* 카드 맨 위 '전체 동의하기' 줄 */
+.agreeAll {
+  padding-bottom: var(--spacing-sm);
+}
+
+/* 약관 줄 목록(ul) — 목록 점과 기본 여백을 없애고 세로로 쌓는다 */
+.termRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  margin: 0;
+  padding: var(--spacing-md) 0 0;
+  list-style: none;
+}
+
+/* "아직 계정이 없으신가요? 회원가입" — 링크 버튼은 44 터치 영역 */
+.prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* 글자만 보이는 링크형 버튼 (예: '회원가입', '비밀번호를 잊으셨나요?') — 기본 버튼 테두리·배경을 없앤다 */
+.link {
+  min-height: var(--touch-target);
+  margin: 0;
+  padding: 0 var(--spacing-xs);
+  border: 0;
+  background: none;
+  color: var(--color-brand-primary);
+  cursor: pointer;
+}
+
+/* 가입 완료 카드 (SignUpComplete) — 제목·설명 가운데 정렬 */
+.complete {
+  align-items: center;
+  text-align: center;
+}
+
+/* 인증 안내·오류 (코드에서 정함) */
+/* 지금 screens/auth 의 화면은 .error 를 쓰지 않는다 — 오류 문구는 ActionError·TextField 가 그린다 */
+.error {
+  margin: 0;
+  color: var(--color-status-live);
+}
+
+/* '휴대폰 인증이 완료됐어요' 안내 (SignUpInfo) */
+.verified {
+  margin: 0;
+  color: var(--color-brand-primary);
+}

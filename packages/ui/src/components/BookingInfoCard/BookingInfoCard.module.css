@@ -1,0 +1,49 @@
+/* 카드 전체 (dl): 흰 배경 + radius 20 + 그림자, 행 사이 12. 그림자는 Figma 원본값(extra.css 의 --raw-card-shadow) */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  width: 100%;
+  margin: 0;
+  padding: 27px 25px 27px var(--spacing-2xl); /* Figma 원본값 27·25 */
+  border-radius: var(--radius-md);
+  box-shadow: var(--raw-card-shadow);
+  background: var(--color-surface-default);
+  box-sizing: border-box;
+}
+
+/* 행 하나: 아이콘 + 라벨 + 값 (간격 10) */
+.row {
+  display: flex;
+  align-items: flex-start; /* 값이 두 줄이 돼도 아이콘·라벨은 첫 줄에 (사용성 검토 2026-09-22) */
+  gap: var(--spacing-md);
+}
+
+/* 왼쪽 20px 아이콘 (브랜드색 — 아이콘 선 색은 이 글자색을 따른다) */
+.icon {
+  flex-shrink: 0;
+  margin-top: 3px; /* 값이 두 줄일 때 첫 줄 가운데에 오게 */
+  color: var(--color-brand-primary);
+}
+
+/* 라벨 칸 (dt) — Figma 폭 74 고정, 늘거나 줄지 않는다 */
+.label {
+  flex: 0 0 74px;
+  color: var(--color-text-primary);
+}
+
+/* ValueField: surface/field, radius 8, 높이 30, 좌우 12 */
+.value {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  min-width: 0;
+  min-height: 30px; /* Figma 30 고정 → 최소 높이로. 긴 주소가 잘려 보였다 (사용성 검토 2026-09-22) */
+  margin: 0;
+  padding: var(--spacing-2xs) var(--spacing-lg);
+  border-radius: 8px; /* Figma 원본값 (radius 토큰 5/10/20/32 에 없음) */
+  background: var(--color-surface-field);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere; /* 공백 없는 긴 문자열(주소 등)도 칸 안에서 줄을 바꾼다 */
+  box-sizing: border-box;
+}

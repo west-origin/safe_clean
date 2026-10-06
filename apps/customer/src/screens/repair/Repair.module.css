@@ -1,0 +1,82 @@
+/* 고객 앱 수리 탭 화면(Repair.jsx)의 레이아웃: 히어로(글 + 절대 위치 그림 + 점) · 카테고리 격자 · 선물 배너. */
+
+/* 화면 배경 (Figma Repair 프레임 그라디언트) */
+.screen {
+  background: var(--raw-repair-gradient);
+}
+
+/* RepairContent: 간격 16, 하 11 */
+.content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  padding-bottom: 11px; /* Figma 원본값 */
+}
+
+/* HeroSection 393×352: 상 30 / 좌우 24, 위 헤더 · 아래 슬라이드 정보 (SPACE_BETWEEN) */
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 352px; /* Figma 높이 고정. 이 높이 안에서 헤더는 위, 슬라이드 정보는 아래로 벌어진다. 그림(absolute)은 높이에 들어가지 않는다 */
+  padding: 30px var(--spacing-4xl) 0; /* Figma 원본값 상 30 */
+  box-sizing: border-box;
+}
+
+/* 히어로 위쪽 문구(작은 글 + 헤드라인). position: relative 로 absolute 그림보다 위에 그린다. 줄바꿈 없이 한 줄 */
+.heroHeader {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  white-space: nowrap;
+}
+
+/* HeroArt: 절대 위치 (75, 53) 262×262 */
+.heroArt {
+  position: absolute;
+  top: 53px;
+  left: calc(50% + 9.5px); /* Figma left 75 → 중심 206 */
+  width: 262px;
+  transform: translateX(-50%);
+  height: 262px;
+  pointer-events: none;
+}
+
+/* 히어로 글자들: 브라우저 기본 여백을 없애고, 설명 외에는 기본 글자색 */
+.eyebrow,
+.title,
+.slideTitle,
+.slideDescription {
+  margin: 0;
+}
+
+.eyebrow,
+.title,
+.slideTitle {
+  color: var(--color-text-primary);
+}
+
+/* HeroSlideInfo: 캡션 ↔ 점 15 */
+.slideInfo {
+  position: relative; /* absolute 그림보다 위에 그린다 */
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Figma 원본값 */
+}
+
+/* 히어로 아래쪽 제목 + 설명 */
+.caption {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  white-space: nowrap;
+}
+
+/* 설명: 문구 속 줄바꿈 문자를 그대로 줄바꿈으로 보인다(pre-line) */
+.slideDescription {
+  color: var(--color-text-secondary);
+  white-space: pre-line;
+}

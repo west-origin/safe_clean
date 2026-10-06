@@ -1,0 +1,99 @@
+/* PhotoPicker.jsx 가 쓰는 스타일. 구조: .picker > .title + .list(추가 칸 + 사진들 + 숨긴 input) + .helper */
+
+/* 전체: 제목 → 사진 줄 → 도움말을 세로로 */
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+/* 제목 (h2 기본 여백 제거) */
+.title {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+/* 사진 줄: 가로로 늘어놓고, 화면 폭을 넘으면 이 줄만 옆으로 밀어서 본다 */
+.list {
+  display: flex;
+  gap: var(--spacing-md);
+  overflow-x: auto;
+}
+
+/* 추가 칸과 첨부 사진 공통: 104×104 정사각형, 줄어들지 않는다. 버튼 기본 모양은 지운다 */
+.add,
+.photo {
+  display: flex;
+  flex-shrink: 0;
+  width: 104px;
+  height: 104px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* "사진 추가" 칸: 회색 배경 + 테두리, 안에 ＋ 와 글자를 세로 가운데로 */
+.add {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-subtle);
+}
+
+/* 업로드 중 등 disabled: 흐리게 */
+.add:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* 키보드 초점 테두리 */
+.add:focus-visible,
+.photo:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* Figma: "＋" Inter 28 — 글꼴 크기는 text-heading-m(24) 이 가장 가깝다. 색은 brand/primary */
+.plus {
+  color: var(--color-brand-primary);
+}
+
+/* "사진 추가" 글자 */
+.addLabel {
+  color: var(--color-text-secondary);
+}
+
+/* 첨부 사진 칸: 둥근 모서리 밖으로 사진이 삐져나오지 않게 자른다 */
+.photo {
+  overflow: hidden;
+}
+
+/* 사진: 칸을 꽉 채우고, 비율이 다르면 가운데를 기준으로 잘라 맞춘다(cover) */
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 파일 input 을 1px 로 줄이고 잘라서 눈에 안 보이게 한다 ("사진 추가" 버튼이 input.click() 으로 대신 연다).
+ * absolute 라 사진 줄의 배치·간격에 끼지 않는다 */
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* 아래 도움말 글자 */
+.helper {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

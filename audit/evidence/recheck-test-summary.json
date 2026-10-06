@@ -1,0 +1,23 @@
+{
+  "baseline": "9b131e4",
+  "backend": {
+    "suites": 63,
+    "tests": 357,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0
+  },
+  "frontend": {
+    "files": 133,
+    "tests": 301,
+    "failed": 0
+  },
+  "postgresIntegration": "NOT_RUN_DOCKER_UNAVAILABLE",
+  "lint": "PASS",
+  "tokenCheck": "PASS",
+  "builds": [
+    "customer PASS",
+    "manager PASS"
+  ],
+  "mockShapes": "UNCHANGED"
+}

@@ -1,0 +1,24 @@
+/* 배지 바깥: 빨간 알약 안에 점과 글자를 가로로.
+   색은 Figma 에 변수가 없는 원본색(extra.css 의 --raw-danger 빨강, --raw-on-video 흰색) */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px; /* Figma 원본값 */
+  padding: var(--spacing-2xs) 9px var(--spacing-2xs) var(--spacing-sm); /* Figma 원본값 우 9 */
+  border-radius: var(--radius-pill);
+  background: var(--raw-danger);
+}
+
+/* 왼쪽 흰 점 6×6 (radius 50% 로 원) */
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--raw-on-video);
+}
+
+/* "LIVE" 글자. 줄바꿈하지 않는다 */
+.label {
+  color: var(--raw-on-video);
+  white-space: nowrap;
+}

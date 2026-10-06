@@ -1,0 +1,95 @@
+/* 예약 확인 화면(BookingConfirm.jsx) 레이아웃. 세로 배치·CTA 폭은 booking.module.css 공통 */
+/* 화면 틀: 아래 .hero(absolute)의 위치 기준 */
+.screen {
+  position: relative;
+}
+
+/* HeroIllustration: 절대 위치 (192, 11) 200×194, 맨 위 레이어. 탭은 통과 */
+.hero {
+  position: absolute;
+  z-index: 1;
+  top: 11px;
+  right: 1px; /* Figma left 192 = 393 − 200 − 1: 오른쪽에 붙는다 */
+  width: 200px;
+  height: 194px;
+  pointer-events: none;
+}
+
+/* PageBody: 상 43 / 우 23 / 하 57 / 좌 24, 내용 ↔ 버튼 37 */
+.body {
+  gap: 37px; /* Figma 원본값 */
+  padding: 43px 23px 57px var(--spacing-4xl); /* Figma 원본값 */
+}
+
+/* ContentStack: 간격 15 */
+.stack {
+  gap: 15px; /* Figma 원본값 */
+}
+
+/* 제목 + 설명 묶음 */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 9px; /* Figma 원본값 */
+  white-space: pre-line; /* 서버 문구(confirm-copy) 속 줄바꿈 문자를 실제 줄바꿈으로 */
+}
+
+/* 제목 아래 설명 문구 */
+.description {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* SummaryCard: 상 34 / 우 23 / 하 21 / 좌 12, 행 간격 27 */
+.summary {
+  gap: 27px; /* Figma 원본값 */
+  padding: 34px 23px 21px var(--spacing-lg); /* Figma 원본값 */
+}
+
+/* ChipGroup: 줄바꿈, 간격 5 */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px; /* Figma 원본값 */
+  width: 100%;
+}
+
+/* 완료 실패 문구 (코드에서 정함): ActionError 에 className 으로 넘겨 버튼 아래 8 띄우고 가운데 정렬한다. 글자색은 ActionError 의 빨강.
+   위 여백을 margin 이 아니라 padding 으로 주는 이유: ActionError 의 margin: 0 과 같은 무게라 CSS 가 읽히는 순서에 따라 여백이 사라질 수 있다 */
+.error {
+  padding-top: var(--spacing-sm);
+  text-align: center;
+}
+
+/* 요금 내역 (코드에서 정함 — 사용성 검토 2026-09-22) */
+.priceRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+  margin: 0;
+}
+
+/* 요금 내역 한 줄: 왼쪽 항목 이름(dt) · 오른쪽 금액(dd) */
+.priceRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+/* 항목 이름 (기본 요금·선택 옵션·정기 할인). dt·dd 의 브라우저 기본 여백은 margin 0 으로 없앤다 */
+.priceLabel {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* 금액 */
+.priceValue {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+/* 정기 할인 금액: 브랜드 색으로 강조 */
+.saving {
+  margin: 0;
+  color: var(--color-brand-primary);
+}

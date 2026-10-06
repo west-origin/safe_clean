@@ -1,0 +1,20 @@
+/* 매니저 콜 목록(CallList.jsx) 화면의 레이아웃. */
+
+/* 콜이 있을 때 맨 위 묶음: 제목 · 안내 문구 · 수락 실패 문구 */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+}
+
+/* 안내·설명 문구의 보조 글자색 */
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+/* 빈 상태의 근무 상태 카드 첫 줄: 상태 점 + 상태 문구 */
+.rowStart {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}

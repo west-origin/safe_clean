@@ -1,0 +1,108 @@
+# 공통 설정. 값은 전부 환경변수 참조 (BACKEND_PLAN.md §12). 비밀값을 여기 쓰지 않는다.
+# backend/.env 가 있으면 읽는다 (없어도 된다 — 배포 환경은 진짜 환경변수를 쓴다)
+# ${이름} 은 환경변수(또는 .env)의 값, ${이름:값} 은 그 값이 없을 때 쓸 기본값이다 (콜론 뒤가 비면 빈 문자열).
+# 프로필 파일(application-local.yml·application-test.yml)은 그 프로필을 켰을 때 이 파일 위에 값을 덮어쓴다.
+spring:
+  config:
+    # optional: 파일이 없어도 오류가 아니다. [.properties]: 확장자가 없는 .env 를 KEY=값 형식으로 읽으라는 표시
+    import: optional:file:./.env[.properties]
+  application:
+    name: ansimclean-api
+  servlet:
+    multipart:
+      max-file-size: 5MB              # 수리 사진 (RepairPhotoService.MAX_BYTES 와 같다)
+      max-request-size: 6MB
+  # DB 접속 (Supabase Postgres). hikari = 커넥션 풀(DB 연결을 미리 열어 두고 요청마다 돌려 쓴다)
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10          # Supabase 플랜 한도 안
+  jpa:
+    hibernate:
+      ddl-auto: validate             # 엔티티와 DB 가 다르면 기동 실패 = 원하는 동작. 스키마는 Flyway 로만
+    # open-in-view: false — 컨트롤러가 응답을 쓰는 동안 DB 연결을 붙잡아 두지 않는다. DB 작업은 서비스의 트랜잭션 안에서 끝낸다
+    open-in-view: false
+    properties:
+      # DB 시각을 UTC 로 읽고 쓴다. 서울 시간으로 바꾸는 것은 코드(AppClock·KoreanFormat)에서만 한다
+      hibernate.jdbc.time_zone: UTC
+  # Flyway: 서버가 뜰 때 db/migration 의 V번호__이름.sql 중 아직 적용하지 않은 것을 번호 순서로 실행한다
+  # (이미 적용한 파일은 고치지 않는다 — CODE_GUIDE.md 3-10)
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  http:
+    client:
+      connect-timeout: 5s            # Supabase Auth/Storage·Solapi 호출. 없으면 외부 장애가 요청 스레드·DB 커넥션을 무한 점유한다
+      read-timeout: 10s
+  task:
+    scheduling:
+      pool:
+        size: 3                       # 스케줄러가 여럿이다(예: 아웃박스 5초·오퍼 만료 30초·라이브 재조정 1분, 그 밖에 매일·매시 작업 — 목록은 BACKEND_PLAN.md §2.5). 1개면 재조정기의 mute 확인 폴링(최대 3초)이 아웃박스를 밀어낸다
+  # Jackson 3 기본값이 계약과 같다: 날짜는 ISO 문자열, null 필드 포함, camelCase → 별도 설정 없음
+
+server:
+  port: ${SERVER_PORT:8080}
+  # 스프링 기본 오류 응답에 스택트레이스·예외 메시지를 넣지 않는다 (응답에 내부 정보가 나가지 않게, CLAUDE.md 11장 3번)
+  error:
+    include-stacktrace: never
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health              # 나머지 actuator 는 노출하지 않는다
+
+# 이 프로젝트만의 설정. 같은 이름의 필드로 읽는 곳: cors·supabase·livekit·storage·admin 은 AppProperties,
+# sms 는 SmsProperties, push 는 PushProperties. otp.salt 는 OtpService, http.client-ip-header 는 ClientIp 가 직접(@Value) 읽는다
+app:
+  otp:
+    salt: ${OTP_SALT:}                        # 기본값 없음 — 비어 있으면 OtpService 가 기동을 거부한다 (git 에 적힌 솔트로 운영되지 않게). 로컬은 .env, 테스트는 application-test.yml
+  sms:
+    provider: ${SMS_PROVIDER:}              # solapi = 실제 발송. 기본값 없음 — 비면 SmsSender 빈이 없어 기동 실패(운영에서 인증번호가 로그로만 나가지 않게). logging 은 local·test 프로필
+    api-key: ${SMS_API_KEY:}
+    api-secret: ${SMS_API_SECRET:}
+    sender: ${SMS_SENDER:}
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:}
+  supabase:
+    url: ${SUPABASE_URL}
+    service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+    # 로그인 토큰 서명 확인 방식 (SupabaseJwtDecoderConfig): jwks = 프로젝트의 JWKS 주소에서 받은 공개키로,
+    # secret = 공유 비밀키(jwt-secret, HS256)로. test 프로필은 secret
+    jwt-mode: ${SUPABASE_JWT_MODE:jwks}     # jwks | secret
+    jwt-secret: ${SUPABASE_JWT_SECRET:}
+  livekit:
+    mode: ${LIVEKIT_MODE:logging}           # logging = LiveKit 없이(카메라 안 붙음) · cloud = LiveKit Cloud (URL·키 필요)
+    url: ${LIVEKIT_URL:}
+    api-key: ${LIVEKIT_API_KEY:}
+    api-secret: ${LIVEKIT_API_SECRET:}
+    mute-confirm-attempts: 6                # pause/resume 뒤 트랙 muted 확인 폴링 (6 × 500ms = 3초, §5.4)
+    mute-confirm-sleep-ms: 500
+  # 녹화본을 두는 Supabase Storage(S3 호환) 접속 정보. s3-* 는 LiveKitCloudGateway 가 녹화 업로드 설정으로 넘기고,
+  # recordings-bucket 은 녹화본 주소 발급·삭제에 쓴다 (AppProperties.Storage)
+  storage:
+    s3-endpoint: ${SUPABASE_STORAGE_S3_ENDPOINT:}
+    s3-access-key: ${SUPABASE_STORAGE_S3_ACCESS_KEY:}
+    s3-secret-key: ${SUPABASE_STORAGE_S3_SECRET_KEY:}
+    s3-region: ${SUPABASE_STORAGE_S3_REGION:ap-northeast-2}
+    recordings-bucket: recordings
+  # 관리자 API(/api/v1/admin/ 아래)의 X-Admin-Token 과 비교할 값. 비어 있으면 관리자 API 는 모두 401 (AdminAuth)
+  admin:
+    token: ${ADMIN_TOKEN:}
+  push:
+    mode: ${PUSH_MODE:}                     # fcm = Firebase. 기본값 없음 — 비면 PushSender 빈이 없어 기동 실패(운영이 조용히 로그 발송으로 돌지 않게). logging 은 local·test 프로필
+    firebase-service-account-json: ${FIREBASE_SERVICE_ACCOUNT_JSON:}
+  http:
+    client-ip-header: ${CLIENT_IP_HEADER:}      # 프록시 뒤일 때만: Fly-Client-IP 또는 X-Forwarded-For(마지막 값). 비우면 remoteAddr (속도 제한 키)
+
+logging:
+  level:
+    root: info
+  structured:
+    format:
+      console: ecs                          # JSON 한 줄(ECS) — runbook '로그' 절. local 프로필은 사람이 읽는 텍스트로 되돌린다
+  # 로그 줄마다 앱 이름(ansimclean-api)을 붙이지 않는다
+  include-application-name: false

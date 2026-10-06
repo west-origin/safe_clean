@@ -1,0 +1,55 @@
+/* RepairCategoryList.jsx 의 스타일 */
+/* 카테고리 격자: 4열, 행 사이 6, 좌우 18. ul 기본 여백·글머리표를 없앤다 */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  row-gap: var(--spacing-xs);
+  width: 100%;
+  margin: 0;
+  padding: 0 var(--spacing-2xl);
+  list-style: none;
+  box-sizing: border-box;
+}
+
+/* 칸 하나(버튼): 아이콘 박스 위, 라벨 아래. 브라우저 기본 버튼 모양(테두리·배경)을 지운다 */
+.item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  align-items: center;
+  gap: var(--spacing-lg);
+  min-width: 0;
+  min-height: var(--touch-target);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* 모바일 브라우저가 탭할 때 덮는 회색 박스를 끈다 */
+}
+
+/* 키보드로 옮겨 왔을 때만 보이는 초점 테두리 */
+.item:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* Icon 박스 45×52, 아이콘 46 을 아래 정렬 */
+.iconBox {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 45px;
+  height: 52px;
+}
+
+.iconBox img {
+  display: block; /* 인라인 이미지 밑 글줄 여백을 없애는 흔한 설정. 부모(.iconBox)가 flex 라 지금은 없어도 모양이 같다 */
+}
+
+/* 칸 아래 라벨. 줄바꿈하지 않는다 */
+.label {
+  color: var(--color-text-secondary);
+  text-align: center;
+  white-space: nowrap;
+}

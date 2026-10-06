@@ -1,0 +1,3 @@
+/* 앱 전용 전역 스타일. 공통 리셋·폰트·토큰은 @ansimclean/ui/styles.css 에 있다.
+ * 색·폰트 크기 값은 전부 토큰(var(--…))만 사용한다. */
+/* main.jsx 가 @ansimclean/ui/styles.css 다음에 불러온다. 지금은 규칙이 하나도 없다. */

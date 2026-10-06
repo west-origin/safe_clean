@@ -1,0 +1,9 @@
+node_modules
+dist
+packages/ui/src/tokens/tokens.css
+packages/ui/src/tokens/tokens.js
+packages/ui/src/tokens/typography.css
+apps/*/ios
+apps/*/android
+backend
+design

@@ -1,0 +1,27 @@
+/* StepQuestion: 수리 예약 단계 화면 머리글(서비스 이름 · 질문 · 안내)의 배치와 색 */
+
+/* 머리글 전체: 세 줄을 간격 6 으로 세로로 쌓는다 */
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+/* 윗줄 서비스 이름 (예: "가전수리 · 냉장고"). p·h1 의 브라우저 기본 여백은 모두 0 으로 없앤다 */
+.service {
+  margin: 0;
+  color: var(--color-brand-primary);
+}
+
+/* 가운데 질문 제목 */
+.title {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+/* 아랫줄 안내 문구 */
+.description {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

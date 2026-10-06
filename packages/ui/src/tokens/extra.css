@@ -1,0 +1,108 @@
+/* Figma 에 없어서 코드에서 정한 값. (생성물이 아니므로 직접 수정 가능)
+ * 새 값을 추가하면 PROGRESS.md "판단이 필요한 항목" 에도 적는다.
+ * Figma 변수로 있는 색·간격·radius·폰트는 여기 두지 않는다 → tokens.css / typography.css (Figma 원본).
+ * 예외: 아래 --raw-* 구역은 Figma 에 변수 없이 직접 쓰인 원본 색이라 여기 둔다. */
+/* 이 파일은 styles.css 가 tokens.css·typography.css 다음에 @import 한다. 모든 값은 :root 의 CSS 변수라
+ * 컴포넌트 CSS 에서 var(--touch-target) 처럼 쓴다. tokens/ 폴더는 npm run check:tokens(하드코딩 검사)에서
+ * 빠지므로(scripts/check-tokens.js 의 SKIP_PATH), 아래 --raw-* 구역에 원본 색 값을 그대로 둘 수 있다. */
+:root {
+  /* 터치 타겟 최소 크기 (모바일 접근성 기준 44px) */
+  --touch-target: 44px;
+
+  /* 화면 폭 상한. Figma 는 393px 이지만 폰(360~430)에서는 가로를 꽉 채우고, 태블릿·PC 에서만 이 폭으로 가운데 정렬한다 (2026-09-21 결정 — 큰 폰에서 양옆 여백이 생기던 것).
+   * 절대 위치 요소는 393 기준 px 대신 가운데(50%)·오른쪽 기준으로 두어 폭이 달라져도 같은 자리에 온다 */
+  --screen-max-width: 480px;
+
+  /* 모션. Figma 에 정의 없음 */
+  --duration-fast: 150ms; /* 컴포넌트의 짧은 전환·등장 효과 (예: TextField 테두리 색, Sheet 올라오기) */
+  --duration-slow: 300ms; /* 홈 캐러셀 배경 크로스페이드·탭으로 넘길 때 (2026-09-24) */
+  --duration-spin: 1s; /* Spinner 한 바퀴 도는 시간 (icons/Spinner.module.css) */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1); /* 빠르게 출발해 부드럽게 멈춘다 — 손을 떼고 붙는 느낌과 같게 */
+
+  /* 겹침 순서 */
+  /* 아래 줄일수록 위에 그려진다: 화면 안 겹친 그림 위 글 < 하단 고정 영역 < 시트 < 토스트 */
+  --z-raised: 1; /* 같은 화면 안에서 절대 위치 그림(z-index 0) 위로 올릴 글·버튼 묶음 (예: 가입·로그인 화면의 제목·입력칸이 방 일러스트 위, 2026-09-21 결정) */
+  --z-sticky: 10; /* 예: ScreenLayout 하단 고정 영역(탭바·CTA) */
+  --z-overlay: 100; /* 고정 영역과 시트 사이의 예비 층 (작성 시점에 이 값을 쓰는 CSS 는 없다) */
+  --z-sheet: 110; /* Sheet(바텀시트)의 배경 막(scrim) — 안에 시트가 들어 있다 */
+  --z-toast: 120; /* 예: ToastHost(토스트), LoadingBar(상단 진행 막대) — 시트보다도 위 */
+}
+
+/* Figma 에 변수 바인딩 없이 직접 쓰인 원본 색.
+ * 디자이너가 변수로 승격하면 tokens.css 로 옮기고 여기서 지운다. 이 구역 밖에서는 색을 새로 만들지 마라. */
+:root {
+  --raw-overlay-dark: rgb(0 0 0 / 45%); /* Live/CircleControl, Live/PillControl(Capture) 배경 */
+  --raw-exit-overlay: rgb(224 52 44 / 92%); /* Live/PillControl(Exit) 배경 */
+  --raw-danger: #e0342c; /* Live/LabeledControl(Exit) 원·라벨 */
+  --raw-control-surface: #edf2fa; /* Live/LabeledControl(Capture/Mute) 원 배경 */
+  --raw-chip-border: #c5c5c5; /* Chip 테두리 */
+}
+
+/* 고객용 온보딩·가입 화면의 원본 그라디언트·색 (Figma 에 변수 없음) */
+:root {
+  --raw-onboarding-gradient: linear-gradient(180deg, rgb(148 229 237) 0%, rgb(193 243 246) 26.4%, rgb(215 254 251) 57.1%, rgb(240 249 251) 100%); /* Onboarding/Slide1~3 배경 */
+  --raw-signup-gradient: linear-gradient(180deg, #94e5ed 4.6%, #ffffff 25.3%, #ffffff 75.2%); /* Auth/SignUp 배경 */
+  --raw-text-muted: #868686; /* Auth/SignUp 부제·푸터 (text/secondary #767676 와 다름) */
+  --raw-link: #00aaff; /* Auth/SignUp "로그인하기" */
+}
+
+/* 고객용 인증 화면(C2)의 원본색 (Figma 에 변수 없음) */
+:root {
+  --raw-login-gradient: linear-gradient(180deg, #94e5ed 0%, #ffffff 23%, #ffffff 100%); /* Auth/LoginPhone 배경 (SignUp 과 정지점이 조금 다름) */
+  --raw-note-text: #7f7f7f; /* Auth/TermsConsent › PrivacyNoteCard 본문 */
+  --raw-step-current: #000000; /* Auth/* › StepCounter "01/" (text/primary #16171e 와 다름) */
+  --raw-step-total: #999999; /* Auth/* › StepCounter "04" */
+}
+
+/* 고객용 C3 (주소·거주형태·홈) 원본색 (Figma 에 변수 없음) */
+:root {
+  --raw-home-gradient: linear-gradient(180deg, #c9ddc2 0%, #ffffff 31.3%, #f5fbfd 100%); /* Home/Standard-A 배경 */
+  --raw-checkbox-muted-label: #c2c1c2; /* Auth/ProfileHousing › CheckRow "기억이 안나요" */
+}
+
+/* 고객용 C4 (홈 실시간 슬라이드·수리 탭) 원본 그라디언트 (Figma 에 변수 없음) */
+:root {
+  --raw-home-realtime-gradient: linear-gradient(180deg, #94e5ed 0%, #ffffff 31.3%, #f0f9fb 100%); /* Home/Realtime 배경 */
+  --raw-repair-gradient: linear-gradient(180deg, #efc6c0 0%, #ffffff 31.3%, #f5fbfd 100%); /* Repair 배경 */
+}
+
+/* 고객용 C5 (예약 플로우 정기청소 배너) 원본색 (Figma 에 변수 없음) */
+:root {
+  --raw-promo-gradient: linear-gradient(180deg, #e7f6f1 0%, #dceff8 100%); /* Booking/Frequency › Banner/RecurringPromo 배경 */
+  --raw-promo-chip-text: #136751; /* Banner/RecurringPromo › Chip/Recurring 글자 (배경은 accent/mint) */
+  --raw-promo-benefit-icon: #1f8a4c; /* Banner/RecurringPromo › Icon/Benefit */
+  --raw-promo-illustration: rgb(255 255 255 / 55%); /* Banner/RecurringPromo › Illustration 자리표시 */
+}
+
+/* 고객용 C6 (예약 완료 카드) 원본 그림자·색 (Figma 에 변수 없음) */
+:root {
+  --raw-card-shadow: 0 6px 9px rgb(0 0 0 / 10%); /* Booking/Complete › BookingInfoCard drop shadow */
+  --raw-complete-gradient: linear-gradient(180deg, #94e5ed 0%, #c1f3f6 26.4%, #d7fefb 57.1%, #f0f9fb 100%); /* Booking/Complete 배경 (온보딩과 같은 정지점) */
+}
+
+/* 고객용 C7 (라이브 화면) 원본색 (Figma 에 변수 없음). 영상 위 흰 글자·반투명 검정은 토큰이 없다 */
+:root {
+  --raw-realtime-pill-bg: #daefe1; /* Service/LivePortrait › RealtimePill 배경 */
+  --raw-realtime-green: #1f8a4c; /* RealtimePill 점·글자 (정기청소 배너 아이콘과 같은 초록) */
+  --raw-on-video: #ffffff; /* 영상 위 글자·아이콘 (text/inverse 와 같은 값이지만 배경이 검정 영상이라 분리) */
+  --raw-on-video-muted: rgb(255 255 255 / 82%); /* Service/LiveLandscape › 매니저 소개 */
+  --raw-on-video-subtle: rgb(255 255 255 / 85%); /* Service/LivePortrait › CleaningStatusCard 부제 */
+  --raw-overlay-card: rgb(0 0 0 / 50%); /* CleaningStatusCard 배경 */
+  --raw-overlay-icon-circle: rgb(255 255 255 / 22%); /* CleaningStatusCard › IconCircle */
+  --raw-scrim-top: linear-gradient(180deg, rgb(0 0 0 / 55%) 0%, rgb(0 0 0 / 0%) 100%); /* LivePortrait › Scrim/Top */
+  --raw-scrim-bottom: linear-gradient(180deg, rgb(0 0 0 / 0%) 0%, rgb(0 0 0 / 70%) 100%); /* LivePortrait › Scrim/Bottom */
+  --raw-scrim-top-landscape: linear-gradient(180deg, rgb(0 0 0 / 60%) 0%, rgb(0 0 0 / 0%) 100%); /* LiveLandscape › Scrim/Top */
+  --raw-scrim-bottom-landscape: linear-gradient(180deg, rgb(0 0 0 / 0%) 0%, rgb(0 0 0 / 75%) 100%); /* LiveLandscape › Scrim/Bottom */
+  --raw-progress-track: rgb(255 255 255 / 32%); /* LiveLandscape › Progress/Track */
+  --raw-mascot-placeholder: #cce0fa; /* LivePortrait › ReassuranceBanner › Mascot (일러스트 에셋 필요) 자리 */
+  --raw-video-bg: #000000; /* VideoCard · LiveLandscape 배경 */
+}
+
+/* 고객용 수리 예약 플로우 (Figma rGCjx3zWMBk18fXgNZ9UYX) 원본색 (변수 없음) */
+:root {
+  --raw-repair-option-bg: #fff7f5; /* 가전 종류(1:506)·고장 증상(1:528) 옵션 묶음 배경 */
+  --raw-repair-notice-bg: #fff8e8; /* 안전 안내(1:351)·비용 안내(1:321) 배경 */
+  --raw-success-green: #20c983; /* 예약 완료(1:241) 체크 원 */
+  --raw-repair-card-shadow: 0 8px 24px rgb(0 0 0 / 8%); /* 예약 정보 카드(1:247) 그림자 */
+  --raw-repair-complete-gradient: linear-gradient(180deg, #d9faf1 0%, #f7fffd 55%, #ffffff 100%); /* 예약 완료(1:236) 배경 */
+}

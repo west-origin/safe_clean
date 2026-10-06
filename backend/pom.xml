@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	서버(backend) 의 Maven 빌드 설정. 프론트의 package.json 에 해당한다: 무엇에 의존하고 어떻게 빌드·테스트하는지.
+	명령은 backend/ 에서 ./mvnw (Maven 래퍼, Maven 을 따로 설치하지 않아도 된다).
+	./mvnw -q verify 한 번이 단위 테스트(*Test) → 통합 테스트(*IT) → 커버리지 검사까지 차례로 돌린다.
+	주의: 커버리지 검사(jacoco check)는 돌기는 하지만 지금 규칙이 아무 클래스도 재지 않아 실패하지 않는다 (아래 BUNDLE 주석).
+	./mvnw spring-boot:run 은 ApiApplication.main 으로 서버를 띄운다.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<!-- 부모 설정: Spring Boot 가 검증한 라이브러리 버전 묶음. 아래 의존성 중 version 이 없는 것은 여기서 버전이 정해진다 -->
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.1.1</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<!--
+		이 프로젝트의 이름표 (groupId·artifactId·version). 빌드 결과물 jar 이름(api-0.0.1-SNAPSHOT.jar)이 된다.
+		아래 빈 태그(url·licenses·developers·scm)는 부모 pom 에 적힌 Spring Boot 프로젝트의 주소·라이선스·개발자 정보를
+		이 프로젝트가 물려받지 않도록 일부러 비워 둔 것이다 (start.spring.io 가 만든 그대로). 빌드·실행 동작과는 무관하다.
+	-->
+	<groupId>kr.ansimclean</groupId>
+	<artifactId>api</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>api</name>
+	<description>안심클린 API</description>
+	<url/>
+	<licenses>
+		<license/>
+	</licenses>
+	<developers>
+		<developer/>
+	</developers>
+	<scm>
+		<connection/>
+		<developerConnection/>
+		<tag/>
+		<url/>
+	</scm>
+	<!-- 변수 모음. 파일 안에서 ${이름} 으로 꺼내 쓴다 (예: ${jacoco.minimum}). java.version 은 컴파일할 자바 버전 -->
+	<properties>
+		<java.version>21</java.version>
+		<!-- 버전은 여기 한 곳에만 (BACKEND_PLAN.md §2.2). 올릴 때 표도 같이 -->
+		<livekit-server.version>0.16.0</livekit-server.version>
+		<firebase-admin.version>9.7.0</firebase-admin.version>
+		<archunit.version>1.5.0</archunit.version>
+		<!-- 커버리지 최소 비율 (0.70 = 70%). 아래 jacoco check 규칙이 쓴다 (그 규칙이 지금 적용되지 않는 문제는 BUNDLE 주석 참고) -->
+		<jacoco.minimum>0.70</jacoco.minimum>
+		<jacoco.version>0.8.15</jacoco.version>
+	</properties>
+	<!--
+		의존성(라이브러리) 목록. "starter" 는 기능 하나에 필요한 라이브러리 묶음이다.
+		scope 가 없으면 컴파일·실행·테스트 모두, runtime 은 컴파일에서는 빠지고 실행·테스트 때, test 는 테스트 때만 쓴다.
+	-->
+	<dependencies>
+		<!-- 상태 확인 주소 /actuator/health (application.yml 에서 health 만 노출) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<!-- JPA(Hibernate): DB 행을 자바 객체(@Entity)로 읽고 쓰며, Repository 인터페이스로 조회한다 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<!-- Flyway: 서버가 뜰 때 db/migration 의 SQL 파일을 버전 순서대로 DB 에 적용한다 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+		<!-- Spring Security: 요청마다 로그인·권한을 검사하는 필터 (설정은 common/security/SecurityConfig) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<!-- Authorization 헤더의 JWT(Supabase 로그인 토큰)를 검증한다 (SupabaseJwtDecoderConfig) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
+		</dependency>
+		<!-- 요청 본문 검사 (@Valid, @NotBlank 같은 표시로 잘못된 입력을 막는다) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+		<!-- HTTP 서버와 컨트롤러(@RestController). 내장 웹 서버가 포함돼 jar 하나로 실행된다 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+		<dependency>
+			<!-- RestClient.Builder 빈 (Supabase Auth/Storage·Solapi 가 주입받는다). Boot 4 는 webmvc 스타터에 들어 있지 않아 이것이 없으면 컨텍스트가 뜨지 않는다 -->
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-restclient</artifactId>
+		</dependency>
+		<!-- Flyway 가 Postgres 를 다루는 데 필요한 모듈 -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
+		<!-- Postgres 접속 드라이버(JDBC). 코드에서 직접 import 하지 않으므로 컴파일에서는 빼고 실행·테스트(*IT) 때만 쓴다 (runtime) -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<!-- LiveKit 서버 SDK: 토큰·Ingress·Egress·RoomService·웹훅 검증 (B5 에서 사용) -->
+		<dependency>
+			<groupId>io.livekit</groupId>
+			<artifactId>livekit-server</artifactId>
+			<version>${livekit-server.version}</version>
+		</dependency>
+		<!-- FCM 푸시 (B6). 서비스 계정 JSON 은 FIREBASE_SERVICE_ACCOUNT_JSON(base64) -->
+		<dependency>
+			<groupId>com.google.firebase</groupId>
+			<artifactId>firebase-admin</artifactId>
+			<version>${firebase-admin.version}</version>
+		</dependency>
+		<!-- 패키지 의존 방향 검사 (BACKEND_PLAN.md §2.4) -->
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit-junit5</artifactId>
+			<version>${archunit.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<!--
+			여기부터 테스트 전용. Spring Boot 4 는 테스트 도구도 기능별 스타터로 나뉘어 있다
+			(예: 컨트롤러 슬라이스 테스트에 쓰는 @WebMvcTest 는 webmvc-test 에 들어 있다).
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-oauth2-resource-server-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- Testcontainers: 통합 테스트(*IT)가 Docker 로 진짜 Postgres 를 잠깐 띄워 쓴다 (각 IT 가 PostgreSQLContainer 를 선언) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<!-- 빌드 도구(플러그인) 설정. 단위 테스트(*Test)는 Maven 기본 플러그인 surefire 가 test 단계에서 돌린다 (여기 따로 적지 않았다) -->
+	<build>
+		<plugins>
+			<!-- 실행 가능한 jar 로 묶고(java -jar), ./mvnw spring-boot:run 명령을 제공한다 -->
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<!-- 통합 테스트(*IT)는 verify 단계의 failsafe 가 돌린다. Docker 가 없으면 -DskipITs (PROGRESS 에 "IT 미실행" 기록) -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>integration-test</goal>
+							<goal>verify</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- 커버리지 게이트(의도): *Service·common.format·상태 전이 엔티티 8개의 LINE 비율. 계획 §11 목표는 90% — 실측(2026-09-21 약 73%)에 맞춰 시작해 올린다 -->
+			<!-- 주의: 지금 설정으로는 이 게이트가 아무 클래스도 재지 않아, 커버리지가 떨어져도 verify 가 실패하지 않는다 (아래 BUNDLE 주석) -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<executions>
+					<!-- 테스트가 도는 동안 어떤 줄이 실행됐는지 기록하도록 준비한다 (단위·통합 테스트 모두 target/jacoco.exec 에 이어서 기록) -->
+					<execution>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<!-- test 단계 끝에 커버리지 보고서를 만든다 (기본 위치 target/site/jacoco/index.html) -->
+					<!-- 보고서가 통합 테스트보다 먼저 만들어지므로, 이번 실행의 *IT 결과는 이 보고서에 들어가지 않는다 -->
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+					<execution>
+						<!-- 계획 §11 목표는 Service·Entity·format 90%. 최소값은 jacoco.minimum(실측 아래). 올릴 때 PROGRESS.md 에 실측을 적는다 -->
+						<!-- 주의: 아래 규칙이 아무 클래스와도 맞지 않아 지금은 jacoco.minimum 이 강제되지 않는다 (BUNDLE 주석) -->
+						<id>check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<rule>
+									<!--
+										BUNDLE = 프로젝트(번들) 전체를 한 덩어리로 잰다. 주의: JaCoCo 0.8.15 는 BUNDLE 규칙의 includes 를
+										클래스 이름이 아니라 번들 이름(artifactId 인 api)과 비교한다. 아래 패턴은 api 와 맞지 않아
+										이 규칙은 지금 아무 것도 검사하지 않는다 (BundleChecker·ReportSupport 바이트코드로 확인, 2026-09-27).
+									-->
+									<element>BUNDLE</element>
+									<includes>
+										<include>kr.ansimclean.api.**.*Service</include>
+										<include>kr.ansimclean.api.common.format.*</include>
+										<!-- 상태 전이 엔티티 (§6.1 표) -->
+										<include>kr.ansimclean.api.booking.Booking</include>
+										<include>kr.ansimclean.api.booking.BookingSeries</include>
+										<include>kr.ansimclean.api.offer.Offer</include>
+										<include>kr.ansimclean.api.live.LiveSession</include>
+										<include>kr.ansimclean.api.live.ManagerDevice</include>
+										<include>kr.ansimclean.api.profile.Profile</include>
+										<include>kr.ansimclean.api.profile.ManagerProfile</include>
+										<include>kr.ansimclean.api.settlement.Settlement</include>
+									</includes>
+									<!-- LINE + COVEREDRATIO = 코드 줄 중 테스트가 한 번이라도 실행한 줄의 비율 -->
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>${jacoco.minimum}</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

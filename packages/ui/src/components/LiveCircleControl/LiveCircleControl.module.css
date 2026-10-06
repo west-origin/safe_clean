@@ -1,0 +1,46 @@
+/* Figma: Live/CircleControl — 반투명 검정 원(원본색 45%), 아이콘 흰색. Pause 72 / Back15·Forward15 56 */
+/* 버튼 기본 모양(여백·테두리)을 지우고 원 가운데에 아이콘을 놓는다. 크기는 아래 type 클래스가 정한다 */
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--raw-overlay-dark);
+  color: var(--color-text-inverse);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 키보드 포커스 테두리 (원에서 2px 띄운다). 색은 아래 tone 규칙이 정한다 */
+.control:focus-visible {
+  outline: 2px solid;
+  outline-offset: 2px;
+}
+
+/* tone="onVideo"(기본): 영상 위 오버레이형이라 포커스 테두리가 흰색(text/inverse) */
+.onVideo:focus-visible {
+  outline-color: var(--color-text-inverse);
+}
+
+/* tone="onLight": 밝은 화면 배경 위(세로 녹화본 컨트롤). 흰 테두리는 배경에 묻히므로 다른 컴포넌트와 같은 브랜드 파랑 (코드에서 정함).
+   반투명 검정 원과 흰 아이콘은 밝은 배경에서도 보여 그대로 둔다 */
+.onLight:focus-visible {
+  outline-color: var(--color-brand-primary);
+}
+
+/* Pause 72 원. play 도 JSX 의 style 값으로 이 클래스를 쓴다 */
+.pause {
+  width: 72px;
+  height: 72px;
+}
+
+/* 15초 뒤로·앞으로 56 원 */
+.back15,
+.forward15 {
+  width: 56px;
+  height: 56px;
+}

@@ -1,0 +1,19 @@
+/* 슬라이드 번호(SlideCounter) 모양. 색은 Figma 원본색이라 토큰이 아닌 --raw-* (extra.css) 를 쓴다 */
+
+/* 숫자 두 덩어리를 한 줄에, 크기가 달라도 글자 바닥선(baseline)을 맞춘다 */
+.counter {
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* 현재 번호 "02": 검정 원본색 */
+.current {
+  color: var(--raw-step-current);
+}
+
+/* "/02": 회색 원본색 */
+.total {
+  color: var(--raw-step-total);
+}

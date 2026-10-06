@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <!-- 매니저 앱의 첫 HTML. Vite 가 이 파일에서 시작해 아래 script 의 src/main.jsx 를 번들로 묶는다. -->
+    <!-- 프로덕션 빌드 때 scripts/vite-csp-plugin.js 가 바로 아래 charset 메타 태그 뒤에 CSP 메타 태그를 넣는다. -->
+    <!-- 그 플러그인은 charset 태그 글자를 그대로 찾으므로, 태그를 바꾸거나 지우면 빌드가 오류로 멈춘다. -->
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover: 노치·홈 표시줄 아래까지 화면을 쓰고, 여백은 CSS 의 env(safe-area-inset-*) 로 준다. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>안심클린 매니저</title>
+  </head>
+  <body>
+    <!-- main.jsx 가 React 앱 전체를 이 div 안에 그린다. -->
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+/* Figma: StepProgress — 106×8, 점 8개 r=4, 간격 6 */
+/* 점 줄 전체: 내용 폭만큼만 차지한다. 부모가 flex 면 늘어나지 않고 시작 쪽(가로 줄이면 위)에 붙는다
+   (StepNavBar 는 이를 세로 가운데로 되돌린다) */
+.progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  width: fit-content;
+  align-self: flex-start;
+}
+
+/* 점 하나: 기본은 회색(border/default) 원. radius-pill 은 8px 보다 커서 원이 된다 */
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border-default);
+}
+
+/* 현재 단계 점 (Figma Step 번째) */
+.active {
+  background: var(--color-brand-primary);
+}

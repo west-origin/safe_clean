@@ -1,0 +1,59 @@
+/* SummaryRow: 카드 안 라벨 + 값 한 줄의 배치·여백·색 */
+
+/* 한 줄: 라벨은 왼쪽, 값은 오른쪽 끝 */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
+/* size prop 별 상하 여백: sm 12 / md 14 / lg 18 */
+.size-sm {
+  padding: var(--spacing-lg) 0;
+}
+
+.size-md {
+  padding: 14px 0; /* Figma 원본값 */
+}
+
+.size-lg {
+  padding: var(--spacing-2xl) 0;
+}
+
+/* 라벨 색: 기본은 연한 회색, labelBold·labelTone="primary" 는 진한 색 */
+.label {
+  color: var(--color-text-secondary);
+}
+
+.labelBold {
+  color: var(--color-text-primary);
+}
+
+/* 값: 줄바꿈하지 않고 한 줄로 둔다 (긴 값이면 줄이 넘칠 수 있다) */
+.value {
+  white-space: nowrap;
+}
+
+/* tone prop 별 값 색 */
+.default {
+  color: var(--color-text-primary);
+}
+
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+.success {
+  color: var(--color-status-success);
+}
+
+.brand {
+  color: var(--color-brand-primary);
+}
+
+/* 문제 상태 (예: 촬영 기록 업로드 실패). Figma 에 없어 코드에서 정함 — 서버 docs/api.md §5.3 getCompletedJob tone 'issue' */
+.issue {
+  color: var(--color-status-live);
+}

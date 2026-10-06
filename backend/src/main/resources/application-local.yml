@@ -1,0 +1,15 @@
+# 로컬 개발 (dev Supabase 에 붙는다). 인증번호 문자는 콘솔 출력
+# local 프로필을 켰을 때(예: ./mvnw spring-boot:run -Dspring-boot.run.profiles=local) application.yml 위에 덮어쓴다.
+# 여기 없는 값(DB 주소·키 등)은 application.yml 이 backend/.env 에서 읽는다
+app:
+  sms:
+    provider: logging
+  push:
+    mode: ${PUSH_MODE:logging}          # 기본 logging. 실기기 푸시 확인 때만 .env 에 PUSH_MODE=fcm
+logging:
+  level:
+    # 이 프로젝트 패키지(kr.ansimclean)의 로그는 debug 까지 찍는다 (그 밖은 application.yml 의 info)
+    kr.ansimclean: debug
+  structured:
+    format:
+      console:                              # 로컬은 텍스트 로그 (application.yml 의 ecs 를 끈다)

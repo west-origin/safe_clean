@@ -1,0 +1,31 @@
+/* 실시간 영상 소개 화면(ServiceStart.jsx). 소개 이미지와 버튼을 Figma 위치대로 겹쳐 놓는다 */
+
+/* 화면 전체: 안쪽 absolute 요소의 위치 기준, 화면보다 큰 이미지는 잘라서 가로 스크롤이 생기지 않게 */
+.screen {
+  position: relative;
+  overflow: hidden;
+}
+
+/* VideoPoster 403×852: 가운데(Figma x −5) */
+.poster {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: max(100%, 403px); /* full-bleed — 넓은 폰에서도 가득 */
+  height: 852px;
+  transform: translateX(-50%);
+  pointer-events: none; /* 이미지는 탭을 받지 않는다 */
+}
+
+/* Button/Primary 314×75 at (39, 714) */
+.cta {
+  position: absolute;
+  top: 714px;
+  left: 50%; /* Figma left 39 → 가운데 */
+  width: 314px;
+  transform: translateX(-50%);
+}
+
+.button {
+  height: 75px; /* Figma 원본값 (기본 64) */
+}

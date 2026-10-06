@@ -1,0 +1,56 @@
+/* IconButton.jsx 의 스타일 */
+/* 버튼 뼈대: 브라우저 기본 버튼 모양을 지우고 아이콘 크기만큼만 차지한다 */
+.button {
+  position: relative; /* ::before 터치 영역의 기준 */
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* 모바일 브라우저가 누를 때 칠하는 사각형을 끈다 */
+}
+
+/* 터치 영역: 아이콘 가운데를 중심으로 최소 44×44 투명 영역을 겹쳐 둔다 (보이는 크기는 그대로) */
+.button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  transform: translate(-50%, -50%);
+}
+
+/* tone="dark": 흰 배경 위 진한 아이콘, 누르는 동안 회색 */
+.dark {
+  color: var(--color-text-primary);
+}
+
+.dark:active {
+  color: var(--color-text-secondary);
+}
+
+/* tone="onVideo": 영상 위 흰 아이콘, 누르는 동안 조금 옅게 */
+.onVideo {
+  color: var(--raw-on-video);
+}
+
+.onVideo:active {
+  color: var(--raw-on-video-muted);
+}
+
+/* 키보드로 포커스했을 때만 링 */
+.button:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* 동작 없음 (코드에서 정함, B5) */
+.button:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}

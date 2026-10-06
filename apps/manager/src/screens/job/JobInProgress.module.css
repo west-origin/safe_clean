@@ -1,0 +1,80 @@
+/* Job/InProgress 화면 레이아웃 (JobInProgress.jsx, 일시정지·완료 확인 시트 포함) */
+
+/* 가로 한 줄 양 끝 정렬: 상단 카드의 제목↔배지, 체크리스트 제목↔완료 수 */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+/* 보조 글자색: 시작 시각·라이브 문구, 완료 확인 시트의 남은 항목 목록 */
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+/* 경고 글자색: 라이브 오류, 고객 요청사항 제목, 남은 항목 경고 */
+.warning {
+  color: var(--color-status-warning);
+}
+
+/* 체크리스트 'N개 중 M개 완료' 강조색 */
+.brand {
+  color: var(--color-brand-primary);
+}
+
+/* 촬영 상태 블록: 제목 → 상태 카드 */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* 고객 요청사항 목록: 글머리표는 JSX 의 "•" 문자로 그리므로 목록 기본 기호·여백을 없앤다 */
+.bullets {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ChecklistBlock: 진행률 + 그룹들, 간격 16 */
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+/* 체크리스트 머리: 제목·완료 수 줄 → 진행 막대 */
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* ChecklistGroup: 제목과 항목 간격 2 */
+/* 실제로 쓰는 값은 --spacing-2xs(4px)다 — spacing 토큰에 2px 이 없다 */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+}
+
+/* 지금 JobInProgress.jsx 는 이 클래스를 쓰지 않는다 — 일시정지 사유 목록은 ReasonList 가 자기 CSS 로 그린다 */
+.reasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* CompleteConfirm Actions: 버튼 간격 10 */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* 바디캠 프리뷰 (코드에서 정함, B5): 카드 폭에 맞춘 16:9 */
+.preview {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}

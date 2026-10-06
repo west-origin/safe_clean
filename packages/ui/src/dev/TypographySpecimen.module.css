@@ -1,0 +1,32 @@
+/* 타이포그래피 견본(TypographySpecimen.jsx) 의 레이아웃만. 예문의 글꼴은 JSX 가 textStyles 의 className 으로 붙인다 */
+
+/* 견본 전체: 개수 안내 줄 + 목록 */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+/* 스타일 목록 (ul). 기본 글머리표·여백을 없애고 세로로 쌓는다 */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3xl);
+}
+
+/* 스타일 한 줄 (li): 이름·크기 안내 + 예문, 아래 구분선 */
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+/* 개수 안내와 "이름 · 크기 · 굵기" 보조 글자 */
+.meta {
+  color: var(--color-text-secondary);
+}

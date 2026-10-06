@@ -1,0 +1,23 @@
+/* OptionGroup.jsx 가 쓰는 스타일. .group(공통) 에 .bordered(가전 종류) 또는 .plain(고장 증상) 이 붙는다 */
+
+/* 선택지 묶음 전체: 세로로 쌓고 연분홍 배경(Figma 원본색 → extra.css 의 --raw-repair-option-bg) */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  width: 100%;
+  padding: var(--spacing-2xs);
+  background: var(--raw-repair-option-bg);
+  box-sizing: border-box;
+}
+
+/* 가전 종류(bordered=true, 기본): 회색 1px 테두리 + 큰 radius */
+.bordered {
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+
+/* 고장 증상(bordered=false): 테두리 없이 작은 radius */
+.plain {
+  border-radius: var(--radius-sm);
+}

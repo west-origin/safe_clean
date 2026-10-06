@@ -1,0 +1,60 @@
+/* InfoNote(안내 상자) 스타일. JSX 가 톤·배치·제목형 클래스를 .note 위에 겹쳐 붙인다.
+   클래스 우선순위가 같아서 뒤에 적힌 규칙이 이긴다 — .titled·.inline 은 .note 보다 뒤에 있어야 간격·패딩을 덮어쓴다. */
+
+/* 상자 바깥. 기본은 세로 쌓기(기호 위, 본문 아래), 간격 8 */
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: 14px; /* Figma 원본값 */
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+}
+
+/* 제목이 있는 상자(비용 안내): 간격 6, 패딩 16 */
+.titled {
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xl);
+}
+
+/* 기호와 본문을 한 줄에(선택 일정 요약). 본문이 여러 줄이어도 기호는 첫 줄 높이에 붙는다 */
+.inline {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+}
+
+/* 톤별 배경. warning 은 Figma 에 변수가 없는 원본색이라 extra.css 의 --raw-* 값을 쓴다 */
+.brand {
+  background: var(--color-brand-subtle);
+}
+
+.warning {
+  background: var(--raw-repair-notice-bg);
+}
+
+/* 앞 기호("ⓘ" "!" 등). brand 톤·제목 없음일 때만 .glyphBrand 로 브랜드색 */
+.glyph {
+  color: var(--color-text-primary);
+}
+
+.glyphBrand {
+  color: var(--color-brand-primary);
+}
+
+/* 제목(비용 안내). p 의 기본 여백을 없앤다 */
+.title {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+/* 본문. inline 배치면 .bodyInline 이 글자색을 한 단계 진하게 바꾼다 */
+.body {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.bodyInline {
+  color: var(--color-text-primary);
+}

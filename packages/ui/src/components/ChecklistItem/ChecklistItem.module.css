@@ -1,0 +1,82 @@
+/* Figma: Manager/ChecklistItem — 높이 44 고정(체크박스 24 를 가운데 정렬), 간격 12 */
+/* ChecklistItem.jsx 의 스타일. 숨긴 input 옆의 .box 가 체크 모양을 그리고, 상태는 형제 선택자(+)로 옮긴다. */
+/* 한 줄 전체(체크 칸 + 라벨). 편집형은 <label>, 보기 전용은 <div role="listitem"> */
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  width: 100%;
+  height: 44px;
+  min-height: var(--touch-target);
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* 모바일 브라우저가 누를 때 칠하는 회색 사각형을 끈다 */
+  user-select: none; /* 여러 번 눌러도 라벨 글자가 선택되지 않게 */
+}
+
+/* 비활성(JobInProgress 에서 체크 저장 요청이 진행 중일 때 등): 커서만 바꾼다. 칸·라벨 색은 아래 :disabled 와 .disabled .label */
+.disabled {
+  cursor: not-allowed;
+}
+
+/* 실제 체크박스는 숨기고(스크린리더·키보드는 유지) .box 로 그린다 */
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Unchecked: 흰 배경 + 1.5px border/default. Checked: brand/primary + 흰 체크(16px, 4px 안쪽) */
+.box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-default);
+  color: var(--color-text-inverse);
+  transition: background-color var(--duration-fast), border-color var(--duration-fast);
+}
+
+/* 보기 전용: 누를 수 없으니 기본 커서 */
+.readOnly {
+  cursor: default;
+}
+
+/* Checked: 보기 전용은 .boxChecked 클래스로, 편집형은 숨긴 input 의 체크 상태(+ 형제 선택자)로 칠한다 */
+.boxChecked,
+.input:checked + .box {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-primary);
+}
+
+/* 키보드로 포커스했을 때만 칸 둘레에 링 (손가락 탭에는 안 보인다) */
+.input:focus-visible + .box {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* 비활성: 옅은 테두리·배경 */
+.input:disabled + .box {
+  border-color: var(--color-border-disabled);
+  background: var(--color-surface-subtle);
+}
+
+/* 라벨 문구: 남은 폭을 차지한다 */
+.label {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--color-text-primary);
+}
+
+/* 비활성 라벨 색 */
+.disabled .label {
+  color: var(--color-text-disabled);
+}

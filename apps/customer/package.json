@@ -1,0 +1,29 @@
+{
+  "name": "@ansimclean/customer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "cap:sync": "vite build && cap sync",
+    "cap:ios": "vite build && cap sync ios && cap open ios",
+    "cap:android": "vite build && cap sync android && cap open android"
+  },
+  "dependencies": {
+    "@ansimclean/ui": "*",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
+    "@capacitor/push-notifications": "^8.1.2",
+    "capacitor-secure-storage-plugin": "^0.13.0",
+    "livekit-client": "^2.22.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router": "^8.4.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}

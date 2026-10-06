@@ -1,0 +1,75 @@
+/* 설정 탭 화면(Settings.jsx) 레이아웃. 토큰에 없는 Figma 간격·여백은 px 로 적고 '원본값' 주석을 달았다 */
+
+/* ScrollBody: 상 36 / 하 30, 간격 26 */
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 26px; /* Figma 원본값 */
+  padding: 36px 0 30px; /* Figma 원본값 */
+}
+
+/* 좌 24 / 우 23 */
+.inset {
+  padding: 0 23px 0 var(--spacing-4xl); /* Figma 원본값 우 23 */
+}
+
+/* 맨 위 제목 + 설명 묶음 */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* pre-line: 서버가 준 헤더 문구 안의 줄바꿈을 그대로 보인다 */
+.title,
+.description {
+  margin: 0;
+  white-space: pre-line;
+}
+
+/* 제목 글자색 */
+.title {
+  color: var(--color-text-primary);
+}
+
+/* 설명 글자색 (회색) */
+.description {
+  color: var(--color-text-secondary);
+}
+
+/* LogoutRow: 상하 15 / 좌 24 / 우 23 */
+.logoutRow {
+  display: flex;
+  gap: var(--spacing-4xl);
+  padding: 15px 23px 15px var(--spacing-4xl); /* Figma 원본값 */
+}
+
+/* 로그아웃·회원 탈퇴 글자 버튼: 기본 버튼 모양(여백·테두리·배경)을 없애 글자만 보이게 */
+.logout {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 글자 높이가 44px 보다 작아, 보이지 않는 가상 요소로 터치 영역만 위아래로 넓힌다 (세로 가운데 정렬) */
+.logout::before {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto;
+  min-height: var(--touch-target);
+  transform: translateY(-50%);
+}
+
+/* 알림 토글 저장 실패 문구 (코드에서 정함) */
+/* 푸시 OS 권한이 꺼졌거나 등록이 실패했을 때의 안내(PUSH_OS_DENIED_NOTE)도 같은 모양으로 그린다 */
+.toggleError {
+  margin: 0;
+  padding: 0 var(--spacing-3xl);
+  color: var(--color-status-live);
+}

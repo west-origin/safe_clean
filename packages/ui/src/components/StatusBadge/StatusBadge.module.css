@@ -1,0 +1,54 @@
+/* 상태 배지(StatusBadge) 모양. .badge 가 공통 모양, 나머지 클래스는 status 값과 같은 이름으로 색만 정한다 */
+
+/* Figma: Manager/StatusBadge — padding 6/10, 간격 4, radius pill, 아이콘 14 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2xs);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+/* 신규: warning 옅은 바탕 + warning 글자 (주황 계열) */
+.new {
+  background: var(--color-status-warning-subtle);
+  color: var(--color-status-warning);
+}
+
+/* 방문 예정: 브랜드 옅은 바탕 */
+.scheduled {
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-primary);
+}
+
+/* 진행 중: 브랜드색 바탕 + 흰 글자 */
+.inProgress {
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+}
+
+/* LIVE: 빨간 라이브 색 바탕 + 흰 글자 */
+.live {
+  background: var(--color-status-live);
+  color: var(--color-text-inverse);
+}
+
+/* 일시정지: 신규와 같은 색 */
+.paused {
+  background: var(--color-status-warning-subtle);
+  color: var(--color-status-warning);
+}
+
+/* 완료: 민트 바탕 + 성공색 글자 */
+.complete {
+  background: var(--color-accent-mint);
+  color: var(--color-status-success);
+}
+
+/* 정산 예정: 회색 바탕 + 보조 글자색 */
+.settlementPending {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+}

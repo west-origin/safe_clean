@@ -1,0 +1,54 @@
+/* Figma: TabBar(고객용) — 393×83, 상 11 / 하 18, 탭 4개 FILL, 아이콘 30 + 간격 6 + 라벨 */
+/* 탭 줄 전체. 아래 여백은 Figma 의 18 과 기기 안전 영역(env(safe-area-inset-bottom): 홈 인디케이터 자리) 중 큰 값이다 */
+.tabBar {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  padding-top: 11px;
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+  background: var(--color-surface-default);
+}
+
+/* 탭 버튼 하나: 네 탭이 폭을 똑같이 나눈다. 기본 글자색은 비활성(text/secondary) */
+.tab {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-height: var(--touch-target);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* 모바일 브라우저가 탭할 때 칠하는 회색 사각형을 끈다 */
+}
+
+/* 현재 탭: 라벨을 진한 색으로 */
+.tab.active {
+  color: var(--color-text-primary);
+}
+
+/* 키보드로 포커스했을 때만 보이는 테두리 (버튼 안쪽에 그린다) */
+.tab:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+/* 아이콘 칸 30×30: 아이콘 색은 활성·비활성 모두 진한 색이고, 비활성은 투명도로만 연하게 한다
+   (SVG 아이콘은 이 글자색으로 칠해지고, 래스터 그림(수리 탭)에도 투명도가 똑같이 걸린다) */
+.icon {
+  display: flex;
+  width: 30px;
+  height: 30px;
+  color: var(--color-text-primary);
+  opacity: 0.35; /* Figma: 비활성 아이콘 35% */
+}
+
+/* 현재 탭 아이콘은 불투명하게 */
+.tab.active .icon {
+  opacity: 1;
+}

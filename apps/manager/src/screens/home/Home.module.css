@@ -1,0 +1,52 @@
+/* 레이아웃만. 색·글꼴은 ui 토큰/클래스. */
+/* 매니저 홈(Home.jsx) 화면의 레이아웃. */
+
+/* 맨 위 인사 묶음: 인사 · 안내 · 날짜와 오늘 예정 건수 */
+.greeting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+}
+
+/* 안내·설명 문구의 보조 글자색 */
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+/* 새 콜 알림 카드 오른쪽 위의 만료 문구 색 */
+.warning {
+  color: var(--color-status-warning);
+}
+
+/* 카드 첫 줄: 왼쪽 제목과 오른쪽 배지·만료 문구를 양 끝에 둔다 */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+/* 새 콜 알림 카드의 점 + 제목 */
+.rowStart {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* Figma NewCallAlert: 패딩 상하 18 / 좌우 20 (Card md 는 20) */
+.alert {
+  padding-top: var(--spacing-2xl);
+  padding-bottom: var(--spacing-2xl);
+}
+
+/* '오늘의 나머지 일정' 제목과 일정 카드 목록 */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+/* 문구 안의 줄바꿈 문자를 화면에서도 줄바꿈으로 보인다 (승인 대기 안내 설명이 두 줄) */
+.preLine {
+  white-space: pre-line;
+}

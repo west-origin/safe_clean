@@ -1,0 +1,32 @@
+/* Job/Complete 화면 레이아웃 (JobComplete.jsx) */
+
+/* 상단 머리: 완료 체크 아이콘 → 제목 → 부제를 세로로, 왼쪽 정렬 */
+.head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+}
+
+/* 완료 체크 아이콘의 초록 원 색 (원이 currentColor = 이 글자색을 따른다, 체크 선은 고정) */
+.icon {
+  color: var(--color-status-success);
+}
+
+/* 부제·정산 라벨·안내 문구의 보조 글자색 */
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+/* 예상 정산 금액 강조색 */
+.brand {
+  color: var(--color-brand-primary);
+}
+
+/* 정산 카드 첫 줄: 왼쪽 라벨, 오른쪽 상태 배지 */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}

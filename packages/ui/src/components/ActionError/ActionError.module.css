@@ -1,0 +1,5 @@
+/* 화면에 뜨는 실패 문구 한 줄. 글자색은 빨강 상태색(--color-status-live). 여백이 더 필요하면 쓰는 화면이 className 으로 준다 */
+.error {
+  margin: 0;
+  color: var(--color-status-live);
+}

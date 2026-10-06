@@ -1,0 +1,37 @@
+/* Auth/ProfileAddress 화면 레이아웃 (ProfileAddress.jsx). 공통 틀(뒤로 버튼 위치, 세로 배치)은 auth.module.css */
+
+/* Figma PageBody: 상 27 / 좌우 24 / 하 106 */
+.body {
+  padding: 27px var(--spacing-4xl) 106px; /* Figma 원본값 27·106 */
+}
+
+/* ContentStack: 간격 37 */
+.stack {
+  gap: 37px; /* Figma 원본값 */
+}
+
+/* FormBlock: 필드 묶음 ↔ 안내문 15 */
+.formBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Figma 원본값 */
+}
+
+/* Fields: 간격 46 */
+.fields {
+  gap: 46px; /* Figma 원본값 */
+}
+
+/* NoteWrap: 좌 10, PrivacyNote Label/S text/secondary */
+.note {
+  margin: 0;
+  padding-left: var(--spacing-md);
+  color: var(--color-text-secondary);
+  white-space: pre-line; /* 문구(ADDRESS_PRIVACY_NOTE) 안의 줄바꿈을 그대로 보인다 */
+}
+
+/* 주소 입력 안내 (코드에서 정함 — 사용성 검토 2026-09-22) */
+.hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

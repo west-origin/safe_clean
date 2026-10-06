@@ -1,0 +1,6 @@
+/* 알림 설정 저장 실패 문구용 클래스. 지금은 어느 파일도 이 CSS 를 import 하지 않는다 —
+   Notifications.jsx 의 실패 문구는 공용 ActionError 가 그린다 */
+.toggleError {
+  margin: 0;
+  color: var(--color-status-live);
+}

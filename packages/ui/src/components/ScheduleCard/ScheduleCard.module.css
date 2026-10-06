@@ -1,0 +1,48 @@
+/* ScheduleCard.jsx 의 스타일. 카드는 onClick 이 있으면 button, 없으면 div 로 그려진다 */
+/* Figma: Manager/ScheduleCard — 패딩 16/18, 간격 6, radius md, 1px border/default */
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing-xs);
+  width: 100%;
+  margin: 0;
+  padding: var(--spacing-xl) var(--spacing-2xl);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-default);
+  color: var(--color-text-primary);
+  text-align: left; /* button 으로 그려질 때 기본 가운데 정렬을 왼쪽으로 되돌린다 */
+}
+
+/* 누를 수 있는 카드(button)일 때만 손가락 커서, 눌림 배경 */
+button.card {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* 모바일 브라우저가 탭할 때 덮는 회색 박스를 끈다 */
+}
+
+button.card:active {
+  background: var(--color-surface-pressed);
+}
+
+/* 윗줄: 왼쪽 시간, 오른쪽 상태 배지 */
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+}
+
+/* 시간(예: 10:00 - 13:00)은 줄바꿈하지 않는다 */
+.time {
+  white-space: nowrap;
+}
+
+/* 고객·지역 줄 / 서비스명 줄 */
+.customer {
+  color: var(--color-text-primary);
+}
+
+.service {
+  color: var(--color-text-secondary);
+}

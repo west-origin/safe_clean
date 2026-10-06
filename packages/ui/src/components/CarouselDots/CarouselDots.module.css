@@ -1,0 +1,22 @@
+/* CarouselDots.jsx 의 스타일 */
+
+/* 점 줄: 가운데 정렬, 간격 10 */
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+/* 점 하나: 10px 원 (비활성 = 회색) */
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-text-secondary);
+}
+
+/* 지금 장의 점: 진한 색 */
+.active {
+  background: var(--color-text-primary);
+}

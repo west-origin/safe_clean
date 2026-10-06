@@ -1,0 +1,13 @@
+/* 촬영 장비 화면 (Equipment.jsx) 레이아웃 */
+
+/* 세로 묶음 두 곳이 같이 쓴다: 기기 이름 + 연결 배지 머리, '바디캠 설정' 제목 + 카드 + 안내 문구 */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* 설정 안내 문구의 회색 글자 */
+.secondary {
+  color: var(--color-text-secondary);
+}

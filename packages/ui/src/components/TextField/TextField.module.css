@@ -1,0 +1,100 @@
+/* Figma: Field/Text — 라벨 + 입력창(345×50) + (Error 일 때) 헬퍼 텍스트 */
+/* Error·Disabled 는 바깥 div 에 붙는 .error / .disabled 클래스로 안쪽 요소 모양을 바꾼다. */
+
+/* 필드 전체: 라벨 · 입력칸 · 안내를 세로로 쌓는다 */
+.field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px; /* Figma 원본값. 변수에 묶여 있지 않아 토큰 없음 (PROGRESS.md 판단 항목) */
+  width: 100%;
+}
+
+/* 위쪽 라벨: 한 줄로 둔다 */
+.label {
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+/* 입력칸 테두리 상자(높이 50). 실제 <input> 은 이 안에서 테두리 없이 폭을 채운다.
+   포커스는 안쪽 input 이 받으므로 상자는 :focus-within 으로 테두리를 바꾼다 */
+.inputBox {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  height: 50px;
+  min-height: var(--touch-target);
+  padding: 0 var(--spacing-lg) 0 var(--spacing-md);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-default);
+  transition: border-color var(--duration-fast);
+}
+
+/* Focused: 테두리 brand/primary 1.5px */
+.inputBox:focus-within {
+  border-width: 1.5px;
+  border-color: var(--color-brand-primary);
+}
+
+/* Error: 테두리 status/live 1.5px (+ 헬퍼 텍스트, aria-invalid) */
+/* 포커스 중에도 Focused 테두리 대신 오류 테두리가 보인다. 두 번째 선택자는 우선순위를 높여 규칙 순서와 상관없이 이기게 한다 */
+.error .inputBox,
+.error .inputBox:focus-within {
+  border-width: 1.5px;
+  border-color: var(--color-status-live);
+}
+
+/* Disabled */
+.disabled .label {
+  color: var(--color-text-disabled);
+}
+
+.disabled .inputBox {
+  border-color: var(--color-border-disabled);
+  background: var(--color-surface-subtle);
+}
+
+/* 실제 입력 요소: 상자 안을 채우고 자체 테두리·배경·포커스 테두리는 없앤다(상자가 대신 그린다) */
+.input {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary); /* Filled */
+  outline: none;
+}
+
+/* 안내 문구(placeholder) 색. opacity: 1 은 일부 브라우저가 placeholder 를 흐리게 하는 기본값을 없앤다 */
+.input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+/* Disabled: 입력 글자와 placeholder 를 비활성 색으로 */
+.input:disabled {
+  color: var(--color-text-disabled);
+  -webkit-text-fill-color: var(--color-text-disabled); /* iOS Safari 는 disabled 색을 무시하므로 지정 */
+  cursor: not-allowed;
+}
+
+.input:disabled::placeholder {
+  color: var(--color-text-disabled);
+}
+
+/* Error 헬퍼 텍스트: 테두리와 같은 status/live 색 */
+.helper {
+  color: var(--color-status-live);
+}
+
+/* Success (Auth/ProfileInfo-Phone 헬퍼): brand/primary 글자, 테두리는 그대로 */
+.helperSuccess {
+  color: var(--color-brand-primary);
+}
+
+/* Hint (코드에서 정함): 아직 오류도 성공도 아닐 때의 안내 — 눈에 덜 띄는 보조 색 */
+.helperHint {
+  color: var(--color-text-secondary);
+}

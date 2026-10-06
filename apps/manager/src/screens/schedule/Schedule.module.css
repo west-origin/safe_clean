@@ -1,0 +1,8 @@
+/* 일정 화면 (Schedule.jsx): 오늘 목록, 7일 보기의 날짜별 묶음, 달력 아래 목록이 모두 이 클래스를 쓴다 */
+
+/* TodayList: 카드 간격 12 */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}

@@ -1,0 +1,74 @@
+/* 예약 플로우 7단계 '주의사항·요청사항' 화면(BookingNotesRequests.jsx)의 레이아웃.
+   공통 틀(booking.module.css 의 .body·.stack)에 이 화면의 여백·간격만 덧붙인다 — JSX 에서 cx(common.body, styles.body) 처럼 함께 쓴다. */
+
+/* PageBody: 상 46 / 우 23 / 하 60 / 좌 24, 내용 ↔ 버튼 14 */
+.body {
+  gap: 14px; /* Figma 원본값 */
+  padding: 46px 23px 60px var(--spacing-4xl); /* Figma 원본값 */
+}
+
+/* ContentStack: 간격 19 */
+.stack {
+  gap: 19px; /* Figma 원본값 */
+}
+
+/* PageHeader: 제목 ↔ 설명 9 */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 9px; /* Figma 원본값 */
+  white-space: pre-line; /* Figma 제목 줄바꿈 */
+}
+
+/* 화면 제목 아래 설명 문구. 문구 속 줄바꿈 문자를 그대로 줄바꿈으로 보인다(pre-line) */
+.description {
+  margin: 0;
+  color: var(--color-text-secondary);
+  white-space: pre-line;
+}
+
+/* NoticeCard: 상 16 / 하 11 */
+.noticeCard {
+  padding: var(--spacing-xl) 0 11px; /* Figma 원본값 하 11 */
+}
+
+/* CardHeader: 좌 19, 제목 ↔ 설명 2 */
+.noticeHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px; /* Figma 원본값 */
+  padding-left: 19px; /* Figma 원본값 */
+}
+
+/* 카드 제목 (주의사항 카드·요청사항 카드 공통) */
+.cardTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+/* 카드 제목 아래 보조 설명 (두 카드 공통) */
+.cardDescription {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* NoticeChipGrid: 2열(169), 간격 8, 상 10 / 하 11 */
+.chipGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) 0 11px; /* Figma 원본값 하 11 */
+}
+
+/* RequestCard: 상 21 / 우 23 / 하 28 / 좌 18, 간격 9 */
+.requestCard {
+  gap: 9px; /* Figma 원본값 */
+  padding: 21px 23px 28px var(--spacing-2xl); /* Figma 원본값 */
+}
+
+/* RequestCard 의 제목 + 설명 묶음 (그 아래에 요청사항 입력칸 TextArea) */
+.requestHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}

@@ -1,0 +1,34 @@
+/* 시각 높이 36 — 터치 영역은 ::before 로 44 (CLAUDE.md §4) */
+.chip {
+  position: relative; /* ::before 터치 영역의 위치 기준 */
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: var(--spacing-md) 13px; /* Figma 원본값 좌우 13 */
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-default);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* 모바일에서 누를 때 생기는 회색 사각형을 없앤다 */
+}
+
+/* 투명 터치 영역: 위아래로만 (44 - 36) / 2 = 4씩 넓힌다. 좌우는 칩 폭 그대로 */
+.chip::before {
+  content: '';
+  position: absolute;
+  inset: calc((36px - var(--touch-target)) / 2) 0;
+}
+
+/* 키보드로 포커스했을 때만 보이는 테두리 */
+.chip:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* 선택됨: 브랜드색 테두리·글자 + 연한 브랜드 바탕 */
+.selected {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-primary);
+}

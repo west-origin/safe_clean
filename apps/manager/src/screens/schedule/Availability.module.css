@@ -1,0 +1,64 @@
+/* 근무 일정 관리 화면 (Availability.jsx) 레이아웃 */
+
+/* 기본 근무시간 · 근무 불가 일정 두 묶음: 제목 · 카드 · 버튼을 세로로 */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+/* 근무 불가 카드의 한 줄: 왼쪽(날짜 / 시간) · 오른쪽(사유 / 삭제)을 양 끝에 */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+/* 회색 보조 글자 (반복 표시·사유·시간) */
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+/* AddUnavailable TimeRow: 두 필드 간격 12 */
+.timeRow {
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+/* 두 필드를 같은 폭으로 나눈다 */
+.timeRow > * {
+  flex: 1 1 0;
+  min-width: 0; /* flex 자식의 기본 최소 폭(내용 폭)을 풀어, 좁은 화면에서 입력칸이 줄어들 수 있게 */
+}
+
+/* RepeatOptions: 간격 10 */
+.repeat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* 기본 근무시간 수정: 요일 · 시작 · 종료 · 휴무 */
+.hoursRow {
+  display: grid;
+  grid-template-columns: 24px 1fr 1fr auto; /* 요일 글자 칸 24 고정 · 시작 · 종료 반반 · 휴무 체크박스는 내용 폭 */
+  gap: var(--spacing-sm);
+  align-items: end; /* 칸들을 아래쪽 기준으로 맞춘다 (입력칸은 위에 라벨이 있어 더 높다) */
+}
+
+/* 근무 불가 카드의 삭제 — 텍스트 버튼, 44 터치 영역 (코드에서 정함) */
+.remove {
+  min-height: var(--touch-target);
+  padding: 0 var(--spacing-sm);
+  border: 0;
+  background: none;
+  color: var(--color-status-live);
+  cursor: pointer;
+}
+
+/* 삭제가 진행 중일 때(다른 카드의 삭제 포함) 회색으로 */
+.remove:disabled {
+  color: var(--color-text-disabled);
+  cursor: default;
+}

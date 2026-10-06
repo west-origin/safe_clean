@@ -1,0 +1,99 @@
+/* PromoBanner.jsx 가 쓰는 스타일. recurring: .banner > .topRow(.copy) + .benefits / benefits: .banner.benefitsOnly > .chip + .benefits */
+
+/* 배너 전체: 세로로 쌓고 연한 민트→하늘 그라디언트 배경 (Figma 원본값 → extra.css 의 --raw-promo-gradient) */
+.banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  width: 100%;
+  padding: var(--spacing-xl) var(--spacing-2xl);
+  background: var(--raw-promo-gradient);
+  box-sizing: border-box;
+}
+
+/* 위 줄 (Figma TopRow: 글자 묶음 + 일러스트 자리. 지금은 글자 묶음만 있다) */
+.topRow {
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+/* 글자 묶음: 칩·제목·부제·설명을 세로로, 왼쪽 정렬 (칩이 글자 폭만큼만 차지하게 flex-start) */
+.copy {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+/* Chip/Recurring: 패딩 4/10/4/9, radius 32, accent/mint 배경 */
+.chip {
+  padding: var(--spacing-2xs) var(--spacing-md) var(--spacing-2xs) 9px; /* Figma 원본값 좌 9 */
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-mint);
+  color: var(--raw-promo-chip-text);
+  white-space: nowrap;
+}
+
+/* h3·p 기본 여백 제거 */
+.title,
+.subtitle,
+.description {
+  margin: 0;
+}
+
+/* 제목: 문구 안의 줄바꿈(\n)을 그대로 보여 준다(pre-line) */
+.title {
+  color: var(--color-text-primary);
+  white-space: pre-line;
+}
+
+/* 부제·설명: 회색 */
+.subtitle,
+.description {
+  color: var(--color-text-secondary);
+}
+
+/* Illustration (132×132) 자리는 에셋이 올 때까지 그리지 않는다 — 빈 흰 사각형이 결함처럼 보였다 (사용성 검토 2026-09-22) */
+
+/* 혜택 알약 줄 (ul): 목록 점·들여쓰기를 지우고 가로로 늘어놓는다 */
+.benefits {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Benefit 114×46: 패딩 9/10, 간격 7, 흰 배경, radius 20 */
+.benefit {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 7px; /* Figma 원본값 */
+  min-width: 0; /* 세 알약이 줄 폭을 똑같이 나눠 갖고(flex 1 1 0), 글자가 길어도 옆으로 밀어내지 않게 */
+  height: 46px;
+  padding: 0 var(--spacing-md);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-default);
+  box-sizing: border-box;
+}
+
+/* 혜택 아이콘: 초록 (아이콘은 currentColor 라 여기 color 가 아이콘 색이 된다) */
+.benefitIcon {
+  flex-shrink: 0;
+  color: var(--raw-promo-benefit-icon);
+}
+
+/* 혜택 문구: 두 줄(\n)을 그대로 */
+.benefitLabel {
+  color: var(--color-text-primary);
+  white-space: pre-line;
+}
+
+/* variant="benefits": 배너 이미지가 없는 카테고리 — 칩 + 혜택 알약만 (사용성 검토 2026-09-22).
+   칩만 글자 크기로 두고 알약 줄은 가로를 꽉 채운다(recurring 과 같은 크기) */
+.benefitsOnly .chip {
+  align-self: flex-start;
+}

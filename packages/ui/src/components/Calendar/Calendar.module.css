@@ -1,0 +1,135 @@
+/* Calendar.jsx 의 달력 패널 스타일. 칸 크기(51×39)는 Figma 값 그대로 px 로 고정한다. */
+
+/* CalendarPanel: 패딩 상 27 / 우 22 / 하 5 / 좌 14 */
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 27px 22px 5px 14px; /* Figma 원본값 */
+  background: var(--color-surface-default);
+  box-sizing: border-box;
+}
+
+/* 제목 '방문 날짜 선택' (TitleWrap 왼쪽 10 들여쓰기) */
+.title {
+  margin: 0;
+  padding-left: var(--spacing-md);
+  color: var(--color-text-primary);
+}
+
+/* MonthNav: 상 38, 간격 44, 가운데 */
+.monthNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 44px; /* Figma 원본값 */
+  padding-top: 38px; /* Figma 원본값 */
+}
+
+/* 이전·다음 달 화살표 버튼. 보이는 크기는 아이콘과 같은 7×12 */
+.navButton {
+  position: relative; /* ::before 터치 영역의 기준 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 7px;
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* 모바일 탭 때 회색 사각형을 없앤다 */
+}
+
+/* 버튼이 7×12 로 작아서, 가운데를 기준으로 44×44 투명 영역을 겹쳐 손가락으로 누르기 쉽게 한다 */
+.navButton::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  transform: translate(-50%, -50%);
+}
+
+/* 가운데 'YYYY년 M월' */
+.month {
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+/* WeekdayRow: 상 21, 칸 51×16 */
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 51px);
+  padding-top: 21px; /* Figma 원본값 */
+}
+
+/* 요일 글자 (회색) */
+.weekday {
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+/* DateGrid: 상 10, 행 39 */
+.grid {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--spacing-md);
+}
+
+/* 한 주(7칸) 줄. 칸 폭이 px 고정이라 7×51 = 357 에 패널 좌우 패딩(14+22)을 더하면 393 이다.
+ * 주의: 이보다 좁은 기기(예: 360)에서는 줄이 패널 오른쪽 밖으로 넘친다 */
+.row {
+  display: grid;
+  grid-template-columns: repeat(7, 51px);
+}
+
+/* DateCell 51×39 (터치 44 는 ::before 로 세로 확장) */
+.cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 51px;
+  height: 39px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px; /* Figma 원본값 (radius 토큰 5/10/20/32 에 없음) */
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 칸 높이가 39 라 세로로만 44 터치 영역을 겹친다. 가로는 칸 폭(51) 그대로
+ * (inset 50% 0 auto = 위 50%, 좌우 0) */
+.cell::before {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto;
+  min-height: var(--touch-target);
+  transform: translateY(-50%);
+}
+
+/* 키보드 포커스 테두리. 칸 사이 간격이 없어 바깥에 그리면 옆 칸에 겹치므로
+ * 음수 offset 으로 안쪽에 그린다 */
+.cell:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+}
+
+/* 선택한 날짜: 파란 배경 + 흰 글자 */
+.selected {
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+}
+
+/* 누를 수 없는 날짜 (앞뒤 달·주말·지난 날 등): 연한 회색 글자 */
+.disabled {
+  color: var(--color-border-default);
+  cursor: default;
+}

@@ -1,0 +1,18 @@
+/* ProgressBar.jsx 가 쓰는 스타일 */
+
+/* 회색 트랙(바탕 막대). overflow: hidden 으로 채움이 둥근 끝 밖으로 비어져 나오지 않게 자른다 */
+.track {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-subtle);
+}
+
+/* 파란 채움. 폭(width)은 ProgressBar.jsx 가 인라인 style 로 넣고, 값이 바뀌면 폭이 짧은 시간(transition)에 걸쳐 부드럽게 바뀐다 */
+.fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-primary);
+  transition: width var(--duration-fast);
+}

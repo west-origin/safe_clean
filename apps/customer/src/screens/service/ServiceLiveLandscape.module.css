@@ -1,0 +1,84 @@
+/* 가로 라이브 화면(ServiceLiveLandscape.jsx) 스타일.
+   852×480 고정 크기 무대를 통째로 확대·축소·회전하므로, 안쪽 요소는 Figma 의 px 위치를 그대로 써도 비율이 맞는다. */
+
+/* 전체 화면 검정 바탕. 화면 폭 상한(--screen-max-width) 컨테이너 규칙의 예외 (가로 영상은 창 전체를 쓴다) */
+.viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--raw-video-bg);
+}
+
+/* Figma 무대 852×480 을 가운데에 두고 --stage-scale 로 축소 */
+.stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 852px;
+  height: 480px;
+  transform: translate(-50%, -50%) scale(var(--stage-scale, 1)); /* 가운데로 옮긴 뒤 --stage-scale 배로 맞춘다. 값은 JSX 가 창 크기로 계산해 넣는다 */
+  transform-origin: center;
+}
+
+/* 세로 화면: 90° 회전 */
+.rotated {
+  transform: translate(-50%, -50%) rotate(90deg) scale(var(--stage-scale, 1));
+}
+
+/* 영상(VideoSurface)이 무대 전체를 채운다 */
+.video {
+  width: 100%;
+  height: 100%;
+}
+
+/* Figma 절대 위치 (852×480 기준) */
+/* 좌상: 매니저 정보(ManagerIdentity)와 그 아래 오류 문구 */
+.identity {
+  position: absolute;
+  top: 22px;
+  left: var(--spacing-4xl);
+  width: 299px;
+}
+
+/* 우상: 캡처·종료 알약 버튼 */
+.pills {
+  position: absolute;
+  top: 22px;
+  right: var(--spacing-4xl);
+  display: flex;
+  gap: var(--spacing-lg);
+}
+
+/* 가운데: 15초 뒤로 · 재생/일시정지 · 15초 앞으로 원형 버튼 (녹화본에서만 그린다) */
+.center {
+  position: absolute;
+  top: 196px;
+  left: 306px;
+  display: flex;
+  align-items: center;
+  gap: 28px; /* Figma 원본값 (306+56+28 = 390, 390+72+28 = 490) */
+}
+
+/* 하단: 진행 막대·시간 (좌우 여백만 두고 가로로 늘어난다, 녹화본에서만) */
+.progress {
+  position: absolute;
+  top: 406px;
+  right: var(--spacing-4xl);
+  left: var(--spacing-4xl);
+}
+
+/* 우하: 음소거·전체 화면 닫기 아이콘 버튼 */
+.bottomRight {
+  position: absolute;
+  top: 428px;
+  right: var(--spacing-4xl);
+  display: flex;
+  gap: var(--spacing-3xl);
+}
+
+/* 연결·캡처 실패 문구 (코드에서 정함) */
+.liveError {
+  margin: 0;
+  padding: 0 var(--spacing-3xl);
+  color: var(--color-status-live);
+}

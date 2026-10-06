@@ -1,0 +1,62 @@
+/* Noto Sans KR self-host (@fontsource/noto-sans-kr 의 파일만 가져다 쓴다).
+ * - 굵기는 Regular(400) / Medium(500) / Bold(700) 만 (Figma 텍스트 스타일 기준).
+ * - 서브셋은 korean + latin 두 조각, 형식은 woff2 만. (@fontsource 의 기본 CSS 는 유니코드 범위 120여 조각 × woff2+woff 라
+ *   Capacitor 앱 번들에 약 13MB 가 들어가서 단계 6에서 여기로 바꿨다 → 약 1.7MB. iOS 12+/Android 5+ 는 모두 woff2 를 지원한다.)
+ * - font-display: swap — 폰트가 늦으면 시스템 폰트(tokens/typography.css 의 --font-family-sans 뒤쪽 대체 글꼴)로 먼저 그린다.
+ * - 외부 요청 없이 앱 번들에 포함되므로 Capacitor 앱에서도 오프라인 동작한다.
+ */
+/* 같은 글꼴 이름을 굵기(400·500·700)와 문자 범위(한글·라틴)마다 따로 등록한다. 브라우저는 화면에 실제로 나온 글자의 범위(unicode-range)와
+ * 굵기에 맞는 파일만 내려받는다 (한글이 없는 화면이면 한글 파일을 받지 않는다).
+ * 파일 목록은 tokens/typography.test.js 가 이 파일을 읽어 검사하므로, 굵기·파일을 바꾸면 그 테스트도 같이 본다.
+ * styles.css 가 가장 먼저 import 한다. */
+
+/* 한글 범위(자모·음절) — 400 / 500 / 700 */
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('@fontsource/noto-sans-kr/files/noto-sans-kr-korean-400-normal.woff2') format('woff2');
+  unicode-range: U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7AF, U+D7B0-D7FF;
+}
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('@fontsource/noto-sans-kr/files/noto-sans-kr-korean-500-normal.woff2') format('woff2');
+  unicode-range: U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7AF, U+D7B0-D7FF;
+}
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('@fontsource/noto-sans-kr/files/noto-sans-kr-korean-700-normal.woff2') format('woff2');
+  unicode-range: U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7AF, U+D7B0-D7FF;
+}
+/* 라틴 범위(영문·숫자·기본 기호) — 400 / 500 / 700 */
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('@fontsource/noto-sans-kr/files/noto-sans-kr-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('@fontsource/noto-sans-kr/files/noto-sans-kr-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('@fontsource/noto-sans-kr/files/noto-sans-kr-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

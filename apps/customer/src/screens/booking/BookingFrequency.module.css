@@ -1,0 +1,22 @@
+/* 서비스 주기 화면(BookingFrequency.jsx) 여백. 섹션·라디오 묶음·CTA 는 booking.module.css 공통 */
+/* PageBody: 상 12 / 하 20 */
+.body {
+  padding: var(--spacing-lg) 0 var(--spacing-3xl);
+}
+
+/* ContentStack: 간격 58 */
+.stack {
+  gap: 58px; /* Figma 원본값 */
+}
+
+/* TitleBlock: ServiceLabel ↔ 제목 3 */
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 3px; /* Figma 원본값 */
+}
+
+/* 제목 위 서비스 이름 (서버가 준 카테고리 label) — 브랜드 색 */
+.serviceLabel {
+  color: var(--color-brand-primary);
+}

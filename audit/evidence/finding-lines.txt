@@ -1,0 +1,85 @@
+backend/src/main/java/kr/ansimclean/api/auth/AuthService.java:109: public AuthResponse resetPassword(String verificationToken, String newPassword, String clientIp) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthService.java:119: otp.consume(verificationToken, role);
+backend/src/main/java/kr/ansimclean/api/auth/AuthService.java:135: public AuthResponse signup(SignupRequest req) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthService.java:136: return signup(req, null);
+backend/src/main/java/kr/ansimclean/api/auth/AuthService.java:140: public AuthResponse signup(SignupRequest req, String clientIp) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthService.java:148: otp.consume(req.verificationToken(), role); // 외부 사용자 변경 전에 한 요청만 통과. 실패 시 새 SMS 인증 필요
+backend/src/main/java/kr/ansimclean/api/auth/AuthService.java:221: public void logout(String accessToken) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthService.java:222: supabase.logout(accessToken);
+backend/src/main/java/kr/ansimclean/api/auth/AuthService.java:233: public void deleteAccount(UUID userId, String password) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthService.java:238: profiles.lockLive(userId);                 // 가드 검사와 익명화를 같은 트랜잭션·잠금 안에서 (검사 뒤 수락이 끼어들지 못하게)
+backend/src/main/java/kr/ansimclean/api/auth/AuthService.java:245: push.forget(userId); // 탈퇴한 기기로 푸시가 가지 않게 (§5.1 deleteAccount)
+backend/src/main/java/kr/ansimclean/api/auth/OtpService.java:107: public PhoneVerification consume(String token, String role) {
+backend/src/main/java/kr/ansimclean/api/auth/OtpService.java:111: if (repository.consumeIfUnused(token, role, now, now.minus(TOKEN_TTL)) != 1)
+backend/src/main/java/kr/ansimclean/api/auth/OtpService.java:113: v.consume(now);
+backend/src/main/java/kr/ansimclean/api/auth/PhoneVerificationRepository.java:19: @Modifying(flushAutomatically = true)
+backend/src/main/java/kr/ansimclean/api/auth/PhoneVerificationRepository.java:21: int consumeIfUnused(@Param("token") String token, @Param("role") String role,
+backend/src/main/java/kr/ansimclean/api/live/LiveService.java:151: if (setMuted(s, device, true)) {
+backend/src/main/java/kr/ansimclean/api/live/LiveService.java:161: public MuteResponse resume(UUID managerId, UUID bookingId) {
+backend/src/main/java/kr/ansimclean/api/live/LiveService.java:175: if (setMuted(s, device, false)) {
+backend/src/main/java/kr/ansimclean/api/live/LiveService.java:184: boolean setMuted(LiveSession s, ManagerDevice device, boolean muted) {
+backend/src/main/java/kr/ansimclean/api/live/LiveService.java:243: public TokenResponse viewerToken(UUID customerId, UUID bookingId) {
+backend/src/main/java/kr/ansimclean/api/live/LiveService.java:294: if (!BookingStatus.ACTIVE.contains(b.getStatus())) return "waiting"; // 청소 시작 전에는 카메라가 붙어 있어도 시청 불가(viewerToken 과 같은 기준)
+backend/src/main/java/kr/ansimclean/api/live/LiveService.java:321: void cameraAttached(LiveSession s, ManagerDevice device, String trackSid) {
+backend/src/main/java/kr/ansimclean/api/live/LiveService.java:329: s.cameraAttached(trackSid, false, clock.now());
+backend/src/main/java/kr/ansimclean/api/live/LiveService.java:331: if (setMuted(s, device, true)) s.muted(clock.now()); // 확인된 뒤에만 paused
+backend/src/main/java/kr/ansimclean/api/live/LiveService.java:334: ensureRecording(s);
+backend/src/main/java/kr/ansimclean/api/live/LiveService.java:339: void ensureRecording(LiveSession s) {
+backend/src/main/java/kr/ansimclean/api/live/LiveReconciler.java:61: @Scheduled(fixedDelay = 60000)
+backend/src/main/java/kr/ansimclean/api/live/LiveReconciler.java:159: if (track.muted() && b.getStatus() == BookingStatus.IN_PROGRESS) retryMute(s, device, false);
+backend/src/main/java/kr/ansimclean/api/live/LiveReconciler.java:163: else retryMute(s, device, true);
+backend/src/main/java/kr/ansimclean/api/live/LiveReconciler.java:167: else retryMute(s, device, false);
+backend/src/main/java/kr/ansimclean/api/live/LiveReconciler.java:170: retryMute(s, device, true);             // paused 인데 영상이 나감
+backend/src/main/java/kr/ansimclean/api/live/LiveReconciler.java:172: retryMute(s, device, false);            // 작업은 진행 중인데 영상이 막힘 (jobs/resume 뒤 live/resume 이 서버에 닿지 않은 경우, 계획 §9.2). 방금 paused 가 된 세션은 live/pause → jobs/pause 사이의 창이므로 건너뛴다 (검수 3차)
+backend/src/main/java/kr/ansimclean/api/live/LiveReconciler.java:174: retryMute(s, device, true);             // 작업은 일시정지인데 영상이 나감 (카메라 재접속이 jobs/pause 직전에 끼어든 경우)
+backend/src/main/java/kr/ansimclean/api/live/LiveReconciler.java:176: retryMute(s, device, false);            // 작업은 진행 중인데 영상이 막힘 — 세션이 live 로 남은 채 트랙만 muted (pause 확인 실패 뒤 재개, 카메라 재접속 뒤 resume 등, 검수 3차)
+backend/src/main/java/kr/ansimclean/api/live/LiveReconciler.java:206: private void retryMute(LiveSession s, ManagerDevice device, boolean muted) {
+backend/src/main/java/kr/ansimclean/api/booking/RepairPhotoService.java:37: public RepairPhotoResponse upload(UUID customerId, String contentType, byte[] bytes) {
+backend/src/main/java/kr/ansimclean/api/booking/RepairPhotoService.java:42: if (!TYPES.contains(type)) throw ApiException.validation("이미지 파일(JPG·PNG·WEBP·HEIC)만 올릴 수 있어요");
+backend/src/main/java/kr/ansimclean/api/booking/RepairPhotoService.java:44: storage.upload(BUCKET, path, bytes, type);
+backend/src/main/java/kr/ansimclean/api/live/AccountMediaDeletionHandler.java:56: for (Booking b : bookings.customerBookings(userId)) {
+backend/src/main/java/kr/ansimclean/api/live/AccountMediaDeletionHandler.java:57: for (String path : b.getRepairPhotos()) {
+backend/src/main/java/kr/ansimclean/api/live/AccountMediaDeletionHandler.java:62: if (s != null && s.isRecordingReady()) {
+backend/src/main/java/kr/ansimclean/api/booking/BookingService.java:127: return idempotent.run(idempotencyKey, customerId, req, BookingResponse.class, () -> doCreate(customerId, req));
+backend/src/main/java/kr/ansimclean/api/booking/BookingService.java:130: private BookingResponse doCreate(UUID customerId, CreateBookingRequest req) {
+backend/src/main/java/kr/ansimclean/api/booking/BookingService.java:170: if (req.saveAddress()) profiles.rememberAddress(customerId, road, detail);
+backend/src/main/java/kr/ansimclean/api/booking/BookingService.java:196: public ReservationsResponse reservations(UUID customerId) {
+backend/src/main/java/kr/ansimclean/api/booking/BookingService.java:201: Map<UUID, String> intros = profiles.managerIntros(managerIds); // 고객이 누가 오는지 알 수 있게 (사용성 검토 2026-09-22)
+backend/src/main/java/kr/ansimclean/api/booking/BookingService.java:219: return reservations(customerId).reservations().stream()
+backend/src/main/java/kr/ansimclean/api/booking/BookingService.java:437: Map<UUID, String> intros = b.getManagerId() == null ? Map.of() : profiles.managerIntros(List.of(b.getManagerId()));
+backend/src/main/java/kr/ansimclean/api/offer/OfferService.java:104: List<UUID> candidates = findCandidates(booking, skip);
+backend/src/main/java/kr/ansimclean/api/offer/OfferService.java:115: if (!profiles.isApprovedManager(managerId)) { // 탈퇴·승인 취소된 매니저에게 우선 오퍼를 보내면 10분을 헛되이 기다린다
+backend/src/main/java/kr/ansimclean/api/offer/OfferService.java:140: List<UUID> findCandidates(Booking booking, Set<UUID> exclude) {
+backend/src/main/java/kr/ansimclean/api/offer/OfferService.java:183: return idempotent.run(idempotencyKey, managerId, "accept:" + offerId, AcceptResponse.class, () -> doAccept(managerId, offerId));
+backend/src/main/java/kr/ansimclean/api/offer/OfferService.java:186: private AcceptResponse doAccept(UUID managerId, UUID offerId) {
+backend/src/main/java/kr/ansimclean/api/offer/OfferService.java:189: if (!me.isApproved()) throw new ApiException(ErrorCode.INVALID_STATE, "승인된 매니저만 수락할 수 있어요"); // 승인 취소·탈퇴 뒤 남은 오퍼
+backend/src/main/java/kr/ansimclean/api/offer/OfferService.java:274: boolean approved = profiles.isApprovedManager(managerId);
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityService.java:51: static final int LOOKAHEAD_DAYS = 28;
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityService.java:107: private void requireNoWorkIn(UUID managerId, LocalDate date, boolean allDay, LocalTime start, LocalTime end, String repeat) {
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityService.java:109: for (LocalDate d = date; !d.isAfter(today.plusDays(LOOKAHEAD_DAYS)); d = next(d, repeat)) {
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityService.java:125: for (ManagerWorkLookup.WorkSlot b : bookings.upcomingWork(managerId, today, today.plusDays(LOOKAHEAD_DAYS))) {
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityService.java:134: public AvailabilityResponse.UnavailableItem addUnavailable(UUID managerId, UnavailableRequest req) {
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityService.java:149: requireNoWorkIn(managerId, date, req.allDay(), start, end, req.repeat());
+backend/src/main/java/kr/ansimclean/api/common/outbox/OutboxDispatcher.java:71: // run() 이 같은 클래스의 dispatchBatch() 을 직접 부르면 @Transactional 프록시를 거치지 않는다(Spring 자기 호출).
+backend/src/main/java/kr/ansimclean/api/common/outbox/OutboxDispatcher.java:72: // 그래서 트랜잭션은 여기서 TransactionTemplate 으로 연다. dispatchBatch() 의 @Transactional 은 빈을 통해 직접 부르는 테스트용.
+backend/src/main/java/kr/ansimclean/api/common/outbox/OutboxDispatcher.java:82: tx.executeWithoutResult(status -> dispatchBatch());
+backend/src/main/java/kr/ansimclean/api/common/outbox/OutboxDispatcher.java:93: public void dispatchBatch() {
+backend/src/main/java/kr/ansimclean/api/common/outbox/OutboxDispatcher.java:102: handler.handle(event.getType(), event.getPayload());
+backend/src/main/java/kr/ansimclean/api/common/security/JwtToCurrentUserConverter.java:26: public AbstractAuthenticationToken convert(Jwt jwt) {
+backend/src/main/java/kr/ansimclean/api/common/security/JwtToCurrentUserConverter.java:28: CurrentUser user = resolver.resolve(id).orElseThrow(() -> new InvalidBearerTokenException("프로필이 없거나 탈퇴한 계정"));
+backend/src/main/java/kr/ansimclean/api/common/supabase/SupabaseAuthClient.java:118: public void logout(String accessToken) {
+backend/src/main/java/kr/ansimclean/api/common/supabase/SupabaseAuthClient.java:125: log.warn("Supabase logout 실패 {}: {}", e.getStatusCode(), errorCode(e));
+backend/src/main/java/kr/ansimclean/api/common/supabase/SupabaseAuthClient.java:127: log.warn("Supabase logout 연결 실패: {}", e.getMessage()); // 앱은 어차피 토큰을 지운다
+backend/src/main/java/kr/ansimclean/api/common/supabase/SupabaseAuthClient.java:132: public void logoutOtherSessions(String accessToken) {
+backend/src/main/java/kr/ansimclean/api/common/supabase/SupabaseAuthClient.java:139: log.warn("Supabase 다른 세션 로그아웃 실패 {}: {}", e.getStatusCode(), errorCode(e));
+backend/src/main/java/kr/ansimclean/api/common/supabase/SupabaseAuthClient.java:141: log.warn("Supabase 다른 세션 로그아웃 연결 실패: {}", e.getMessage());
+backend/src/main/java/kr/ansimclean/api/live/LoggingLiveKitGateway.java:7: import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+backend/src/main/java/kr/ansimclean/api/live/LoggingLiveKitGateway.java:22: @ConditionalOnProperty(name = "app.livekit.mode", havingValue = "logging", matchIfMissing = true)
+backend/src/main/java/kr/ansimclean/api/common/sms/LoggingSmsSender.java:6: import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+backend/src/main/java/kr/ansimclean/api/common/sms/LoggingSmsSender.java:14: @ConditionalOnProperty(name = "app.sms.provider", havingValue = "logging") // 기본값 없음 — SMS_PROVIDER 를 빠뜨린 운영 배포가 조용히 로그 발송으로 돌지 않게
+backend/src/main/java/kr/ansimclean/api/common/sms/LoggingSmsSender.java:24: log.info("[문자·발송 안 함] {} → {}", KoreanFormat.maskPhone(e164), text);
+backend/src/main/java/kr/ansimclean/api/profile/ProfileService.java:338: public Map<UUID, String> managerIntros(Collection<UUID> ids) {
+backend/src/main/java/kr/ansimclean/api/profile/ProfileService.java:426: public Profile lockLive(UUID id) {
+backend/src/main/java/kr/ansimclean/api/profile/ProfileService.java:427: return profiles.lockLive(id).orElseThrow(ApiException::notFound);
+backend/src/main/java/kr/ansimclean/api/profile/ProfileService.java:430: public void anonymize(UUID id) {
+backend/src/main/java/kr/ansimclean/api/profile/ProfileService.java:436: p.anonymize(clock.now());

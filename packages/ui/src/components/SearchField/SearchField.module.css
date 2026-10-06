@@ -1,0 +1,93 @@
+/* SearchField.jsx 의 스타일. 기본은 라벨형(테두리), .filled 는 예약 주소 검색형(회색 배경) */
+/* Figma: Field/RoadAddress — 라벨 간격 4, 입력창 50, 패딩 좌 7 / 우 12, 아이콘 ↔ 글자 8 */
+.field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing-2xs);
+  width: 100%;
+}
+
+/* 입력칸 위 라벨 */
+.label {
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+/* 돋보기 + 입력칸을 감싼 상자. 테두리는 이 상자가 그린다 */
+.inputBox {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  height: 50px;
+  min-height: var(--touch-target);
+  padding: 0 var(--spacing-lg) 0 7px; /* Figma 원본값 좌 7 */
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1px var(--color-border-default); /* Figma INSIDE stroke, 배경 없음 */
+  transition: box-shadow var(--duration-fast);
+}
+
+/* 안의 input 에 초점이 있으면 상자 테두리를 brand 색으로 굵게 */
+.inputBox:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--color-brand-primary);
+}
+
+/* 왼쪽 돋보기 아이콘 (SearchIcon 은 currentColor 라 여기 color 를 따른다) */
+.icon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+/* 실제 입력칸: 상자 안 남은 폭을 채우고 브라우저 기본 테두리·배경·초점선을 지운다 (초점은 상자가 표시) */
+.input {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* 안내 글자. 일부 브라우저가 흐리게(opacity) 바꾸지 않게 1 로 고정 */
+.input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+/* type="search" 에 WebKit 계열 브라우저가 붙이는 장식·지우기(×) 버튼을 숨긴다 */
+.input::-webkit-search-decoration,
+.input::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* disabled: 라벨·아이콘·글자를 흐리게, 상자는 회색 배경 + 옅은 테두리 */
+.disabled .label,
+.disabled .icon {
+  color: var(--color-text-disabled);
+}
+
+.disabled .inputBox {
+  box-shadow: inset 0 0 0 1px var(--color-border-disabled);
+  background: var(--color-surface-subtle);
+}
+
+.input:disabled {
+  color: var(--color-text-disabled);
+  -webkit-text-fill-color: var(--color-text-disabled); /* WebKit 글자 채움색. 지정돼 있으면 color 대신 쓰이므로 같은 색을 준다 */
+}
+
+/* filled (Booking/AddressSearch): surface/field 배경, 테두리 없음, 좌 14 / 우 16 */
+.filled .inputBox {
+  padding: 0 var(--spacing-xl) 0 14px; /* Figma 원본값 좌 14 */
+  box-shadow: none;
+  background: var(--color-surface-field);
+}
+
+/* filled 도 초점이 오면 brand 테두리를 그린다 (평소에는 테두리 없음) */
+.filled .inputBox:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--color-brand-primary);
+}

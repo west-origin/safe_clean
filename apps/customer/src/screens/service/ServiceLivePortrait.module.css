@@ -1,0 +1,109 @@
+/* 세로 라이브 화면(ServiceLivePortrait.jsx) 레이아웃. 위에서부터 헤더 → 매니저 줄 → 영상 카드 → (녹화본 컨트롤) → 컨트롤 3개 → 안심 배너.
+   Figma 에서 잰 간격이 토큰에 없는 값이 많아 원본값을 쓰고 계산 근거를 주석으로 남겼다. */
+
+/* 헤더: StatusBar 아래 14 (뒤로 y 58 − 44), 높이 24, 좌 16 / 우 16 (353 + 24 = 377) */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24px;
+  margin-top: 14px; /* Figma 원본값 */
+  padding: 0 var(--spacing-xl);
+}
+
+/* 헤더 가운데 '안심클린' 글자 (로고 이미지 대신) */
+.brand {
+  color: var(--color-text-primary);
+}
+
+/* ManagerRow: 헤더 아래 28 (110 − 82), 좌우 24 */
+.managerRow {
+  margin-top: 28px; /* Figma 원본값 */
+  padding: 0 var(--spacing-4xl);
+}
+
+/* VideoCard: ManagerRow 아래 14 (176 − 162), 좌우 24 */
+.videoWrap {
+  margin-top: 14px; /* Figma 원본값 */
+  padding: 0 var(--spacing-4xl);
+}
+
+/* 영상 위 오버레이 위치 (Figma 절대 위치) */
+/* 기준 상자는 VideoSurface(position: relative) 다. 좌상: LIVE 배지 + 시청자 수 */
+.topLeft {
+  position: absolute;
+  top: var(--spacing-lg);
+  left: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: 2px; /* Figma 원본값 (56 + 2 = 70) */
+}
+
+/* 우상: 시작 시각 문구. 한 줄로 두어 줄바꿈으로 높이가 바뀌지 않게 한다 */
+.timestamp {
+  position: absolute;
+  top: 17px; /* Figma 원본값 */
+  right: var(--spacing-lg);
+  color: var(--raw-on-video);
+  white-space: nowrap;
+}
+
+/* 좌하: 청소 상태 카드 */
+.statusCard {
+  position: absolute;
+  bottom: 14px; /* Figma 원본값 (430 − 362 − 54) */
+  left: var(--spacing-lg);
+}
+
+/* 오른쪽 아래: 전체 화면(가로 화면으로) 버튼 */
+.fullscreen {
+  position: absolute;
+  top: 328px; /* Figma 원본값 */
+  right: var(--spacing-lg);
+}
+
+/* 녹화본 재생 컨트롤 (코드에서 정함): 가로 화면의 원형 컨트롤·진행 막대를 세로에도. 영상 아래 흰 배경이라
+   JSX 가 tone="onLight" 를 넘겨 진행 막대·포커스 테두리를 밝은 배경용 색으로 그린다 (색은 컴포넌트 CSS 에 있다) */
+.replayControls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-3xl);
+  padding: 0 var(--spacing-4xl);
+}
+
+/* 녹화본 원형 버튼 3개(15초 뒤로 · 재생/멈춤 · 15초 앞으로)를 가운데 한 줄로 */
+.replayButtons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-3xl);
+}
+
+/* 컨트롤 3개: 영상 아래 37 (643 − 606), 캡처 x 73 · 종료 164 · 음소거 265 → 간격 37/37, 가운데 정렬 */
+.controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 37px; /* Figma 원본값 */
+  margin-top: 37px; /* Figma 원본값 */
+}
+
+/* ReassuranceBanner: 컨트롤 아래 29 (760 − 731), 좌우 24, 하단 20 */
+.banner {
+  margin-top: 29px; /* Figma 원본값 */
+  padding: 0 var(--spacing-4xl) var(--spacing-3xl);
+}
+
+/* 보조(회색) 글자 스타일. 지금 ServiceLivePortrait.jsx 는 이 클래스를 쓰지 않는다 */
+.hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* 연결·캡처 실패 문구 (코드에서 정함) */
+.liveError {
+  margin: 0;
+  padding: 0 var(--spacing-3xl);
+  color: var(--color-status-live);
+}

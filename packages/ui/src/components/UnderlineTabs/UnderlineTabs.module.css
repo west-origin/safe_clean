@@ -1,0 +1,61 @@
+/* Figma: SegmentTabs — 높이 29, 좌 24 / 우 23, 간격 26, 아래 1px */
+.tabs {
+  display: flex;
+  align-items: flex-start;
+  gap: 26px; /* Figma 원본값 */
+  width: 100%;
+  padding: 0 23px 0 var(--spacing-4xl); /* Figma 원본값 우 23 */
+  box-shadow: inset 0 -1px 0 var(--color-border-default); /* 아래쪽에만 1px 구분선 (안쪽 테두리, CODE_GUIDE.md 2-1) */
+}
+
+/* 탭: 글자 + 9 + 밑줄 2 = 29. 터치 영역은 ::before 로 44 */
+.tab {
+  position: relative; /* ::before 터치 영역의 위치 기준 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px; /* Figma 원본값 */
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  white-space: nowrap; /* "예정 2" 같은 라벨이 두 줄로 꺾이지 않게 */
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent; /* 모바일에서 누를 때 생기는 회색 사각형을 없앤다 */
+}
+
+/* 탭 가운데에 겹치는 투명 터치 영역 (최소 44×44) */
+.tab::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  transform: translate(-50%, -50%);
+}
+
+/* Indicator 2px */
+.tab::after {
+  content: '';
+  width: 100%;
+  height: 2px;
+  background: transparent; /* 비활성 탭도 밑줄 자리는 차지해 모든 탭의 높이가 같다 */
+}
+
+/* 활성 탭 글자색 */
+.active {
+  color: var(--color-text-primary);
+}
+
+/* 활성 탭만 밑줄을 브랜드색으로 칠한다 */
+.active::after {
+  background: var(--color-brand-primary);
+}
+
+/* 키보드로 포커스했을 때만 보이는 테두리 */
+.tab:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}

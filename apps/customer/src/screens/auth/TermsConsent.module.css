@@ -1,0 +1,37 @@
+/* 약관 동의 화면(TermsConsent.jsx) 전용 여백. 공통 틀(뒤로 버튼·제목·CTA)은 auth.module.css 에 있다 */
+/* Figma PageBody: 상 27 / 우 23 / 하 106 / 좌 24 */
+.body {
+  padding: 27px 23px 106px var(--spacing-4xl); /* Figma 원본값 27·23·106 */
+}
+
+/* ContentStack: 간격 27 */
+.stack {
+  gap: 27px; /* Figma 원본값 */
+}
+
+/* CardsBlock: 간격 20 */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3xl);
+}
+
+/* AgreementCard: 패딩 상 22 / 우 31 / 하 32 / 좌 16, 자식 간격 9 (구분선은 Card divided) */
+.agreement {
+  padding: 22px 31px 32px var(--spacing-xl); /* Figma 원본값 22·31·32 */
+}
+
+/* "전체 동의하기" 체크박스 줄 */
+.agreeAll {
+  padding-bottom: 9px; /* Figma 원본값: 전체 동의 ↔ 구분선 9 */
+}
+
+/* TermRows: 구분선 아래 9 + 상단 패딩 4, 항목 간격 12 */
+.termRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  margin: 0; /* ul 의 기본 여백·글머리표를 없앤다 (아래 list-style 과 함께) */
+  padding: 13px 0 0; /* Figma 원본값 9 + 4 */
+  list-style: none;
+}

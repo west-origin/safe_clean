@@ -1,0 +1,32 @@
+/* 화면 맨 위에 고정된 3px 띠. 토스트와 같은 층(--z-toast)이라 화면 내용 위에 보인다.
+   pointer-events: none 이라 아래 화면의 터치를 막지 않고, overflow: hidden 으로 흐르는 막대가 띠 밖에 보이지 않는다 */
+.bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: var(--z-toast);
+  background: var(--color-surface-subtle);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* 띠 안을 왼쪽에서 오른쪽으로 계속 흐르는 40% 폭 막대 */
+.fill {
+  width: 40%;
+  height: 100%;
+  background: var(--color-brand-primary);
+  animation: slide 1.2s linear infinite; /* Skeleton 과 같은 방식 */
+}
+
+/* translateX 의 % 는 막대 자기 폭 기준이다: −100% 는 왼쪽 밖, 250%(= 띠 폭 100%) 는 오른쪽 밖 */
+@keyframes slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+
+/* 기기에서 '동작 줄이기' 를 켠 사용자에게는 흐르지 않고 띠 전체를 채운 채로 보인다 */
+@media (prefers-reduced-motion: reduce) {
+  .fill { animation: none; width: 100%; }
+}

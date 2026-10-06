@@ -1,0 +1,64 @@
+/* Figma: Manager/TabBar — 393×83, 상단 1px border/default, 탭 영역 y=11~65(54), 아래 18 은 홈 인디케이터 여백 */
+.tabBar {
+  display: flex;
+  width: 100%;
+  padding-top: 10px; /* 상단 1px border 포함해 아이템 y=11 (총 83) */
+  padding-bottom: max(18px, env(safe-area-inset-bottom)); /* 기기 safe-area 가 더 크면 그만큼 (코드에서 정함) */
+  border-top: 1px solid var(--color-border-default);
+  background: var(--color-surface-default);
+}
+
+/* 각 탭: 78.6px 씩 균등, 높이 54. 아이콘 y=3, 라벨 y=33 */
+.tab {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  height: 54px;
+  min-height: var(--touch-target);
+  margin: 0;
+  padding: 3px 0 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 활성 탭 색. 아이콘도 currentColor 라 글자색을 따라 바뀐다 */
+.tab.active {
+  color: var(--color-text-primary);
+}
+
+/* 키보드 포커스 테두리. offset 이 음수라 탭 안쪽에 그려진다 */
+.tab:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+/* 아이콘 24 칸. position: relative 는 아래 콜 배지(absolute)의 기준점이다 */
+.iconWrap {
+  position: relative;
+  display: flex;
+  width: 24px;
+  height: 24px;
+  margin-bottom: var(--spacing-xs); /* 아이콘 하단 27 → 라벨 상단 33 */
+}
+
+/* CallBadge: 아이콘 좌측 +14px, 위로 3px. 높이 18, 좌우 5, status/live */
+.badge {
+  position: absolute;
+  top: -3px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  min-width: 17px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-status-live);
+  color: var(--color-text-inverse);
+}

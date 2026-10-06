@@ -1,0 +1,19 @@
+{
+  "backend_suites": 60,
+  "backend": {
+    "tests": 305,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "frontend": {
+    "suites": 130,
+    "tests": 271,
+    "failed": 0
+  },
+  "integration": "NOT RUN: Docker unavailable; OtpConsumptionIT added and compiled",
+  "backend_verify": "exit 0; Java 21 explicit Mockito javaagent; -DskipITs; no real .env import",
+  "lint": "exit 0",
+  "tokens": "exit 0",
+  "frontend_build": "exit 0"
+}

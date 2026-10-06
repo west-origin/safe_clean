@@ -1,0 +1,482 @@
+[
+  {
+    "name": "kr.ansimclean.api.ArchitectureTest",
+    "tests": "7",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "4.981"
+  },
+  {
+    "name": "kr.ansimclean.api.auth.AuthControllerTest",
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "2.479"
+  },
+  {
+    "name": "kr.ansimclean.api.auth.AuthServiceTest",
+    "tests": "17",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.771"
+  },
+  {
+    "name": "kr.ansimclean.api.auth.OtpServiceTest",
+    "tests": "12",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.213"
+  },
+  {
+    "name": "kr.ansimclean.api.booking.BookingControllerTest",
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "2.194"
+  },
+  {
+    "name": "kr.ansimclean.api.booking.BookingDeletionGuardTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.01"
+  },
+  {
+    "name": "kr.ansimclean.api.booking.BookingMapperTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.037"
+  },
+  {
+    "name": "kr.ansimclean.api.booking.BookingSeriesServiceTest",
+    "tests": "7",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.085"
+  },
+  {
+    "name": "kr.ansimclean.api.booking.BookingServiceTest",
+    "tests": "12",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.149"
+  },
+  {
+    "name": "kr.ansimclean.api.booking.BookingTest",
+    "tests": "8",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.009"
+  },
+  {
+    "name": "kr.ansimclean.api.booking.QuoteTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.516"
+  },
+  {
+    "name": "kr.ansimclean.api.booking.RepairPhotoServiceTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.127"
+  },
+  {
+    "name": "kr.ansimclean.api.booking.StaleBookingCleanerTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.144"
+  },
+  {
+    "name": "kr.ansimclean.api.catalog.CatalogServiceTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.886"
+  },
+  {
+    "name": "kr.ansimclean.api.catalog.PricingServiceTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.156"
+  },
+  {
+    "name": "kr.ansimclean.api.common.error.GlobalExceptionHandlerTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.688"
+  },
+  {
+    "name": "kr.ansimclean.api.common.format.KoreanFormatManagerTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.005"
+  },
+  {
+    "name": "kr.ansimclean.api.common.format.KoreanFormatTest",
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.011"
+  },
+  {
+    "name": "kr.ansimclean.api.common.outbox.OutboxDispatcherTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.142"
+  },
+  {
+    "name": "kr.ansimclean.api.common.outbox.OutboxEventTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.004"
+  },
+  {
+    "name": "kr.ansimclean.api.common.outbox.OutboxHandlersTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.149"
+  },
+  {
+    "name": "kr.ansimclean.api.common.security.AdminAuthTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.007"
+  },
+  {
+    "name": "kr.ansimclean.api.common.security.AdminTokenFilterTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.007"
+  },
+  {
+    "name": "kr.ansimclean.api.common.security.SecurityConfigTest",
+    "tests": "7",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "1.229"
+  },
+  {
+    "name": "kr.ansimclean.api.common.security.SupabaseJwtDecoderConfigTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.293"
+  },
+  {
+    "name": "kr.ansimclean.api.common.sms.SolapiSmsSenderTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.019"
+  },
+  {
+    "name": "kr.ansimclean.api.common.supabase.RestClientClasspathTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.003"
+  },
+  {
+    "name": "kr.ansimclean.api.common.supabase.SupabaseAuthClientTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.031"
+  },
+  {
+    "name": "kr.ansimclean.api.common.supabase.SupabaseStorageClientTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.078"
+  },
+  {
+    "name": "kr.ansimclean.api.common.web.ClientIpTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.001"
+  },
+  {
+    "name": "kr.ansimclean.api.customer.CustomerScreenControllerTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.758"
+  },
+  {
+    "name": "kr.ansimclean.api.job.JobControllerTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.485"
+  },
+  {
+    "name": "kr.ansimclean.api.job.JobServiceTest",
+    "tests": "15",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.299"
+  },
+  {
+    "name": "kr.ansimclean.api.live.AccountMediaDeletionHandlerTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.173"
+  },
+  {
+    "name": "kr.ansimclean.api.live.AdminAuthTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.002"
+  },
+  {
+    "name": "kr.ansimclean.api.live.DeviceServiceTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.007"
+  },
+  {
+    "name": "kr.ansimclean.api.live.LiveControllerTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.506"
+  },
+  {
+    "name": "kr.ansimclean.api.live.LiveKitCloudGatewayTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "1.764"
+  },
+  {
+    "name": "kr.ansimclean.api.live.LiveReconcilerTest",
+    "tests": "20",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.15"
+  },
+  {
+    "name": "kr.ansimclean.api.live.LiveServiceTest",
+    "tests": "20",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.056"
+  },
+  {
+    "name": "kr.ansimclean.api.live.LiveSessionServiceTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.065"
+  },
+  {
+    "name": "kr.ansimclean.api.live.LiveWebhookServiceTest",
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.039"
+  },
+  {
+    "name": "kr.ansimclean.api.live.RecordingRetentionTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.085"
+  },
+  {
+    "name": "kr.ansimclean.api.managerhome.ManagerHomeServiceTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.055"
+  },
+  {
+    "name": "kr.ansimclean.api.managerhome.ManagerScreensControllerTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.87"
+  },
+  {
+    "name": "kr.ansimclean.api.offer.OfferControllerTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "18.912"
+  },
+  {
+    "name": "kr.ansimclean.api.offer.OfferServiceTest",
+    "tests": "17",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "2.007"
+  },
+  {
+    "name": "kr.ansimclean.api.offer.OfferTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.922"
+  },
+  {
+    "name": "kr.ansimclean.api.profile.AddressRegionTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.003"
+  },
+  {
+    "name": "kr.ansimclean.api.profile.CustomerProfileControllerTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "1.046"
+  },
+  {
+    "name": "kr.ansimclean.api.profile.ManagerPenaltyServiceTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.238"
+  },
+  {
+    "name": "kr.ansimclean.api.profile.ProfileServiceTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.494"
+  },
+  {
+    "name": "kr.ansimclean.api.push.FcmPushSenderTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.283"
+  },
+  {
+    "name": "kr.ansimclean.api.push.PushHandlerTest",
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.093"
+  },
+  {
+    "name": "kr.ansimclean.api.push.PushServiceTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.117"
+  },
+  {
+    "name": "kr.ansimclean.api.schedule.AvailabilityServiceTest",
+    "tests": "7",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.535"
+  },
+  {
+    "name": "kr.ansimclean.api.settlement.SettlementDeletionGuardTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.141"
+  },
+  {
+    "name": "kr.ansimclean.api.settlement.SettlementServiceTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.04"
+  },
+  {
+    "name": "kr.ansimclean.api.support.SupportControllerTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.492"
+  },
+  {
+    "name": "kr.ansimclean.api.support.SupportServiceTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.371"
+  }
+]

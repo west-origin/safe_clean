@@ -1,0 +1,57 @@
+/* ConfirmSummaryRow.jsx 의 스타일 (수리 예약 확인 화면의 요약 한 항목) */
+/* 항목 전체: 아이콘 → 글 묶음 → 수정 버튼을 위에서 아래로 쌓는다 */
+.row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+  width: 100%;
+}
+
+/* 맨 위 아이콘(이모지 또는 InfoIcon). 아이콘 컴포넌트는 color(brand/primary)를 따른다 */
+.icon {
+  display: inline-flex;
+  color: var(--color-brand-primary);
+}
+
+/* 항목 이름 / 값 / 보조 정보 세 줄 묶음 */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px; /* Figma 원본값 */
+  width: 100%;
+}
+
+/* 항목 이름·보조 정보는 회색, 값은 기본 글자색 */
+.label,
+.sub {
+  color: var(--color-text-secondary);
+}
+
+.value {
+  color: var(--color-text-primary);
+}
+
+/* 시각 13 — 터치 영역 44 */
+.edit {
+  position: relative; /* ::before 터치 영역의 기준 */
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none; /* 여기까지 브라우저 기본 버튼 모양을 지운다 */
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+/* 터치 영역: 위아래로 (44 - 13) / 2 = 15.5 씩, 좌우로 10 씩 버튼 밖까지 넓혀 높이 44 를 만든다 (음수 inset = 바깥으로) */
+.edit::before {
+  content: '';
+  position: absolute;
+  inset: calc((13px - var(--touch-target)) / 2) calc(-1 * var(--spacing-md));
+}
+
+/* 키보드로 포커스했을 때만 링 */
+.edit:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}

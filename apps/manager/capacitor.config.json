@@ -1,0 +1,26 @@
+{
+  "appId": "kr.ansimclean.manager",
+  "appName": "안심클린 매니저",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#ffffff"
+  },
+  "android": {
+    "backgroundColor": "#ffffff",
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "sound",
+        "banner",
+        "list",
+        "alert"
+      ]
+    }
+  }
+}

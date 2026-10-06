@@ -1,0 +1,17 @@
+<!doctype html>
+<!-- 고객 앱의 시작 HTML. Vite 가 이 파일을 입구로 삼아 아래 script 의 /src/main.jsx 부터 앱을 불러온다 (개발 서버·빌드 모두). -->
+<!-- 빌드 때 scripts/vite-csp-plugin.js 가 charset 메타 태그 바로 뒤에 CSP 메타 태그를 끼운다. 그 태그의 글자를 바꾸면 빌드가 실패한다. -->
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover: 노치·홈 표시줄 밑까지 화면을 쓴다. 가려지는 부분은 CSS 의 env(safe-area-inset-*) 여백으로 비운다 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- 기본 탭 제목. 화면이 바뀌면 RouteShell.jsx 가 그 화면의 첫 h1 으로 '화면 제목 · 안심클린' 을 만든다 (h1 이 없으면 이 값) -->
+    <title>안심클린</title>
+  </head>
+  <body>
+    <!-- main.jsx 가 React 앱을 이 div 안에 그린다 -->
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

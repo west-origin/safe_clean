@@ -1,0 +1,60 @@
+{
+  "chips": [
+    {
+      "key": "wall",
+      "label": "벽걸이형이에요",
+      "icon": "ac"
+    },
+    {
+      "key": "ceiling",
+      "label": "천장형이에요",
+      "icon": "ac"
+    },
+    {
+      "key": "stand",
+      "label": "스탠드형이에요",
+      "icon": "ac"
+    },
+    {
+      "key": "old",
+      "label": "설치 10년이 넘었어요",
+      "icon": "clock"
+    },
+    {
+      "key": "ladder",
+      "label": "사다리 작업이 필요해요",
+      "icon": "stairs"
+    },
+    {
+      "key": "noWater",
+      "label": "물 사용이 어려워요",
+      "icon": "droplet"
+    },
+    {
+      "key": "warranty",
+      "label": "보증기간 중이에요",
+      "icon": "shield"
+    },
+    {
+      "key": "caution",
+      "label": "특별히 주의할 기기가 있어요",
+      "icon": "warning"
+    },
+    {
+      "key": "etc",
+      "label": "기타",
+      "icon": "dots"
+    }
+  ],
+  "copy": {
+    "title": "주의사항/\n요청사항을 알려주세요",
+    "description": "더 꼼꼼하고 만족스러운\n청소를 위해 미리 알려주세요",
+    "noticeTitle": "주의사항",
+    "noticeDescription": "해당되는 내용이 있다면 선택해주세요.",
+    "requestTitle": "요청사항",
+    "requestDescription": "청소 시 요청사항이 있다면 자유롭게 입력해주세요.",
+    "requestPlaceholder": "여기에 작성해주세요",
+    "tipTitle": "이렇게 요청해보세요!",
+    "tipBody": "-특히 신경 써줬으면 하는 공간이나 가구가 있다면 알려주세요.\n-청소 전 확인이 필요한 사항이 있다면 미리 알려주세요.\n-기타 특별한 요청사항이 있다면 자세히 적어주세요."
+  }
+}

@@ -1,0 +1,712 @@
+{
+  "source": {
+    "fileName": "Document",
+    "collection": "Design Tokens",
+    "collectionId": "VariableCollectionId:2032:595"
+  },
+  "modes": [
+    "Mode 1"
+  ],
+  "variables": [
+    {
+      "name": "color/accent/mint",
+      "type": "COLOR",
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#bce8dd"
+      }
+    },
+    {
+      "name": "color/border/default",
+      "type": "COLOR",
+      "scopes": [
+        "SHAPE_FILL",
+        "STROKE_COLOR"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#dadada"
+      }
+    },
+    {
+      "name": "color/border/disabled",
+      "type": "COLOR",
+      "scopes": [
+        "STROKE_COLOR"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#e0e0e0"
+      }
+    },
+    {
+      "name": "color/brand/primary",
+      "type": "COLOR",
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL",
+        "TEXT_FILL",
+        "STROKE_COLOR"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#2284fc"
+      }
+    },
+    {
+      "name": "color/brand/primary-pressed",
+      "type": "COLOR",
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#1a6ad1"
+      }
+    },
+    {
+      "name": "color/brand/subtle",
+      "type": "COLOR",
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#edf5fe"
+      }
+    },
+    {
+      "name": "color/status/live",
+      "type": "COLOR",
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#ff0707"
+      }
+    },
+    {
+      "name": "color/status/live-subtle",
+      "type": "COLOR",
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#fdecec"
+      }
+    },
+    {
+      "name": "color/status/success",
+      "type": "COLOR",
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#1f8a4c"
+      }
+    },
+    {
+      "name": "color/status/warning",
+      "type": "COLOR",
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#b8720a"
+      }
+    },
+    {
+      "name": "color/status/warning-subtle",
+      "type": "COLOR",
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#fff2df"
+      }
+    },
+    {
+      "name": "color/surface/default",
+      "type": "COLOR",
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#ffffff"
+      }
+    },
+    {
+      "name": "color/surface/field",
+      "type": "COLOR",
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#f2f2f2"
+      }
+    },
+    {
+      "name": "color/surface/pressed",
+      "type": "COLOR",
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#e4e4e4"
+      }
+    },
+    {
+      "name": "color/surface/subtle",
+      "type": "COLOR",
+      "scopes": [
+        "FRAME_FILL",
+        "SHAPE_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#f5f5f5"
+      }
+    },
+    {
+      "name": "color/text/disabled",
+      "type": "COLOR",
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#a8a8a8"
+      }
+    },
+    {
+      "name": "color/text/inverse",
+      "type": "COLOR",
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#ffffff"
+      }
+    },
+    {
+      "name": "color/text/primary",
+      "type": "COLOR",
+      "scopes": [
+        "TEXT_FILL"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#16171e"
+      }
+    },
+    {
+      "name": "color/text/secondary",
+      "type": "COLOR",
+      "scopes": [
+        "TEXT_FILL",
+        "STROKE_COLOR"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": "#767676"
+      }
+    },
+    {
+      "name": "radius/md",
+      "type": "FLOAT",
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 20
+      }
+    },
+    {
+      "name": "radius/pill",
+      "type": "FLOAT",
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 32
+      }
+    },
+    {
+      "name": "radius/sm",
+      "type": "FLOAT",
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 10
+      }
+    },
+    {
+      "name": "radius/xs",
+      "type": "FLOAT",
+      "scopes": [
+        "CORNER_RADIUS"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 5
+      }
+    },
+    {
+      "name": "spacing/2xl",
+      "type": "FLOAT",
+      "scopes": [
+        "WIDTH_HEIGHT",
+        "GAP"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 18
+      }
+    },
+    {
+      "name": "spacing/2xs",
+      "type": "FLOAT",
+      "scopes": [
+        "WIDTH_HEIGHT",
+        "GAP"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 4
+      }
+    },
+    {
+      "name": "spacing/3xl",
+      "type": "FLOAT",
+      "scopes": [
+        "WIDTH_HEIGHT",
+        "GAP"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 20
+      }
+    },
+    {
+      "name": "spacing/4xl",
+      "type": "FLOAT",
+      "scopes": [
+        "WIDTH_HEIGHT",
+        "GAP"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 24
+      }
+    },
+    {
+      "name": "spacing/lg",
+      "type": "FLOAT",
+      "scopes": [
+        "WIDTH_HEIGHT",
+        "GAP"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 12
+      }
+    },
+    {
+      "name": "spacing/md",
+      "type": "FLOAT",
+      "scopes": [
+        "WIDTH_HEIGHT",
+        "GAP"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 10
+      }
+    },
+    {
+      "name": "spacing/sm",
+      "type": "FLOAT",
+      "scopes": [
+        "WIDTH_HEIGHT",
+        "GAP"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 8
+      }
+    },
+    {
+      "name": "spacing/xl",
+      "type": "FLOAT",
+      "scopes": [
+        "WIDTH_HEIGHT",
+        "GAP"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 16
+      }
+    },
+    {
+      "name": "spacing/xs",
+      "type": "FLOAT",
+      "scopes": [
+        "WIDTH_HEIGHT",
+        "GAP"
+      ],
+      "description": "",
+      "values": {
+        "Mode 1": 6
+      }
+    }
+  ],
+  "textStyles": [
+    {
+      "name": "Body/Bold",
+      "family": "Noto Sans KR",
+      "style": "Bold",
+      "size": 15,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Body/Default",
+      "family": "Noto Sans KR",
+      "style": "Regular",
+      "size": 15,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Body/L",
+      "family": "Noto Sans KR",
+      "style": "Regular",
+      "size": 20,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Body/M",
+      "family": "Noto Sans KR",
+      "style": "Regular",
+      "size": 18,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Body/S",
+      "family": "Noto Sans KR",
+      "style": "Regular",
+      "size": 14,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Body/XS",
+      "family": "Noto Sans KR",
+      "style": "Regular",
+      "size": 13,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Button/Label",
+      "family": "Noto Sans KR",
+      "style": "Bold",
+      "size": 22,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Caption",
+      "family": "Noto Sans KR",
+      "style": "Regular",
+      "size": 11,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Caption/Bold",
+      "family": "Noto Sans KR",
+      "style": "Bold",
+      "size": 11,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Caption/L",
+      "family": "Noto Sans KR",
+      "style": "Regular",
+      "size": 12,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Caption/L-Bold",
+      "family": "Noto Sans KR",
+      "style": "Bold",
+      "size": 12,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Caption/Medium",
+      "family": "Noto Sans KR",
+      "style": "Medium",
+      "size": 11,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Heading/L",
+      "family": "Noto Sans KR",
+      "style": "Bold",
+      "size": 28,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Heading/M",
+      "family": "Noto Sans KR",
+      "style": "Bold",
+      "size": 24,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Heading/S",
+      "family": "Noto Sans KR",
+      "style": "Bold",
+      "size": 20,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Heading/XL",
+      "family": "Noto Sans KR",
+      "style": "Bold",
+      "size": 32,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Label/Default",
+      "family": "Noto Sans KR",
+      "style": "Medium",
+      "size": 15,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Label/M",
+      "family": "Noto Sans KR",
+      "style": "Medium",
+      "size": 16,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Label/S",
+      "family": "Noto Sans KR",
+      "style": "Medium",
+      "size": 13,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Label/XS",
+      "family": "Noto Sans KR",
+      "style": "Medium",
+      "size": 12,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Title/Card",
+      "family": "Noto Sans KR",
+      "style": "Bold",
+      "size": 16,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Title/Small",
+      "family": "Noto Sans KR",
+      "style": "Bold",
+      "size": 14,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    },
+    {
+      "name": "Title/XS",
+      "family": "Noto Sans KR",
+      "style": "Bold",
+      "size": 13,
+      "lineHeight": {
+        "unit": "AUTO"
+      },
+      "letterSpacing": {
+        "unit": "PERCENT",
+        "value": 0
+      },
+      "description": ""
+    }
+  ]
+}

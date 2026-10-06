@@ -1,0 +1,8 @@
+/* @ansimclean/ui 스타일 진입점. 앱의 main.jsx 에서 이 파일 하나만 import 한다. 순서 중요. */
+/* 두 앱(apps/customer, apps/manager)의 main.jsx 가 '@ansimclean/ui/styles.css' 로 가져온다 (packages/ui/package.json 의 exports).
+ * 컴포넌트 CSS Module 은 여기에 없고, 각 컴포넌트 .jsx 가 자기 .module.css 를 직접 import 한다. */
+@import './fonts.css'; /* 글꼴 파일 등록 (@font-face) */
+@import './tokens/tokens.css'; /* Figma 변수 → 색·간격·radius CSS 변수 (생성물) */
+@import './tokens/typography.css'; /* 글꼴 변수 + .text-* 텍스트 스타일 클래스 (생성물) */
+@import './tokens/extra.css'; /* Figma 에 없어 코드에서 정한 값(터치 영역·화면 폭 상한·모션·z-index 등) + 원본색 --raw-* */
+@import './base.css'; /* 전역 기본 규칙 (리셋·포커스 링·.sr-only). 위 파일들의 변수를 쓴다 */

@@ -1,0 +1,140 @@
+backend/src/main/java/kr/ansimclean/api/live/DeviceController.java:16:@RequestMapping(SecurityConfig.API + "/manager/device")
+backend/src/main/java/kr/ansimclean/api/live/DeviceController.java:24:    @GetMapping
+backend/src/main/java/kr/ansimclean/api/live/DeviceController.java:29:    @GetMapping("/status")
+backend/src/main/java/kr/ansimclean/api/customer/CustomerScreenController.java:15:@RequestMapping(SecurityConfig.API + "/customer")
+backend/src/main/java/kr/ansimclean/api/customer/CustomerScreenController.java:23:    @GetMapping("/home")
+backend/src/main/java/kr/ansimclean/api/customer/CustomerScreenController.java:28:    @GetMapping("/repair")
+backend/src/main/java/kr/ansimclean/api/customer/CustomerScreenController.java:33:    @GetMapping("/settings")
+backend/src/main/java/kr/ansimclean/api/booking/RepairPhotoController.java:18:@RequestMapping(SecurityConfig.API + "/customer/repair-photos")
+backend/src/main/java/kr/ansimclean/api/booking/RepairPhotoController.java:26:    @PostMapping
+backend/src/main/java/kr/ansimclean/api/catalog/CatalogController.java:22:@RequestMapping(SecurityConfig.API + "/catalog")
+backend/src/main/java/kr/ansimclean/api/catalog/CatalogController.java:30:    @GetMapping("/categories/{category}")
+backend/src/main/java/kr/ansimclean/api/catalog/CatalogController.java:35:    @GetMapping("/categories/{category}/options")
+backend/src/main/java/kr/ansimclean/api/catalog/CatalogController.java:40:    @GetMapping("/categories/{category}/notice-chips")
+backend/src/main/java/kr/ansimclean/api/catalog/CatalogController.java:45:    @GetMapping("/categories/{category}/confirm-copy")
+backend/src/main/java/kr/ansimclean/api/catalog/CatalogController.java:50:    @GetMapping("/time-slots")
+backend/src/main/java/kr/ansimclean/api/catalog/CatalogController.java:56:    @GetMapping("/reasons")
+backend/src/main/java/kr/ansimclean/api/catalog/CatalogController.java:61:    @GetMapping("/address")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:31:@RequestMapping(SecurityConfig.API + "/manager/jobs")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:39:    @GetMapping("/active")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:44:    @GetMapping("/active/pause")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:49:    @GetMapping("/last-completed")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:54:    @GetMapping("/{id}")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:59:    @GetMapping("/{id}/contact")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:64:    @PostMapping("/{id}/start")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:69:    @PostMapping("/{id}/pause")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:70:    public PauseResponse pause(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id, @Valid @RequestBody PauseRequest req) {
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:74:    @PostMapping("/{id}/resume")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:80:    @PostMapping("/{id}/cancel")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:82:                                                                    @Valid @RequestBody kr.ansimclean.api.job.dto.ManagerCancelRequest req) {
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:86:    @PostMapping("/{id}/complete")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:91:    @PutMapping("/{id}/checklist/{itemId}")
+backend/src/main/java/kr/ansimclean/api/job/JobController.java:92:    public ChecklistResponse checklist(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id, @PathVariable UUID itemId, @Valid @RequestBody ChecklistRequest req) {
+backend/src/main/java/kr/ansimclean/api/live/AdminDeviceController.java:18:@RequestMapping(SecurityConfig.API + "/admin/devices")
+backend/src/main/java/kr/ansimclean/api/live/AdminDeviceController.java:30:    @PostMapping
+backend/src/main/java/kr/ansimclean/api/live/AdminDeviceController.java:32:        auth.require(token); // 토큰 검사가 본문 검증보다 먼저 — 미인증 요청에 검증 결과를 알려주지 않는다 (@Valid 는 이 순서를 보장하지 않는다)
+backend/src/main/java/kr/ansimclean/api/payment/PaymentMethodController.java:15:@RequestMapping(SecurityConfig.API + "/customer/payment-methods")
+backend/src/main/java/kr/ansimclean/api/payment/PaymentMethodController.java:23:    @GetMapping
+backend/src/main/java/kr/ansimclean/api/managerhome/ManagerHomeController.java:18:@RequestMapping(SecurityConfig.API + "/manager")
+backend/src/main/java/kr/ansimclean/api/managerhome/ManagerHomeController.java:26:    @GetMapping("/home")
+backend/src/main/java/kr/ansimclean/api/managerhome/ManagerHomeController.java:31:    @GetMapping("/schedule")
+backend/src/main/java/kr/ansimclean/api/booking/BookingController.java:28:@RequestMapping(SecurityConfig.API + "/customer")
+backend/src/main/java/kr/ansimclean/api/booking/BookingController.java:38:    @PostMapping("/bookings/quote")
+backend/src/main/java/kr/ansimclean/api/booking/BookingController.java:39:    public QuoteResponse quote(@Valid @RequestBody QuoteRequest req) {
+backend/src/main/java/kr/ansimclean/api/booking/BookingController.java:43:    @PostMapping("/bookings")
+backend/src/main/java/kr/ansimclean/api/booking/BookingController.java:45:                                  @Valid @RequestBody CreateBookingRequest req) {
+backend/src/main/java/kr/ansimclean/api/booking/BookingController.java:49:    @GetMapping("/bookings/{id}")
+backend/src/main/java/kr/ansimclean/api/booking/BookingController.java:54:    @GetMapping("/reservations")
+backend/src/main/java/kr/ansimclean/api/booking/BookingController.java:59:    @PatchMapping("/reservations/{id}/schedule")
+backend/src/main/java/kr/ansimclean/api/booking/BookingController.java:60:    public ReservationResponse reschedule(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id, @Valid @RequestBody ScheduleChangeRequest req) {
+backend/src/main/java/kr/ansimclean/api/booking/BookingController.java:64:    @PostMapping("/reservations/{id}/cancel")
+backend/src/main/java/kr/ansimclean/api/booking/BookingController.java:65:    public ReservationResponse cancel(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id, @Valid @RequestBody(required = false) CancelRequest req) {
+backend/src/main/java/kr/ansimclean/api/push/PushController.java:17:@RequestMapping(SecurityConfig.API + "/push")
+backend/src/main/java/kr/ansimclean/api/push/PushController.java:25:    @PutMapping("/token")
+backend/src/main/java/kr/ansimclean/api/push/PushController.java:26:    public OkResponse register(@AuthenticationPrincipal CurrentUser user, @Valid @RequestBody RegisterTokenRequest req) {
+backend/src/main/java/kr/ansimclean/api/push/PushController.java:32:    @DeleteMapping("/token")
+backend/src/main/java/kr/ansimclean/api/push/PushController.java:33:    public OkResponse unregister(@AuthenticationPrincipal CurrentUser user, @Valid @RequestBody RegisterTokenRequest req) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:35:@RequestMapping(SecurityConfig.API + "/auth")
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:46:    @PostMapping("/phone/otp")
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:47:    public OtpResponse otp(@Valid @RequestBody OtpRequest req, HttpServletRequest http) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:51:    @PostMapping("/phone/verify")
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:52:    public VerifyResponse verify(@Valid @RequestBody VerifyRequest req) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:57:    @PostMapping("/password/otp")
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:58:    public OtpResponse passwordOtp(@Valid @RequestBody OtpRequest req, HttpServletRequest http) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:62:    @PostMapping("/password/reset")
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:63:    public AuthResponse resetPassword(@Valid @RequestBody ResetPasswordRequest req, HttpServletRequest http) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:67:    @PostMapping("/signup")
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:68:    public AuthResponse signup(@Valid @RequestBody SignupRequest req, HttpServletRequest http) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:72:    @PostMapping("/signup/complete")
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:73:    public CompleteSignupResponse complete(@AuthenticationPrincipal CurrentUser user, @Valid @RequestBody CompleteSignupRequest req) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:77:    @PostMapping("/login")
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:78:    public AuthResponse login(@Valid @RequestBody LoginRequest req, HttpServletRequest http) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:82:    @PostMapping("/refresh")
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:83:    public AuthResponse refresh(@Valid @RequestBody RefreshRequest req, HttpServletRequest http) {
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:87:    @PostMapping("/logout")
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:94:    @GetMapping("/me")
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:99:    @DeleteMapping("/account")
+backend/src/main/java/kr/ansimclean/api/auth/AuthController.java:100:    public OkResponse deleteAccount(@AuthenticationPrincipal CurrentUser user, @Valid @RequestBody DeleteAccountRequest req) {
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:35:@RequestMapping(SecurityConfig.API + "/customer")
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:43:    @PutMapping("/profile/address")
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:44:    public AddressResponse address(@AuthenticationPrincipal CurrentUser user, @Valid @RequestBody AddressRequest req) {
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:48:    @PutMapping("/profile/housing")
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:49:    public HousingRequest housing(@AuthenticationPrincipal CurrentUser user, @Valid @RequestBody HousingRequest req) {
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:53:    @GetMapping("/profile")
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:59:    @GetMapping("/profile/suggested-notices")
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:64:    @PatchMapping("/profile")
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:65:    public ProfileFormResponse updateProfile(@AuthenticationPrincipal CurrentUser user, @Valid @RequestBody UpdateProfileRequest req) {
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:69:    @GetMapping("/addresses")
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:74:    @PostMapping("/addresses")
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:75:    public AddressResponse addAddress(@AuthenticationPrincipal CurrentUser user, @Valid @RequestBody NewAddressRequest req) {
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:79:    @GetMapping("/addresses/default")
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:84:    @DeleteMapping("/addresses/{id}")
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:89:    @PutMapping("/notifications/{key}")
+backend/src/main/java/kr/ansimclean/api/profile/CustomerProfileController.java:90:    public NotificationResponse notification(@AuthenticationPrincipal CurrentUser user, @PathVariable String key, @Valid @RequestBody NotificationRequest req) {
+backend/src/main/java/kr/ansimclean/api/offer/OfferController.java:24:@RequestMapping(SecurityConfig.API + "/manager/offers")
+backend/src/main/java/kr/ansimclean/api/offer/OfferController.java:32:    @GetMapping
+backend/src/main/java/kr/ansimclean/api/offer/OfferController.java:37:    @GetMapping("/{id}")
+backend/src/main/java/kr/ansimclean/api/offer/OfferController.java:42:    @PostMapping("/{id}/accept")
+backend/src/main/java/kr/ansimclean/api/offer/OfferController.java:47:    @PostMapping("/{id}/reject")
+backend/src/main/java/kr/ansimclean/api/offer/OfferController.java:48:    public RejectResponse reject(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id, @Valid @RequestBody RejectRequest req) {
+backend/src/main/java/kr/ansimclean/api/support/TermsController.java:14:@RequestMapping(SecurityConfig.API + "/terms")
+backend/src/main/java/kr/ansimclean/api/support/TermsController.java:23:    @GetMapping
+backend/src/main/java/kr/ansimclean/api/support/TermsController.java:29:    @GetMapping("/{id}")
+backend/src/main/java/kr/ansimclean/api/profile/ManagerProfileController.java:21:@RequestMapping(SecurityConfig.API + "/manager")
+backend/src/main/java/kr/ansimclean/api/profile/ManagerProfileController.java:32:    @GetMapping("/penalties")
+backend/src/main/java/kr/ansimclean/api/profile/ManagerProfileController.java:38:    @GetMapping("/cancel-reasons")
+backend/src/main/java/kr/ansimclean/api/profile/ManagerProfileController.java:43:    @GetMapping("/profile")
+backend/src/main/java/kr/ansimclean/api/profile/ManagerProfileController.java:48:    @GetMapping("/profile/{key}")
+backend/src/main/java/kr/ansimclean/api/profile/ManagerProfileController.java:53:    @GetMapping("/notifications")
+backend/src/main/java/kr/ansimclean/api/profile/ManagerProfileController.java:58:    @PutMapping("/notifications/{key}")
+backend/src/main/java/kr/ansimclean/api/profile/ManagerProfileController.java:59:    public NotificationResponse notification(@AuthenticationPrincipal CurrentUser user, @PathVariable String key, @Valid @RequestBody NotificationRequest req) {
+backend/src/main/java/kr/ansimclean/api/support/AdminInquiryController.java:21:@RequestMapping(SecurityConfig.API + "/admin/inquiries")
+backend/src/main/java/kr/ansimclean/api/support/AdminInquiryController.java:33:    @PostMapping("/{id}/answer")
+backend/src/main/java/kr/ansimclean/api/support/SupportController.java:27:@RequestMapping(SecurityConfig.API + "/support")
+backend/src/main/java/kr/ansimclean/api/support/SupportController.java:35:    @GetMapping("/faq")
+backend/src/main/java/kr/ansimclean/api/support/SupportController.java:40:    @GetMapping("/notices")
+backend/src/main/java/kr/ansimclean/api/support/SupportController.java:45:    @GetMapping("/notices/{id}")
+backend/src/main/java/kr/ansimclean/api/support/SupportController.java:51:    @GetMapping("/contact")
+backend/src/main/java/kr/ansimclean/api/support/SupportController.java:56:    @GetMapping("/inquiries")
+backend/src/main/java/kr/ansimclean/api/support/SupportController.java:61:    @PostMapping("/inquiries")
+backend/src/main/java/kr/ansimclean/api/support/SupportController.java:63:                                   @Valid @RequestBody InquiryRequest req) {
+backend/src/main/java/kr/ansimclean/api/live/LiveController.java:25:@RequestMapping(SecurityConfig.API)
+backend/src/main/java/kr/ansimclean/api/live/LiveController.java:33:    @PostMapping("/live/sessions/{id}/start")
+backend/src/main/java/kr/ansimclean/api/live/LiveController.java:38:    @GetMapping("/live/sessions/{id}")
+backend/src/main/java/kr/ansimclean/api/live/LiveController.java:43:    @PostMapping("/live/sessions/{id}/pause")
+backend/src/main/java/kr/ansimclean/api/live/LiveController.java:48:    @PostMapping("/live/sessions/{id}/resume")
+backend/src/main/java/kr/ansimclean/api/live/LiveController.java:53:    @PostMapping("/live/sessions/{id}/stop")
+backend/src/main/java/kr/ansimclean/api/live/LiveController.java:58:    @PostMapping("/live/sessions/{id}/token")
+backend/src/main/java/kr/ansimclean/api/live/LiveController.java:63:    @GetMapping("/live/sessions/{id}/recording")
+backend/src/main/java/kr/ansimclean/api/live/LiveController.java:68:    @GetMapping("/customer/bookings/{id}/live")
+backend/src/main/java/kr/ansimclean/api/live/LiveWebhookController.java:23:    @PostMapping(API + "/live/webhooks/livekit")
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityController.java:26:@RequestMapping(SecurityConfig.API + "/manager/availability")
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityController.java:34:    @GetMapping
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityController.java:39:    @PutMapping("/hours")
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityController.java:40:    public List<AvailabilityResponse.DayHours> hours(@AuthenticationPrincipal CurrentUser user, @RequestBody List<@Valid HoursRequest> rows) {
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityController.java:44:    @DeleteMapping("/unavailable/{id}")
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityController.java:50:    @PostMapping("/unavailable")
+backend/src/main/java/kr/ansimclean/api/schedule/AvailabilityController.java:51:    public AvailabilityResponse.UnavailableItem unavailable(@AuthenticationPrincipal CurrentUser user, @Valid @RequestBody UnavailableRequest req) {
+backend/src/main/java/kr/ansimclean/api/settlement/SettlementController.java:18:@RequestMapping(SecurityConfig.API + "/manager/settlements")
+backend/src/main/java/kr/ansimclean/api/settlement/SettlementController.java:27:    @GetMapping
+backend/src/main/java/kr/ansimclean/api/settlement/SettlementController.java:32:    @GetMapping("/{id}")
