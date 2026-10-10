@@ -52,7 +52,13 @@ public interface LiveKitGateway {
     }
 
     /** 웹훅 1건 (서명 검증 뒤). roomName 은 room·ingress·egress 중 있는 것에서 */
-    record WebhookEvent(String id, String event, String roomName, String participantIdentity, IngressInfo ingress, EgressInfo egress) {}
+    // track = track_published/track_unpublished 이벤트의 트랙(휴대폰 송출의 카메라 붙음·끊김, §8.0). 다른 이벤트면 null
+    record WebhookEvent(String id, String event, String roomName, String participantIdentity, IngressInfo ingress, EgressInfo egress, Track track) {
+        /** 트랙이 없는 이벤트 (ingress·egress·participant·room) */
+        WebhookEvent(String id, String event, String roomName, String participantIdentity, IngressInfo ingress, EgressInfo egress) {
+            this(id, event, roomName, participantIdentity, ingress, egress, null);
+        }
+    }
 
     /** Ingress 가 송출 중이라 방을 바꿀 수 없다 (§8.1 cameraBusy) */
     class IngressBusyException extends RuntimeException {
@@ -118,6 +124,10 @@ public interface LiveKitGateway {
     // 매니저 미리보기(LiveService.start)와 고객 시청(LiveService.viewerToken) 둘 다 이 토큰을 받는다. ttl = 토큰 유효 시간
     /** 시청 전용 토큰 (publish 불가) */
     String joinToken(String roomName, String identity, String name, Duration ttl);
+
+    // 휴대폰 송출(LIVE_SOURCE=app, §8.0) 때 매니저 앱이 받는다(LiveService.start). identity 는 바디캠과 같은 "camera-매니저id"
+    /** 송출 토큰 — 이 방에 카메라 영상만 publish 가능, 구독·데이터 발행 불가 */
+    String publishToken(String roomName, String identity, String name, Duration ttl);
 
     /** 앱이 connect 할 wss URL */
     String url();

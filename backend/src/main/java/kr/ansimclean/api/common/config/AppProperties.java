@@ -1,6 +1,7 @@
 package kr.ansimclean.api.common.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 import java.util.List;
 
@@ -17,13 +18,31 @@ public record AppProperties(Cors cors, Supabase supabase, Livekit livekit, Stora
     // muteConfirm*: mute·unmute 명령 뒤 트랙 상태가 정말 바뀌었는지 LiveService.setMuted 가 몇 번·몇 ms 간격으로 다시 읽는지
     // (예: 일시정지·재개). 확인하는 동안 부른 쪽이 세션 행 잠금을 쥐고 있으므로, 늘리면 그만큼 요청과 잠금이 길어진다
     /** mode: logging = LiveKit 없이(카메라가 붙지 않는 대역, 로컬·테스트) | cloud = LiveKit Cloud. url 은 wss://… (서버 API 는 https 로 바꿔 부른다) */
-    public record Livekit(String mode, String url, String apiKey, String apiSecret, Integer muteConfirmAttempts, Integer muteConfirmSleepMs) {
+    // source: 영상이 어디서 오는가 — app = 매니저 앱이 휴대폰 카메라로 publish(기본, 2026-10-10 §8.0) | ingress = 바디캠 → LiveKit Ingress(§8.1, 지금은 쓰지 않음)
+    public record Livekit(String mode, String url, String apiKey, String apiSecret, Integer muteConfirmAttempts, Integer muteConfirmSleepMs, String source) {
+        public static final String SOURCE_APP = "app";
+        public static final String SOURCE_INGRESS = "ingress";
+
         // 간결 생성자(compact constructor): 값이 채워질 때 먼저 돈다. 비어 있는 값에 기본값을 넣는다.
         // application.yml 에도 6·500 이 적혀 있다 — 그 줄이 빠진 설정에서도 같은 값이 된다
+        // @ConstructorBinding: 생성자가 둘이라 설정값을 채울 생성자(이것)를 스프링에 알려 준다
+        @ConstructorBinding
         public Livekit {
             if (mode == null || mode.isBlank()) mode = "logging";
             if (muteConfirmAttempts == null) muteConfirmAttempts = 6;
             if (muteConfirmSleepMs == null) muteConfirmSleepMs = 500;
+            if (source == null || source.isBlank()) source = SOURCE_APP;
+            if (!SOURCE_APP.equals(source) && !SOURCE_INGRESS.equals(source)) throw new IllegalArgumentException("app.livekit.source 는 app 또는 ingress 여야 해요: " + source);
+        }
+
+        /** 바디캠(Ingress) 시절 테스트·설정용 — source = ingress */
+        public Livekit(String mode, String url, String apiKey, String apiSecret, Integer muteConfirmAttempts, Integer muteConfirmSleepMs) {
+            this(mode, url, apiKey, apiSecret, muteConfirmAttempts, muteConfirmSleepMs, SOURCE_INGRESS);
+        }
+
+        /** 휴대폰 송출 모드인가 (§8.0) */
+        public boolean appSource() {
+            return SOURCE_APP.equals(source);
         }
 
         // LiveKitCloudGateway 가 서버 API 주소로 쓴다. 앱에 내려주는 접속 주소(LiveService 의 토큰 응답)는 url(wss://) 그대로다

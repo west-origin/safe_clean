@@ -36,7 +36,7 @@ import java.util.UUID;
 /**
  * 라이브 세션의 사용자 동작 (BACKEND_PLAN.md §5.4·§8.1·§8.2.1): 시작·상태·일시정지·재개·정지·고객 토큰·녹화본·고객 화면.
  * LiveKit 호출은 LiveKitGateway 로만. 일시정지/재개는 트랙 muted 를 **확인한 뒤에만 200** — 확인 못 하면 pending 표시 + LiveReconciler 가 재시도.
- * 매니저 앱은 송출하지 않는다(영상은 바디캠 → Ingress). 프리뷰·고객 토큰은 모두 시청 전용.
+ * 영상 출처는 app.livekit.source: app(기본, §8.0) = 매니저 앱이 휴대폰 카메라로 publish(송출 토큰은 start 가 준다) · ingress = 바디캠 → Ingress(매니저 앱은 시청 전용 프리뷰). 고객 토큰은 늘 시청 전용.
  * 예외: 막을(다시 켤) 영상 트랙이 없으면 확인 없이 200 — pause 는 mute 요청을 남기고 Ingress 잠금을 시도하며, resume 은 요청 표시를 지우고 끝낸다.
  * public 메서드는 앱의 라이브 API(LiveController)가, public 이 없는 메서드는 같은 live 패키지의 웹훅·재조정기 등(예: LiveWebhookService,
  * LiveReconciler)이 부른다 — public 이 없는 메서드는 같은 패키지에서만 부를 수 있다.
@@ -104,6 +104,7 @@ public class LiveService {
         if (!active && !(b.getStatus() == BookingStatus.SCHEDULED && b.getServiceDate().equals(clock.today()))) {
             throw new ApiException(ErrorCode.INVALID_STATE, "오늘 진행하는 작업에서만 라이브를 시작할 수 있어요");
         }
+        if (props.livekit().appSource()) return startFromPhone(managerId, b, bookingId); // 휴대폰 송출 모드(기본, §8.0) — 바디캠·Ingress 없이
         ManagerDevice device = devices.findById(managerId).orElseThrow(() -> new ApiException(ErrorCode.INVALID_STATE, NO_DEVICE));
         LiveSession s = sessions.findById(bookingId).orElseGet(() -> sessions.save(LiveSession.create(bookingId))); // 세션 행이 없으면 지금 만든다
         if (s.isEnded() && b.getStatus() == BookingStatus.DONE) throw new ApiException(ErrorCode.INVALID_STATE, "끝난 작업이에요");
@@ -118,6 +119,24 @@ public class LiveService {
         // 매니저가 자기 바디캠 화면을 보는 시청 전용 토큰 (참가자 이름표 'manager-매니저id')
         String token = livekit.joinToken(s.getRoomName(), "manager-" + managerId, "매니저 미리보기", PREVIEW_TTL);
         return new StartLiveResponse(s.getRoomName(), s.getStatus(), s.isCameraOnline(), busy, new StartLiveResponse.Preview(livekit.url(), token));
+    }
+
+    /**
+     * 휴대폰 송출 모드의 시작 (§8.0): 기기 행(휴대폰 카메라)이 없으면 만들고 → 방 생성 → waiting_camera → 송출 토큰.
+     * 앱은 이 토큰으로 'camera-매니저id' 로 방에 들어가 카메라 영상을 publish 한다 — 그래서 일시정지·재조정기·녹화는 바디캠과 같은 코드를 쓴다.
+     * 카메라가 붙었다는 신호는 웹훅 track_published(LiveWebhookService.onTrackPublished)다. 같은 세션에 다시 불러도 같다(재진입·재시도)
+     */
+    private StartLiveResponse startFromPhone(UUID managerId, Booking b, UUID bookingId) {
+        devices.lockManager(managerId); // 동시에 두 번 불려도 기기 행을 한 번만 만든다 (DeviceService 등록과 같은 잠금)
+        ManagerDevice device = devices.findById(managerId).orElseGet(() -> devices.save(ManagerDevice.phone(managerId)));
+        LiveSession s = sessions.findById(bookingId).orElseGet(() -> sessions.save(LiveSession.create(bookingId)));
+        if (s.isEnded() && b.getStatus() == BookingStatus.DONE) throw new ApiException(ErrorCode.INVALID_STATE, "끝난 작업이에요");
+        if (!s.isActive()) {
+            livekit.createRoom(s.getRoomName(), ROOM_TIMEOUT_SECONDS, ROOM_TIMEOUT_SECONDS);
+            s.startWaiting(null, clock.now()); // Ingress 없음
+        }
+        String token = livekit.publishToken(s.getRoomName(), device.cameraIdentity(), "매니저 휴대폰", PREVIEW_TTL);
+        return new StartLiveResponse(s.getRoomName(), s.getStatus(), s.isCameraOnline(), false, null, new StartLiveResponse.Publish(livekit.url(), token));
     }
 
     /** Ingress 를 방에 묶는다. 송출 중이면 pending_room 에 적어 두고 false (ingress_ended 때 적용, §8.1) */
@@ -157,7 +176,7 @@ public class LiveService {
         boolean busy = device.map(d -> d.getPendingRoom() != null && s.isPresent() && d.getPendingRoom().equals(s.get().getRoomName())).orElse(false);
         return new LiveStatusResponse(status, s.map(LiveSession::isCameraOnline).orElse(false), LiveSession.PAUSED.equals(status), busy,
                 s.map(LiveSession::getViewerCount).orElse(0), s.map(LiveSession::getStartedAt).map(Instant::toString).orElse(null),
-                s.map(LiveSession::isVideoHeld).orElse(false));
+                s.map(LiveSession::isVideoHeld).orElse(false), props.livekit().source());
     }
 
     /**
@@ -265,7 +284,9 @@ public class LiveService {
             livekit.mutePublishedTrack(s.getRoomName(), device.cameraIdentity(), s.getCameraTrackSid(), muted);
         } catch (ApiException e) {
             log.warn("mute 호출 실패 {}: {}", s.getRoomName(), e.getMessage());
-            return false;
+            if (muted || !props.livekit().appSource()) return false;
+            // 휴대폰 송출의 재개(unmute): LiveKit 프로젝트가 원격 unmute 를 막아 두면 이 호출은 거절된다. 그때는 매니저 앱이 스스로 mute 를 풀고
+            // 다시 부르므로(liveClient.resume), 거절돼도 아래 확인 폴링으로 실제로 풀렸는지 본다 (§8.0). mute(일시정지)는 늘 서버가 해야 하므로 그대로 실패
         }
         int attempts = props.livekit().muteConfirmAttempts();
         for (int i = 0; i < attempts; i++) {

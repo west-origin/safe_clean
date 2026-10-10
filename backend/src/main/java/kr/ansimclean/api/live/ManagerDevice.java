@@ -74,6 +74,14 @@ public class ManagerDevice {
         return d;
     }
 
+    /** 휴대폰 송출 모드(§8.0)의 기기 행 — 매니저 앱의 휴대폰 카메라. Ingress·스트림 주소 없음. 처음 라이브를 시작할 때 LiveService.start 가 만든다 */
+    public static ManagerDevice phone(UUID managerId) {
+        return register(managerId, PHONE_NAME, null, null, null, null);
+    }
+
+    /** 휴대폰 카메라 기기 행의 표시 이름 (장비 화면에 보인다 — Figma 에 없어 코드에서 정함, PROGRESS 판단 항목) */
+    public static final String PHONE_NAME = "휴대폰 카메라";
+
     public UUID getManagerId() { return managerId; }
     public String getName() { return name; }
     public String getSerial() { return serial; }

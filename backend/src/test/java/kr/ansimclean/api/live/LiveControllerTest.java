@@ -10,6 +10,7 @@ import kr.ansimclean.api.common.security.CurrentUserResolver;
 import kr.ansimclean.api.common.security.JwtToCurrentUserConverter;
 import kr.ansimclean.api.common.security.AdminAuth;
 import kr.ansimclean.api.common.security.SecurityConfig;
+import kr.ansimclean.api.live.dto.LiveStatusResponse;
 import kr.ansimclean.api.live.dto.RegisterDeviceResponse;
 import kr.ansimclean.api.live.dto.StartLiveResponse;
 import org.junit.jupiter.api.Test;
@@ -104,6 +105,20 @@ class LiveControllerTest {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("LIVE_NOT_AVAILABLE"));
         when(live.pause(customer, id)).thenThrow(new ApiException(ErrorCode.LIVE_PAUSE_UNCONFIRMED));
         mvc.perform(post("/api/v1/live/sessions/" + id + "/pause").header("Authorization", "Bearer c")).andExpect(status().isBadGateway());
+    }
+
+    // 휴대폰 송출 모드(§8.0)의 JSON 모양: start 는 preview 가 null 이고 publish{url,token}, 상태는 source='app'. 매니저 토큰만 받는다(고객 경로와 분리)
+    @Test
+    void 휴대폰_송출_모드의_시작_응답은_publish_상태_응답은_source() throws Exception {
+        UUID manager = ManagerMvc.manager(jwtDecoder, resolver, "m");
+        UUID id = UUID.randomUUID();
+        when(live.start(manager, id)).thenReturn(new StartLiveResponse("booking-" + id, "waiting_camera", false, false, null, new StartLiveResponse.Publish("wss://lk", "pub")));
+        mvc.perform(post("/api/v1/live/sessions/" + id + "/start").header("Authorization", "Bearer m"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.preview").isEmpty())
+                .andExpect(jsonPath("$.publish.url").value("wss://lk")).andExpect(jsonPath("$.publish.token").value("pub"));
+        when(live.status(manager, id)).thenReturn(new LiveStatusResponse("live", true, false, false, 1, null, false, "app"));
+        mvc.perform(get("/api/v1/live/sessions/" + id).header("Authorization", "Bearer m"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.source").value("app")).andExpect(jsonPath("$.cameraOnline").value(true));
     }
 
     // 가짜 AdminAuth 는 헤더가 없을 때(require(null))만 401 을 던진다 → 헤더 없이 401, 헤더가 있으면 200 과 전체 스트림 키.

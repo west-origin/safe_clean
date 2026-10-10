@@ -1,5 +1,6 @@
 package kr.ansimclean.api.live;
 
+import kr.ansimclean.api.common.config.AppProperties;
 import kr.ansimclean.api.booking.Booking;
 import kr.ansimclean.api.common.error.ApiException;
 import java.util.UUID;
@@ -40,6 +41,9 @@ public class LiveWebhookService {
     public static final String PARTICIPANT_JOINED = "participant_joined";
     public static final String PARTICIPANT_LEFT = "participant_left";
     public static final String ROOM_FINISHED = "room_finished";
+    public static final String TRACK_PUBLISHED = "track_published"; // 휴대폰 송출(§8.0): 매니저 앱이 카메라 트랙을 올렸다
+    public static final String TRACK_UNPUBLISHED = "track_unpublished"; // 휴대폰 송출: 매니저 앱이 트랙을 내렸다(송출 종료·앱 종료·연결 끊김)
+    static final String CAMERA_PREFIX = "camera-"; // 카메라 참가자 이름표 앞부분 (ManagerDevice.cameraIdentity — 바디캠 Ingress·휴대폰 송출 공통)
     static final String VIEWER_PREFIX = "customer-"; // 고객 시청자의 참가자 이름표 앞부분 (LiveService.viewerToken 이 "customer-고객id" 로 만든다)
     static final String PARKING_PREFIX = "parking-"; // 대기 방 이름 앞부분 (ManagerDevice.parkingRoom) — 작업이 없을 때 바디캠이 향하는 아무도 못 보는 방
     private static final Logger log = LoggerFactory.getLogger(LiveWebhookService.class);
@@ -52,10 +56,11 @@ public class LiveWebhookService {
     private final BookingService bookings;
     private final OutboxService outbox;
     private final AppClock clock;
+    private final AppProperties props; // app.livekit.source — 휴대폰 송출 모드에서만 track_* 웹훅을 카메라 붙음·끊김으로 본다 (§8.0)
 
     // live(LiveService) = 카메라 붙음 처리·Ingress 방 옮기기·잠금 등 재조정기와 같이 쓰는 공통 처리
     public LiveWebhookService(LiveSessionRepository sessions, ManagerDeviceRepository devices, LivekitEventRepository events, LiveKitGateway livekit,
-                              LiveService live, BookingService bookings, OutboxService outbox, AppClock clock) {
+                              LiveService live, BookingService bookings, OutboxService outbox, AppClock clock, AppProperties props) {
         this.sessions = sessions;
         this.devices = devices;
         this.events = events;
@@ -64,6 +69,7 @@ public class LiveWebhookService {
         this.bookings = bookings;
         this.outbox = outbox;
         this.clock = clock;
+        this.props = props;
     }
 
     /** @return false 면 이미 처리한 이벤트 */
@@ -81,6 +87,8 @@ public class LiveWebhookService {
             case PARTICIPANT_JOINED -> viewer(e, +1);
             case PARTICIPANT_LEFT -> viewer(e, -1);
             case ROOM_FINISHED -> onRoomFinished(e);
+            case TRACK_PUBLISHED -> onTrackPublished(e);
+            case TRACK_UNPUBLISHED -> onTrackUnpublished(e);
             default -> log.debug("LiveKit 웹훅 무시 {}", e.event());
         }
         return true;
@@ -136,6 +144,56 @@ public class LiveWebhookService {
         }
         // 송출 중이라 못 바꿨던 방을 지금 적용한다 (§8.1 pending_room)
         device.filter(d -> d.getPendingRoom() != null).ifPresent(d -> live.bindIngressQuietly(d, d.getPendingRoom()));
+    }
+
+    /**
+     * 휴대폰 송출(§8.0): 매니저 앱('camera-매니저id')이 카메라 영상 트랙을 올렸다 → 바디캠의 ingress_started 와 같이 LiveService.cameraAttached
+     * (live 로 적기·막아야 하면 바로 mute·녹화 시작·첫 연결 푸시). 바디캠 모드이거나, 영상이 아니거나, 담당 매니저가 아니면 무시한다
+     */
+    void onTrackPublished(WebhookEvent e) {
+        UUID managerId = phoneCameraManager(e);
+        if (managerId == null) return;
+        Optional<ManagerDevice> device = devices.findById(managerId); // LiveService.startFromPhone 이 만든 휴대폰 카메라 행
+        if (device.isEmpty()) return;
+        sessions.lockByRoomName(e.roomName()).filter(LiveSession::isActive).ifPresent(s -> {
+            UUID assigned = bookings.find(s.getBookingId()).map(Booking::getManagerId).orElse(null);
+            if (!managerId.equals(assigned)) { // 송출 토큰은 담당 매니저에게만 나가므로 정상이면 오지 않는다 (배정이 바뀐 직후의 옛 토큰 등)
+                log.warn("담당이 아닌 매니저의 카메라 트랙 {} — 무시", e.roomName());
+                return;
+            }
+            live.cameraAttached(s, device.get(), e.track().sid());
+        });
+    }
+
+    /**
+     * 휴대폰 송출: 매니저 앱이 카메라 트랙을 내렸다(송출 종료·앱 종료·네트워크 끊김) → 바디캠의 ingress_ended 와 같이 카메라 대기로 되돌린다.
+     * 작업이 진행 중이고 매니저가 영상을 멈춘 채가 아니면 '카메라 연결이 끊겼어요' 푸시(CameraOffline). 지금 세션에 붙은 트랙일 때만 처리한다
+     */
+    void onTrackUnpublished(WebhookEvent e) {
+        UUID managerId = phoneCameraManager(e);
+        if (managerId == null) return;
+        Optional<ManagerDevice> device = devices.findById(managerId);
+        sessions.lockByRoomName(e.roomName()).filter(LiveSession::isCameraOnline).ifPresent(s -> {
+            if (s.getCameraTrackSid() != null && !s.getCameraTrackSid().equals(e.track().sid())) return; // 이미 새 트랙으로 다시 붙었다 — 옛 트랙의 늦은 알림
+            Booking b = bookings.find(s.getBookingId()).orElse(null);
+            if (b == null || !BookingStatus.ACTIVE.contains(b.getStatus())) return;
+            device.ifPresent(ManagerDevice::markOffline);
+            s.cameraDetached(clock.now());
+            if (b.getStatus() == BookingStatus.IN_PROGRESS && !s.isVideoHeld()) outbox.publish(new CameraOffline(s.getBookingId(), b.getManagerId(), "disconnected"));
+        });
+    }
+
+    /** 휴대폰 송출 모드에서 예약 방의 'camera-매니저id' 영상 트랙 이벤트면 그 매니저 id, 아니면 null */
+    private UUID phoneCameraManager(WebhookEvent e) {
+        if (!props.livekit().appSource()) return null; // 바디캠 모드에서는 ingress_* 가 같은 일을 한다
+        if (e.track() == null || !e.track().video() || e.roomName() == null || e.roomName().startsWith(PARKING_PREFIX)) return null;
+        String identity = e.participantIdentity();
+        if (identity == null || !identity.startsWith(CAMERA_PREFIX)) return null;
+        try {
+            return UUID.fromString(identity.substring(CAMERA_PREFIX.length()));
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     /** 녹화(Egress)가 시작됐거나 진행 중이다 — 세션에 egress id 를 적고 녹화 상태를 recording 으로 */

@@ -28,6 +28,14 @@ final class LiveTestSupport {
                 new AppProperties.Storage("https://sb.example/storage/v1/s3", "ak", "sk", "ap-northeast-2", "recordings"), new AppProperties.Admin("admin-token"));
     }
 
+    /** props() 와 같고 영상 출처만 휴대폰 송출(app, §8.0) */
+    static AppProperties appProps() {
+        AppProperties p = props();
+        AppProperties.Livekit l = p.livekit();
+        return new AppProperties(p.cors(), p.supabase(), new AppProperties.Livekit(l.mode(), l.url(), l.apiKey(), l.apiSecret(), l.muteConfirmAttempts(), l.muteConfirmSleepMs(), AppProperties.Livekit.SOURCE_APP),
+                p.storage(), p.admin());
+    }
+
     // MANAGER 의 바디캠 기기 한 대 (DB 에 저장하지 않은 객체). Ingress id 는 "ing-1", 처음 상태는 offline·잠금 해제
     static ManagerDevice device() {
         return ManagerDevice.register(MANAGER, "안심캠 #AC-00231", "AC-00231", "ing-1", "rtmp://lk.example/x", "abcd-ef-1234");

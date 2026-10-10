@@ -55,7 +55,7 @@ class LiveWebhookServiceTest {
     // 테스트마다 새로: 서비스 조립, 방 이름으로 잠가 읽으면 이 세션, Ingress id "ing-1" 로 찾으면 이 기기가 나오게 한다
     @BeforeEach
     void setUp() {
-        service = new LiveWebhookService(sessions, devices, events, livekit, live, bookings, outbox, CLOCK);
+        service = new LiveWebhookService(sessions, devices, events, livekit, live, bookings, outbox, CLOCK, LiveTestSupport.props());
         booking = TestBookings.inProgress(CUSTOMER, MANAGER, LocalDate.of(2026, 9, 15), LocalTime.of(10, 0), NOW);
         room = "booking-" + booking.getId();
         session = LiveSession.create(booking.getId());

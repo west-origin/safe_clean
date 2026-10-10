@@ -128,6 +128,12 @@ public class LoggingLiveKitGateway implements LiveKitGateway {
     }
 
     @Override
+    public String publishToken(String roomName, String identity, String name, Duration ttl) {
+        // 서명 없는 가짜 송출 토큰 — 실제 LiveKit 에 접속할 수는 없다
+        return "local-publish-token-" + identity;
+    }
+
+    @Override
     public String url() {
         // 앱에 알려 줄 접속 주소 자리를 채우는 로컬 주소
         return "ws://localhost:7880";

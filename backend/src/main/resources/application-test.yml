@@ -22,6 +22,7 @@ app:
     url: ""
     api-key: ""
     api-secret: ""
+    source: ingress                         # 기존 IT 는 바디캠(Ingress) 흐름을 검증한다. 휴대폰 송출은 단위 테스트(LiveServiceAppSourceTest 등)가 본다
 
 # 테스트 로그는 텍스트로 (application.yml 의 ecs JSON 을 끈다)
 logging:

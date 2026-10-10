@@ -81,6 +81,7 @@ app:
     api-secret: ${LIVEKIT_API_SECRET:}
     mute-confirm-attempts: 6                # pause/resume 뒤 트랙 muted 확인 폴링 (6 × 500ms = 3초, §5.4)
     mute-confirm-sleep-ms: 500
+    source: ${LIVE_SOURCE:app}               # 영상 출처: app = 매니저 휴대폰 카메라 송출(기본, §8.0) · ingress = 바디캠 RTMP Ingress(§8.1, 지금은 쓰지 않음)
   # 녹화본을 두는 Supabase Storage(S3 호환) 접속 정보. s3-* 는 LiveKitCloudGateway 가 녹화 업로드 설정으로 넘기고,
   # recordings-bucket 은 녹화본 주소 발급·삭제에 쓴다 (AppProperties.Storage)
   storage:

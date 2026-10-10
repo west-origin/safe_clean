@@ -4,6 +4,7 @@ import io.livekit.server.AccessToken;
 import io.livekit.server.AudioMixing;
 import io.livekit.server.CanPublish;
 import io.livekit.server.CanPublishData;
+import io.livekit.server.CanPublishSources;
 import io.livekit.server.CanSubscribe;
 import io.livekit.server.EgressServiceClient;
 import io.livekit.server.IngressAdmin;
@@ -245,6 +246,18 @@ public class LiveKitCloudGateway implements LiveKitGateway {
     }
 
     @Override
+    public String publishToken(String roomName, String identity, String name, Duration ttl) {
+        // 휴대폰 송출용 JWT (§8.0). 권한: 이 방에만 입장, 카메라 영상만 발행(마이크·화면 공유 불가), 시청·데이터 발행 불가
+        AccessToken token = new AccessToken(livekit.apiKey(), livekit.apiSecret());
+        token.setIdentity(identity);
+        token.setName(name);
+        token.setTtl(ttl.toMillis());
+        token.addGrants(new RoomJoin(true), new RoomName(roomName), new CanPublish(true), new CanPublishSources(List.of("camera")),
+                new CanSubscribe(false), new CanPublishData(false));
+        return token.toJwt();
+    }
+
+    @Override
     public String url() {
         return livekit.url();
     }
@@ -262,7 +275,8 @@ public class LiveKitCloudGateway implements LiveKitGateway {
         // 이벤트 종류마다 들어 있는 정보가 다르다 — 방 이름은 room → ingressInfo → egressInfo 순으로 있는 곳에서 꺼낸다
         String room = e.hasRoom() ? e.getRoom().getName() : e.hasIngressInfo() ? e.getIngressInfo().getRoomName() : e.hasEgressInfo() ? e.getEgressInfo().getRoomName() : null;
         return new WebhookEvent(e.getId(), e.getEvent(), room, e.hasParticipant() ? e.getParticipant().getIdentity() : null,
-                e.hasIngressInfo() ? toInfo(e.getIngressInfo()) : null, e.hasEgressInfo() ? toEgress(e.getEgressInfo()) : null);
+                e.hasIngressInfo() ? toInfo(e.getIngressInfo()) : null, e.hasEgressInfo() ? toEgress(e.getEgressInfo()) : null,
+                e.hasTrack() ? new Track(e.getTrack().getSid(), e.getTrack().getType() == LivekitModels.TrackType.VIDEO, e.getTrack().getMuted()) : null);
     }
 
     // ── 변환 ──
