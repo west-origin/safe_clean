@@ -10,7 +10,8 @@ import { tokens, tokenValues, tokenNames, cssVar } from './tokens.js';
 // 이 테스트 파일이 있는 폴더(packages/ui/src/tokens). 원본 JSON 은 저장소 루트의 design/ 에 있어 네 단계 위로 올라간다.
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = JSON.parse(fs.readFileSync(path.resolve(here, '../../../../design/figma-tokens.json'), 'utf8'));
-const css = fs.readFileSync(path.join(here, 'tokens.css'), 'utf8');
+// 줄바꿈은 \n 으로 맞춘다 — Windows 에서 git(core.autocrlf)이 CRLF 로 내려받으면 아래 줄 단위 정규식이 맞지 않았다
+const css = fs.readFileSync(path.join(here, 'tokens.css'), 'utf8').replace(/\r\n/g, '\n');
 
 describe('토큰 생성물', () => {
   it('Figma 변수 수와 생성된 토큰 수가 같다 (32개)', () => {

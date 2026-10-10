@@ -30,6 +30,9 @@ const RULES = [
   { name: 'font 축약 속성', re: /\bfont\s*:\s*[^;]*\d+(?:px|pt|rem|em)/, ext: ['.css'] },
 ];
 
+// Windows 경로(\ 구분자)를 / 로 바꾼다 — SKIP_PATH·네이티브 폴더 정규식이 / 기준이라, 바꾸지 않으면 Windows 에서 tokens/·android/ 를 걸러내지 못했다
+const toSlash = (p) => p.split(path.sep).join('/');
+
 // dir 아래에서 검사할 확장자의 파일을 재귀로 모은다. node_modules·dist 와 apps/<앱>/ios·android 폴더에는 들어가지 않는다
 function walk(dir, out = []) {
   if (!fs.existsSync(dir)) return out;
@@ -37,7 +40,7 @@ function walk(dir, out = []) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (entry.name === 'node_modules' || entry.name === 'dist') continue;
-      if ((entry.name === 'ios' || entry.name === 'android') && /\/apps\/[^/]+$/.test(dir)) continue; // Capacitor 네이티브 프로젝트 (생성물)
+      if ((entry.name === 'ios' || entry.name === 'android') && /\/apps\/[^/]+$/.test(toSlash(dir))) continue; // Capacitor 네이티브 프로젝트 (생성물)
       walk(full, out);
     } else if (EXTENSIONS.has(path.extname(entry.name))) {
       out.push(full);
@@ -49,7 +52,7 @@ function walk(dir, out = []) {
 // 파일을 한 줄씩 읽어 규칙에 걸린 줄을 모은다. 결과는 { scanned: 검사한 파일 수, findings: [{ file, line, rule, text }] }
 export function check(root = ROOT) {
   const files = SCAN_ROOTS.flatMap((r) => walk(path.join(root, r))).filter(
-    (f) => !SKIP_PATH.some((re) => re.test(f))
+    (f) => !SKIP_PATH.some((re) => re.test(toSlash(f)))
   );
   const findings = [];
   for (const file of files) {
