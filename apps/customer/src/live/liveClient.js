@@ -298,6 +298,21 @@ export const liveClient = {
           // 서버가 아직 커밋 전이면 옛 상태를 주므로, 같아질 때까지 잠깐 다시 묻는다 (자체 점검 #34)
           liveClient.refresh(bookingId, seq, { expect: muted ? 'paused' : 'live', event: ++trackEventSeq });
         },
+        // 매니저 휴대폰이 트랙을 내렸다 — 멈춘 마지막 화면을 떼고 '연결 대기' 로, 서버 상태를 곧 다시 받는다 (§8.0)
+        onVideoEnded: () => {
+          if (seq !== joinSeq) return;
+          if (videoTrack) videoTrack.detach();
+          videoTrack = null;
+          if (state.status === 'live') set({ status: 'connecting' });
+          liveClient.refresh(bookingId, seq);
+        },
+        // 네트워크가 잠깐 끊겨 LiveKit 이 다시 붙는 중 — 'LIVE' 배지를 내리고(연결 대기), 붙으면 서버 상태로 되돌린다. 새로고침 없이 이어진다
+        onReconnecting: () => {
+          if (seq === joinSeq && state.status === 'live') set({ status: 'connecting' });
+        },
+        onReconnected: () => {
+          if (seq === joinSeq) liveClient.refresh(bookingId, seq);
+        },
         onDisconnected: () => {
           if (room !== connected) return; // 다른(새) 방의 참조를 지우지 않는다
           room = null;
