@@ -71,3 +71,46 @@ describe('청소 시작 (B4 §9.2-3)', () => {
     __fake.equipment = null;
   });
 });
+
+// 휴대폰 송출 모드(서버 source='app', BACKEND_PLAN §8.0): 바디캠 대신 휴대폰 카메라 — 미리보기·카메라 행·실패 배너
+describe('휴대폰 카메라 (§8.0)', () => {
+  // 카메라를 가짜로: getUserMedia 가 영상 트랙 하나를 주거나(ok) 권한 거부 오류를 던진다
+  async function phoneMode(getUserMedia) {
+    const { __fake } = await import('../../api/http.js');
+    __fake.liveSource = 'app';
+    liveClient.reset(); // 앞 테스트(바디캠 모드)가 남긴 source='ingress' 를 지운다
+    vi.stubGlobal('navigator', { ...globalThis.navigator, mediaDevices: { getUserMedia } });
+    return __fake;
+  }
+  const okCamera = () => vi.fn(async () => ({ getVideoTracks: () => [{ readyState: 'live', stop: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn() }] }));
+  async function cleanup(__fake) {
+    liveClient.reset();
+    __fake.liveSource = undefined;
+    vi.unstubAllGlobals();
+  }
+
+  it('들어오면 카메라를 켜 미리보기를 보이고, 서버의 바디캠 상태와 상관없이 카메라 행은 연결됨 · 청소 시작 가능', async () => {
+    const getUserMedia = okCamera();
+    const __fake = await phoneMode(getUserMedia);
+    const { EQUIPMENT_ERROR } = await import('../../api/mock.js');
+    __fake.equipment = EQUIPMENT_ERROR; // 서버는 바디캠 '연결 안 됨' 이라고 해도
+    renderPreparing('job-1');
+    expect(await screen.findByRole('region', { name: '카메라 미리보기' })).toBeInTheDocument();
+    expect(await screen.findByText('연결됨')).toBeInTheDocument();
+    expect(screen.queryByText('카메라 연결 실패')).toBeNull();
+    expect(screen.getByRole('button', { name: '청소 시작' })).not.toBeDisabled();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    __fake.equipment = null;
+    await cleanup(__fake);
+  });
+
+  it('카메라 권한을 거부하면 연결 실패 배너에 휴대폰 권한 안내가 나오고 시작 버튼이 꺼진다', async () => {
+    const __fake = await phoneMode(vi.fn(async () => { throw Object.assign(new Error('no'), { name: 'NotAllowedError' }); }));
+    const { PHONE_CAMERA_COPY } = await import('../../api/mock.js');
+    renderPreparing('job-1');
+    expect(await screen.findByText('카메라 연결 실패')).toBeInTheDocument();
+    expect(screen.getByText(PHONE_CAMERA_COPY.denied)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '청소 시작 (카메라 연결 후 가능)' })).toBeDisabled();
+    await cleanup(__fake);
+  });
+});

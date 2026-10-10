@@ -299,10 +299,12 @@ export function fakeHttpModule() {
     ['POST', /^\/live\/sessions\/([^/]+)\/start$/, ([id]) => {
       if (state.startFails) throw new ApiError(409, 'INVALID_STATE', '바디캠이 등록되지 않았어요. 운영자에게 문의해주세요');
       state.live = { status: 'live', cameraOnline: true, cameraBusy: false };
+      // __fake.liveSource = 'app' → 휴대폰 송출 모드: preview 대신 publish(송출 토큰) (BACKEND_PLAN §8.0)
+      if (state.liveSource === 'app') return { roomName: `booking-${id}`, ...state.live, preview: null, publish: { url: 'ws://fake', token: 'publish-token' } };
       return { roomName: `booking-${id}`, ...state.live, preview: { url: 'ws://fake', token: 'preview-token' } };
     }],
     // 세션 상태: 시작 전이면 status 'created'(카메라 꺼짐), 일시정지 중이면 muted=true
-    ['GET', /^\/live\/sessions\/([^/]+)$/, () => ({ ...(state.live ?? { status: 'created', cameraOnline: false, cameraBusy: false }), muted: state.live?.status === 'paused', viewers: 0, startedAt: '2026-09-15T05:02:00Z', held: Boolean(state.live?.held) })], // __fake.live = { …, held: true } → 서버가 '매니저가 멈춘 채' 라고 답한다
+    ['GET', /^\/live\/sessions\/([^/]+)$/, () => ({ ...(state.live ?? { status: 'created', cameraOnline: false, cameraBusy: false }), muted: state.live?.status === 'paused', viewers: 0, startedAt: '2026-09-15T05:02:00Z', held: Boolean(state.live?.held), source: state.liveSource ?? 'ingress' })], // __fake.live = { …, held: true } → 서버가 '매니저가 멈춘 채' 라고 답한다
     // 영상 차단(①). livePauseFails 면 502 — 서버가 차단을 확인하지 못한 경우를 흉내 낸다
     ['POST', /^\/live\/sessions\/([^/]+)\/pause$/, () => {
       if (state.livePauseFails) {
@@ -313,6 +315,11 @@ export function fakeHttpModule() {
       return { status: 'paused', muted: true };
     }],
     ['POST', /^\/live\/sessions\/([^/]+)\/resume$/, () => {
+      // __fake.liveResumeFailsOnce = true → 한 번만 502 (원격 unmute 가 막힌 LiveKit 프로젝트 흉내 — 휴대폰이 스스로 풀고 다시 부른다, §8.0)
+      if (state.liveResumeFailsOnce) {
+        state.liveResumeFailsOnce = false;
+        throw new ApiError(502, 'LIVE_PAUSE_UNCONFIRMED', '영상을 다시 시작하지 못했어요. 잠시 후 다시 시도해주세요');
+      }
       state.live = { ...state.live, status: 'live', held: false };
       return { status: 'live', muted: false };
     }],

@@ -38,6 +38,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- 라이브(단계 B5): 영상은 별도 바디캠 → LiveKit Ingress. 휴대폰 카메라·마이크 권한은 필요 없다 -->
+    <!-- 라이브(2026-10-10, BACKEND_PLAN §8.0): 영상은 매니저 휴대폰 후면 카메라 → LiveKit. 카메라·마이크 권한을 둔다(제거 금지 — 사용자 지시).
+         지금은 영상만 송출(결정 §13-23)이라 마이크는 선언만 하고 요청하지 않는다. 송출 중 화면 꺼짐 방지는 keep-awake 플러그인 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-feature android:name="android.hardware.camera" android:required="true" />
 </manifest>

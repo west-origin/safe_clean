@@ -1,12 +1,16 @@
 // 매니저용 라이브 클라이언트. 앱 전체에서 하나만 있는 객체이며, 화면(Preparing → InProgress → Paused → Complete) 사이를 오가도 상태가 유지된다.
-// 단계 5(B5) 에서 채움. **휴대폰은 송출하지 않는다** — 영상은 바디캠 → LiveKit Ingress(§8). 이 클라이언트는 서버 세션(start/pause/resume/stop)을 부르고,
-// 프리뷰 토큰으로 방에 시청자로 들어가 <video> 에 붙인다. 상태는 3초마다 서버에서 다시 받는다.
+// 영상 출처는 서버 설정(source)을 따른다:
+//  - app(기본, BACKEND_PLAN.md §8.0): **휴대폰 후면 카메라를 송출한다.** prepare() 가 청소 준비 화면에서 카메라를 켜 미리보기를 보이고,
+//    start() 가 서버의 송출 토큰으로 방에 들어가 같은 트랙을 publish 한다. 영상 입력은 sources/ 만, LiveKit 은 roomConnector.js 만 안다.
+//  - ingress(바디캠, 지금은 쓰지 않음): 프리뷰 토큰으로 방에 시청자로 들어가 바디캠 영상을 <video> 에 붙인다.
+// 이 클라이언트는 서버 세션(start/pause/resume/stop)을 부르고, 상태는 3초마다 서버에서 다시 받는다.
 // pause()/resume() 은 **영상만** 책임진다(§8.2.1) — 작업 상태는 화면이 pauseJob/resumeJob 을 따로 부른다.
 // 순서가 정해져 있고 서버가 강제한다: 일시정지는 pause()(영상 차단) → pauseJob, 재개는 resumeJob → resume()(영상).
 // 순서를 어기면 서버가 409(INVALID_STATE)로 거절한다 — 영상이 나가는데 작업은 '일시정지' 로 보이는 순간을 만들지 않으려는 것.
 // 화면 코드는 useLiveSession() 훅을 거쳐 쓴다 (테스트는 이 객체를 직접 부른다).
 import { startLiveSession, getLiveSessionStatus, pauseLiveSession, resumeLiveSession, stopLiveSession } from '../api/manager.js';
-import { connectRoom } from './roomConnector.js';
+import { connectRoom, publishRoom } from './roomConnector.js';
+import { createVideoSource } from './sources/index.js';
 import { session } from '../api/session.js';
 
 /** @typedef {'idle'|'connecting'|'live'|'paused'|'ended'|'error'} LiveStatus */
@@ -35,6 +39,14 @@ let state = {
   /** @type {HTMLVideoElement|null} 프리뷰 <video> */
   videoEl: null,
   error: null, // start 가 실패했을 때의 오류 객체
+  /** @type {'app'|'ingress'|null} 영상 출처 (서버 GET /live/sessions/{id} 의 source). 모르면 null */
+  source: null,
+  /** @type {'off'|'starting'|'ready'|'error'} 휴대폰 카메라 상태 (app 모드). ready 여야 청소를 시작할 수 있다 */
+  camera: 'off',
+  /** @type {'denied'|'notFound'|'busy'|'failed'|null} 카메라를 켜지 못한 이유 (sources/cameraVideoSource.js 의 CameraError.code) */
+  cameraError: null,
+  /** 송출 연결이 잠깐 끊겨 LiveKit 이 다시 붙는 중 (app 모드) */
+  reconnecting: false,
 };
 
 const listeners = new Set(); // subscribe() 로 등록된 함수들 (useLiveSession)
@@ -52,6 +64,15 @@ let retryTimer = null; // start 실패 뒤 재시도 setTimeout 핸들
 let seq = 0;
 /** pause/resume/stop 마다 +1 — 그 전에 나간 폴링 응답이 방금 바뀐 상태를 덮지 않게 (세션 자체는 그대로라 seq 와 분리한다) */
 let pollSeq = 0;
+
+// ── 휴대폰 송출(app 모드) ──
+let videoSource = null; // 영상 입력 (sources/index.js 가 만든다). 처음 카메라를 켤 때 만든다
+let stopEndedWatch = null; // 입력의 onEnded 구독 해제 함수
+let cameraStarting = null; // 카메라를 켜는 중인 Promise — prepare 와 start 가 겹쳐도 카메라를 두 번 열지 않게
+let cameraWanted = false; // 화면이 카메라를 원한다(prepare~stop/reset/releaseCamera) — 카메라가 저절로 꺼졌을 때 다시 켤지 정한다
+let publisher = null; // publishRoom 이 돌려준 송출 연결 { disconnect, replaceTrack, unmute }. 없으면 null
+let publishInfo = null; // { url, token } — start 응답의 송출 접속 정보. 끊기면 폴링 때 이것으로 다시 붙는다
+let publishConnecting = false; // 송출 연결 시도 중 — 폴링이 겹쳐도 두 번 붙지 않게
 
 /** 상태 일부를 바꾸고(새 객체) 구독자를 깨운다 */
 function set(patch) {
@@ -78,8 +99,120 @@ let lastPoll = null; // 마지막으로 시작한 폴링 (돌아왔을 때 즉�
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (!hidden() && pollTimer && lastPoll) lastPoll();
+    // 백그라운드에 다녀오면 WebView 가 카메라를 끊었을 수 있다 — 화면이 아직 카메라를 원하면 다시 켜고 송출 트랙을 바꿔 끼운다
+    if (!hidden() && cameraWanted && state.camera !== 'ready') recoverCamera();
   });
 }
+
+/** 휴대폰 카메라를 켠다(이미 켜져 있으면 그 트랙). 실패하면 camera='error' + cameraError 를 남기고 null */
+async function startCamera() {
+  const live = videoSource?.getTrack();
+  if (live && live.readyState === 'live') return live;
+  if (cameraStarting) return cameraStarting;
+  videoSource ??= createVideoSource();
+  stopEndedWatch ??= videoSource.onEnded(() => {
+    set({ camera: 'off' });
+    if (cameraWanted && !hidden()) recoverCamera(); // 보이는 중에 끊겼으면(다른 앱이 카메라를 가져갔다 돌려줌 등) 바로 다시 켠다
+  });
+  set({ camera: 'starting', cameraError: null });
+  cameraStarting = (async () => {
+    try {
+      const track = await videoSource.start();
+      set({ camera: 'ready' });
+      showLocalPreview();
+      return track;
+    } catch (e) {
+      set({ camera: 'error', cameraError: e?.code ?? 'failed' });
+      return null;
+    } finally {
+      cameraStarting = null;
+    }
+  })();
+  return cameraStarting;
+}
+
+/** 카메라를 다시 켜고, 송출 중이면 새 트랙으로 바꿔 끼운다 (고객 화면이 끊기지 않게) */
+async function recoverCamera() {
+  const track = await startCamera();
+  if (track && publisher) await publisher.replaceTrack(track).catch(() => {});
+}
+
+/** 카메라를 끈다 (송출을 멈춘 뒤·청소 준비 화면을 떠날 때) */
+function stopCamera() {
+  cameraWanted = false;
+  videoSource?.stop();
+  if (state.videoEl && state.source === 'app') state.videoEl.srcObject = null;
+  set({ camera: 'off', cameraError: null });
+}
+
+/** 휴대폰 카메라 트랙을 미리보기 <video> 에 붙인다 (app 모드). 같은 트랙이 송출에도 쓰인다 */
+function showLocalPreview() {
+  const track = videoSource?.getTrack();
+  if (!state.videoEl || !track || typeof MediaStream === 'undefined') return; // MediaStream 이 없는 환경(테스트의 jsdom)에서는 붙이지 않는다
+  if (state.videoEl.srcObject?.getVideoTracks?.()[0] === track) return; // 이미 붙어 있다
+  state.videoEl.srcObject = new MediaStream([track]);
+}
+
+/** 송출하는 동안 화면이 꺼지지 않게(꺼지면 WebView 카메라가 멈춘다). 플러그인이 없는 환경(웹 테스트)에서는 조용히 넘어간다 */
+async function keepAwake(on) {
+  try {
+    const { KeepAwake } = await import('@capacitor-community/keep-awake');
+    if (on) await KeepAwake.keepAwake();
+    else await KeepAwake.allowSleep();
+  } catch {
+    // 지원하지 않는 환경 — 화면 꺼짐 방지 없이 계속한다
+  }
+}
+
+/** 송출 연결 (app 모드): 카메라를 켜고 송출 토큰으로 방에 들어가 트랙을 publish 한다. 실패하면 대기 시간을 늘리고 다음 폴링이 다시 시도한다 */
+async function connectPublisher(mySeq) {
+  if (!publishInfo || publisher || publishConnecting || Date.now() < previewRetryAt) return;
+  publishConnecting = true;
+  try {
+    cameraWanted = true;
+    const track = await startCamera();
+    if (!track || mySeq !== seq) return; // 카메라를 못 켰다 — 화면이 cameraError 를 보여 주고, '카메라 다시 연결' 이 다시 부른다
+    let connected = null;
+    connected = await publishRoom({
+      url: publishInfo.url,
+      token: publishInfo.token,
+      mediaTrack: track,
+      onReconnecting: () => mySeq === seq && set({ reconnecting: true }),
+      onReconnected: () => mySeq === seq && set({ reconnecting: false }),
+      onDisconnected: () => {
+        if (publisher !== connected) return;
+        publisher = null; // 다음 폴링이 다시 붙는다
+        set({ reconnecting: false });
+      },
+    });
+    if (mySeq !== seq) {
+      await connected?.disconnect();
+      return;
+    }
+    publisher = connected; // wss:// 가 아니면(로컬 대역·테스트) null — 서버 폴링만으로 화면이 돈다
+    previewBackoffMs = 0;
+    if (connected) keepAwake(true);
+  } catch {
+    publisher = null;
+    previewBackoffMs = Math.min(previewBackoffMs ? previewBackoffMs * 2 : PREVIEW_RETRY_MS, PREVIEW_RETRY_MAX_MS);
+    previewRetryAt = Date.now() + previewBackoffMs;
+  } finally {
+    publishConnecting = false;
+  }
+}
+
+/** 송출을 멈춘다: 트랙을 내리고 방을 나간다. 카메라는 끄지 않는다(stopCamera 가 따로) */
+async function disconnectPublisher() {
+  const p = publisher;
+  publisher = null;
+  publishInfo = null;
+  previewRetryAt = 0;
+  previewBackoffMs = 0;
+  if (p) await p.disconnect().catch(() => {});
+  keepAwake(false);
+}
+
+/** 상태 일부를 바꾸고(새 객체) 구독자를 깨운다 */
 
 
 /** 프리뷰(LiveKit 방) 연결. 실패해도 세션은 유효하다 — room 을 null 로 두면 다음 폴링이 다시 시도한다 */
@@ -137,7 +270,36 @@ export const liveClient = {
   // 화면의 ref 로 쓰여 <video> 가 생길 때 요소를, 사라질 때 null 을 받는다
   attachVideo(videoEl) {
     set({ videoEl });
-    if (videoEl && videoTrack) videoTrack.attach(videoEl); // 트랙이 먼저 와 있었으면 바로 붙인다
+    if (!videoEl) return;
+    if (state.source === 'app') showLocalPreview(); // 휴대폰 송출: 내 카메라 트랙을 그대로 보인다
+    else if (videoTrack) videoTrack.attach(videoEl); // 바디캠 프리뷰 트랙이 먼저 와 있었으면 바로 붙인다
+  },
+
+  /**
+   * 청소 준비 화면(Job/Preparing)이 들어올 때 부른다: 서버에 영상 출처를 묻고, 휴대폰 송출(app)이면 카메라를 켜 미리보기를 보인다.
+   * 카메라 권한은 여기서 처음 묻는다. 실패하면 던지지 않고 camera='error' + cameraError 로 남긴다 (화면이 '카메라 연결 실패' 를 그린다).
+   * '카메라 다시 연결' 도 이것을 다시 부른다. 바디캠 모드면 아무것도 하지 않는다
+   */
+  async prepare(jobId) {
+    let source = state.source;
+    if (!source) {
+      try {
+        const res = await getLiveSessionStatus(jobId);
+        source = res.source === 'app' ? 'app' : 'ingress'; // source 가 없는 옛 서버는 바디캠으로 본다
+        set({ source });
+      } catch {
+        return; // 출처를 모른다 — 화면은 서버 장비 상태로 그린다. 다시 들어오거나 '카메라 다시 연결' 때 다시 묻는다
+      }
+    }
+    if (source !== 'app') return;
+    cameraWanted = true;
+    await startCamera();
+  },
+
+  /** 청소를 시작하지 않고 청소 준비 화면을 떠날 때: 송출 중이 아니면 카메라를 끈다 (배터리·카메라 표시등) */
+  releaseCamera() {
+    if (publisher || publishInfo || ['connecting', 'live', 'paused'].includes(state.status)) return;
+    stopCamera();
   },
 
   /**
@@ -150,6 +312,7 @@ export const liveClient = {
     // 옛 폴링·프리뷰를 정리하고 새 세션 번호(seq)를 받는다
     stopPolling();
     disconnectPreview();
+    await disconnectPublisher(); // 옛 송출 연결만 끊는다 — 카메라(미리보기)는 그대로 이어 쓴다
     const mySeq = ++seq;
     const startedAt = state.jobId === jobId && state.startedAt ? state.startedAt : null; // 같은 작업의 재시도만 시작 시각을 잇는다 (검수 4차: 앞 작업의 시각이 다음 작업으로 넘어갔다)
     set({ status: 'connecting', jobId, error: null, cameraBusy: false, cameraOnline: false, startedAt });
@@ -158,7 +321,13 @@ export const liveClient = {
       if (mySeq !== seq) return; // 그 사이 stop/reset 됐다
       set({ status: toStatus(res.status), cameraOnline: res.cameraOnline, cameraBusy: res.cameraBusy, startedAt: startedAt ?? Date.now() });
       preview = res.preview ?? null;
-      await connectPreview(mySeq);
+      publishInfo = res.publish ?? null; // 휴대폰 송출 모드면 송출 토큰이 온다 (§8.0)
+      if (publishInfo) {
+        set({ source: 'app' });
+        await connectPublisher(mySeq);
+      } else {
+        await connectPreview(mySeq);
+      }
       if (mySeq !== seq) return;
       // 3초마다 refresh. 화면이 숨겨져 있으면 그 차례는 건너뛴다
       lastPoll = () => liveClient.refresh(jobId, mySeq);
@@ -182,9 +351,11 @@ export const liveClient = {
       const res = retryStart ? await startLiveSession(jobId) : await getLiveSessionStatus(jobId);
       if (mySeq !== seq || myPoll !== pollSeq) return; // stop 뒤·pause/resume 전에 나간 응답은 버린다
       if (res.preview) preview = res.preview; // start 응답에만 있다 — 새 프리뷰 접속 정보로 바꾼다
+      if (res.publish) publishInfo = res.publish;
       set({ status: toStatus(res.status), cameraOnline: res.cameraOnline, cameraBusy: Boolean(res.cameraBusy), held: Boolean(res.held) });
       if (res.status === 'ended') stopPolling();
-      else if (!room) connectPreview(mySeq); // 기다리지 않는다 — 폴링 주기를 막지 않게
+      else if (publishInfo) connectPublisher(mySeq); // 송출이 끊겼으면 다시 붙는다 (기다리지 않는다 — 폴링 주기를 막지 않게)
+      else if (!room) connectPreview(mySeq);
     } catch {
       // 잠깐의 실패는 다음 폴링이 메운다
     }
@@ -213,7 +384,16 @@ export const liveClient = {
   async resume(jobId = state.jobId) {
     if (!jobId) throw new Error('liveClient.resume: 작업 id 가 없어요');
     if (state.jobId !== jobId) set({ jobId });
-    const res = await resumeLiveSession(jobId);
+    let res;
+    try {
+      res = await resumeLiveSession(jobId);
+    } catch (e) {
+      // 휴대폰 송출: 서버의 원격 unmute 가 LiveKit 프로젝트 설정으로 막혀 있으면 확인 실패(502)가 난다.
+      // 작업은 이미 재개됐으므로(화면이 resumeJob 을 먼저 부른다) 휴대폰이 스스로 mute 를 풀고 한 번 더 확인을 받는다 (§8.0)
+      if (e?.code !== 'LIVE_PAUSE_UNCONFIRMED' || !publisher) throw e;
+      await publisher.unmute();
+      res = await resumeLiveSession(jobId);
+    }
     pollSeq++;
     set({ status: toStatus(res.status), held: false }); // 재개 요청이 닿았다 — 서버도 멈춤 표시를 지웠다
   },
@@ -229,7 +409,9 @@ export const liveClient = {
       if (jobId) await stopLiveSession(jobId);
     } finally {
       disconnectPreview();
-      set({ status: 'ended', cameraOnline: false, cameraBusy: false, startedAt: null }); // jobId 는 남긴다 — 진행 중 화면이 끝난 작업에 start 를 다시 보내지 않게
+      await disconnectPublisher();
+      stopCamera();
+      set({ status: 'ended', cameraOnline: false, cameraBusy: false, startedAt: null, reconnecting: false }); // jobId 는 남긴다 — 진행 중 화면이 끝난 작업에 start 를 다시 보내지 않게
     }
   },
 
@@ -239,7 +421,9 @@ export const liveClient = {
     pollSeq++;
     stopPolling();
     disconnectPreview();
-    set({ status: 'idle', jobId: null, startedAt: null, cameraOnline: false, cameraBusy: false, held: false, error: null });
+    disconnectPublisher();
+    stopCamera();
+    set({ status: 'idle', jobId: null, startedAt: null, cameraOnline: false, cameraBusy: false, held: false, error: null, source: null, reconnecting: false });
   },
 };
 

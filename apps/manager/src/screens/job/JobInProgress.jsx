@@ -23,7 +23,7 @@ const HELD_NOTICE = { message: '' };
 export default function JobInProgress() {
   const navigate = useNavigate();
   // 훅 결과를 풀어 쓴다: 객체째 두면 videoRef 때문에 lint(react-hooks/refs)가 다른 필드 읽기까지 ref 접근으로 본다
-  const { status: liveStatus, jobId: liveJobId, cameraBusy, held: liveHeld, error: liveError, videoRef, start: liveStart, pause: livePause, resume: liveResume, stop: liveStop } = useLiveSession();
+  const { status: liveStatus, jobId: liveJobId, cameraBusy, reconnecting, held: liveHeld, error: liveError, videoRef, start: liveStart, pause: livePause, resume: liveResume, stop: liveStop } = useLiveSession();
   const { data: job, error, reload, refresh, setData: setJob } = useAsync(() => getActiveJob(), []);
   const jobId = job?.id;
   const elapsed = useElapsed(job?.startedAt, job?.pausedSeconds, job?.elapsed, job?.status === 'paused'); // 라이브가 아니라 작업 상태로 — 영상만 막히고 작업 일시정지가 실패하면 시계가 화면을 연 시점으로 되돌아가 멈췄다 (자체 점검 #43)
@@ -109,8 +109,8 @@ export default function JobInProgress() {
   if (error) return <ScreenError error={error} onRetry={reloadAll} onBack={() => navigate(-1)} />;
   if (!job) return <ScreenLoading />;
 
-  // 라이브 문구: 바디캠을 껐다 켜야 하면(cameraBusy) 그 안내, 아니면 상태별 문구. 문구 표에 없는 상태는 '카메라 연결 대기 중'
-  const liveText = cameraBusy ? LIVE_STATE_COPY.cameraBusy : (LIVE_STATE_COPY[liveStatus] ?? LIVE_STATE_COPY.connecting);
+  // 라이브 문구: 바디캠을 껐다 켜야 하면(cameraBusy) 그 안내, 휴대폰 송출이 잠깐 끊겨 다시 붙는 중이면(reconnecting) 그 안내, 아니면 상태별 문구. 문구 표에 없는 상태는 '카메라 연결 대기 중'
+  const liveText = cameraBusy ? LIVE_STATE_COPY.cameraBusy : reconnecting ? LIVE_STATE_COPY.reconnecting : (LIVE_STATE_COPY[liveStatus] ?? LIVE_STATE_COPY.connecting);
   const since = `${job.sinceLabel ?? job.since} · ${liveText}`; // 서버 sinceLabel('14:02부터 진행') + 3초 폴링의 라이브 상태 문구
   // 배지는 라이브 상태를 따른다: live → 실시간, paused → 일시정지, 그 밖의 상태(연결 대기·오류 등)는 진행 중
   const badge = liveStatus === 'live' ? 'live' : liveStatus === 'paused' ? 'paused' : 'inProgress';

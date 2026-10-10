@@ -35,3 +35,8 @@
 .primary {
   color: var(--color-text-primary);
 }
+
+/* 휴대폰 송출(§8.0)의 카메라 미리보기 (코드에서 정함): VideoSurface 기본 높이(430, 고객 VideoCard)는 이 화면에서 장비 목록을 밀어내므로 낮춘다 */
+.preview {
+  height: 320px;
+}

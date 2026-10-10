@@ -148,6 +148,18 @@
 - [x] 각 파일 상단에 단계 5 체크리스트(TODO(stage5)). 테스트 2개 추가 (총 111)
 - [ ] (미착수) 실제 연결: livekit-client · livekit-server-sdk · LiveKit 클라우드/자체 서버 결정 · 녹화 저장소 · 인증
 
+## 단계 5 — 매니저 휴대폰 송출 (2026-10-10, 사용자 결정 "바디캠이 아닌 스마트폰으로" · "카메라 마이크 권한 제거하지 마")
+영상 출처를 바디캠(RTMP Ingress)에서 **매니저 휴대폰 후면 카메라 → LiveKit** 으로 바꿨다. `LIVE_SOURCE` 기본 `app`, 바디캠 코드는 `ingress` 로 남김(지우지 않음). 사양은 BACKEND_PLAN §8.0, 결정 §13-18 갱신·§13-14 다시 열림.
+- [x] 검사 도구: Windows 에서 `check:tokens` 제외 경로(`\`)·`tokens.test.js` CRLF 실패 수정 (기존 실패, 이번 작업 전)
+- [x] 문서: CLAUDE.md §8 단계 5·§11-12, BACKEND_PLAN §8.0·§13-14·§13-18, PLAN.md 패키지 표(keep-awake), api.md §5.4(start 응답 `publish`, 상태 응답 `source`, 웹훅 `track_*`)
+- [x] 백엔드: `app.livekit.source` · `LiveKitGateway.publishToken`(카메라만 publish, 구독·데이터 불가, 6시간) · `LiveService.startFromPhone`(기기 행 '휴대폰 카메라' 를 만들고 Ingress 생략, identity `camera-<managerId>` — 일시정지 mute·재조정기·녹화는 바디캠과 같은 코드) · 웹훅 `track_published/unpublished` → 카메라 붙음·끊김 · 상태 응답 `source` · 재개 때 원격 unmute 가 거절돼도 트랙이 풀렸는지 확인. 테스트 `LiveAppSourceTest`(9)·`LiveControllerTest` 1건·`LiveAppSourceIT`(**IT 미실행 — 이 컴퓨터에 Docker 없음, 컴파일만**). 백엔드 523 통과
+- [x] 매니저 앱: `live/sources/{cameraVideoSource,index}.js`(영상 입력 — LiveKit 을 모름) · `roomConnector.publishRoom`(publish·재연결·replaceTrack·unmute) · `liveClient` prepare/releaseCamera/송출 연결·재연결·카메라 복구·keep-awake · 훅 반환값(source·camera·cameraError·reconnecting) · Job/Preparing(카메라 실패 배너 자리에 미리보기) · Job/InProgress(재연결 문구). 테스트 `liveClient.phone.test.js`(6)·JobPreparing 2건
+- [x] 고객 앱: `roomConnector`·`liveClient` 에 TrackUnsubscribed(멈춘 화면 떼기)·Reconnecting/Reconnected(새로고침 없이 이어짐)
+- [x] Capacitor: 매니저 AndroidManifest `CAMERA`·`RECORD_AUDIO`·`MODIFY_AUDIO_SETTINGS`, Info.plist `NSCameraUsageDescription`·`NSMicrophoneUsageDescription`, `@capacitor-community/keep-awake` 8.0.1, `cap:sync`
+- [ ] **실기기 확인 전** — LiveKit Cloud 키(`LIVEKIT_MODE=cloud`·URL·KEY·SECRET)와 웹훅 등록이 필요하다. 확인할 것: 매니저 미리보기 → 청소 시작 → 고객 시청(지연) · 일시정지 검은 화면/재개(원격 unmute 설정 여부) · 앱 백그라운드 다녀오기 · 완료 뒤 녹화본(single-speaker 레이아웃이 휴대폰 트랙을 고르는지)
+- **판단(Figma 에 없음)**: ① 청소 준비 화면은 휴대폰 송출이면 머리(제목·배너) 자리에 미리보기(높이 320, VideoSurface 기본 430 은 장비 목록을 밀어냄) ② 카메라 실패 배너 본문은 Figma 의 바디캠 문구 대신 이유별 문구 `PHONE_CAMERA_COPY`(권한 거부·카메라 없음·사용 중·그 밖) ③ 진행 화면의 재연결 문구 `LIVE_STATE_COPY.reconnecting` ④ 카메라 행 값은 서버와 같은 '연결됨'·'연결 안 됨' ⑤ 기기 행 표시 이름 '휴대폰 카메라'(장비 화면) ⑥ iOS 권한 문구 — 카메라는 사용자 승인 문구, 마이크는 같은 형식으로 정함 ⑦ 화질 720p·24fps(데이터·발열) ⑧ 지금은 영상만(결정 §13-23) — 마이크 권한은 선언만
+- **남은 위험**: 앱이 백그라운드로 가면 WebView 카메라가 멈춘다(돌아오면 다시 켜 트랙을 바꿔 끼움, 백그라운드 송출은 §13-14 결정 필요) · 장시간 송출 발열·배터리 · 모바일 데이터(720p ≈ 시간당 0.7~1.3GB) · 녹화 레이아웃 · 원격 unmute
+
 ## 수리 예약 플로우 (R1) — Figma `rGCjx3zWMBk18fXgNZ9UYX` (2026-09-21, 완료)
 사용자 요청: 수리 탭이 청소 예약 플로우를 그대로 쓰던 것을 수리 전용 8화면으로. 커밋 `e94c4e0`(ui) `cb05124`(customer) `59c4781`(backend).
 - [x] R1-a 프리미티브 11개 + `TimeSlotGrid layout=flat` + `StepNavBar total`: `StepQuestion` `OptionGroup` `SelectionSummary` `PhotoPicker` `InfoNote` `SelectedAddressCard` `ToggleChip` `WeekCalendar` `ConfirmSummaryRow` `SuccessHeader` `StackedInfoCard`. 원본색 5개 `tokens/extra.css`(`--raw-repair-option-bg` `--raw-repair-notice-bg` `--raw-success-green` `--raw-repair-card-shadow` `--raw-repair-complete-gradient`). 갤러리 `RepairGallery`.
