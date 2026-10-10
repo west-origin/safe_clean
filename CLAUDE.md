@@ -235,7 +235,7 @@ npm run build
 - **구조는 완료(2026-09-19).** `apps/*/src/live/liveClient.js`(앱에 하나뿐인 클라이언트 객체, 모든 연결 코드 자리)와 `useLiveSession.js`(훅)가 있다. 서버 쪽(LiveKit 토큰·Ingress·Egress)은 `backend/` 의 `live` 패키지(단계 B5, `BACKEND_PLAN.md` §8). 각 파일 상단의 `TODO(stage5)` 체크리스트만 채우면 된다. 화면 변경 범위는 계획 §9.2.
 - `livekit-client` 만 추가. `liveClient.js` 가 연결·트랙·상태(`idle|connecting|live|paused|ended|error`)를 관리. 화면은 훅의 반환값만 쓴다.
 - 토큰 발급·Ingress·Egress 는 Spring `backend/` 의 `live` 패키지 (Node `server/` 는 B1 에서 삭제됨). 비밀키는 `backend/.env` (`.env.example` 만 커밋).
-- 매니저: 후면 카메라, 마이크, Pause = 트랙 `mute`, 화면 꺼짐 방지(Capacitor Keep Awake).
+- 매니저: 후면 카메라, 마이크, Pause = 트랙 `mute`, 화면 꺼짐 방지(Capacitor Keep Awake). (2026-10-10 다시 이 방식 — 영상 입력은 `apps/manager/src/live/sources/` 만 알고, publish 는 `liveClient.js`·`roomConnector.js` 만 안다. 카메라·마이크 권한은 Manifest·Info.plist 에 둔다(제거 금지, 사용자 지시). 지금은 영상만 송출 — 결정 §13-23)
 - 고객: 시청, Mute = 오디오 트랙 토글, Capture = `<video>` → canvas → 이미지 저장, Back15/Forward15 = 녹화본(HLS/MP4) 탐색.
 
 ### 단계 6 — Capacitor (완료 2026-09-19)
@@ -287,7 +287,7 @@ npm run build
 9. **쓰기 요청은 멱등.** 예약 생성·콜 수락·작업 시작/완료·문의는 `Idempotency-Key` 헤더 + `Idempotent.run`(계획 §6.9). 앱은 `crypto.randomUUID()` 로 키를 만들어 재시도 때 같은 키를 보낸다(§9.4).
 10. **테스트는 기능마다 3층.** Service 단위(Mockito) / Controller 슬라이스(`@WebMvcTest`, JSON 모양·권한) / 통합(`@SpringBootTest` + Testcontainers Postgres, 핵심 흐름 `*IT`). 새 엔드포인트는 셋 다 없으면 보고 불가. Docker 가 없어 `-DskipITs` 로 건너뛰면 PROGRESS 에 "IT 미실행" 을 적는다.
 11. **로그에 개인정보 금지.** 전화번호·주소·토큰은 마스킹. 요청 로그는 `method path status ms userId` 만.
-12. **라이브(바디캠).** 영상은 바디캠 → LiveKit Ingress, 앱은 송출하지 않는다. 일시정지는 `live/pause`(영상 차단, 확인 후 응답) → `jobs/pause`(작업 상태) 순서이고 서버가 선행 조건으로 강제한다(계획 §8.2.1). **영상이 나가는데 상태가 '일시정지' 인 순간은 없다.**
+12. **라이브(매니저 스마트폰).** 영상은 매니저 앱이 휴대폰 후면 카메라로 LiveKit 방에 직접 publish 한다(`LIVE_SOURCE=app`, 2026-10-10 사용자 결정 — 그 전엔 바디캠 → Ingress). 바디캠(Ingress) 코드는 `LIVE_SOURCE=ingress` 로 남아 있지만 쓰지 않는다. 앱 송출 참가자도 identity `camera-<managerId>` 라 일시정지·재조정기·녹화는 같은 코드를 쓴다(계획 §8.0). 일시정지는 `live/pause`(영상 차단, 확인 후 응답) → `jobs/pause`(작업 상태) 순서이고 서버가 선행 조건으로 강제한다(계획 §8.2.1). **영상이 나가는데 상태가 '일시정지' 인 순간은 없다.**
 13. **한 항목 = 한 커밋** (`feat(backend): … (단계 B3)`), 회차마다 계획 §14 형식으로 보고 후 정지.
 14. **검증 명령 (보고 전 필수. 백엔드 컴퓨터에서)**
     ```bash

@@ -965,6 +965,15 @@ run(key, userId, requestHash, action):           -- 전체가 하나의 DB 트�
 
 ## 8. 라이브 상세 (`live/`) — 바디캠 → LiveKit Ingress → 고객 시청 + Egress 녹화
 
+### 8.0 매니저 휴대폰 송출 (`LIVE_SOURCE=app`, 기본 — 2026-10-10, §13-18 변경)
+아래 §8.1~8.3 은 바디캠(`LIVE_SOURCE=ingress`) 구조다. 휴대폰 송출은 같은 방·같은 상태 기계를 쓰고 다른 점만 여기 적는다.
+- **카메라 참가자 = 매니저 앱.** 앱이 `camera-<managerId>` identity 로 방에 들어가 후면 카메라 영상 트랙 하나를 publish 한다(영상만, §13-23). 그래서 일시정지 mute·확인 폴링·재조정기·녹화(방 합성)는 바디캠과 같은 코드를 쓴다.
+- **start**: 기기 행(`manager_devices`)·Ingress 가 없어도 된다. Ingress 연결·잠금 단계를 건너뛰고, 응답의 `preview` 자리에 `publish: { url, token }` 을 준다 — 권한 roomJoin · canPublish(소스 카메라만) · canSubscribe=false · canPublishData=false, TTL 6시간.
+- **카메라 붙음/끊김 = 웹훅 `track_published`/`track_unpublished`**(참가자 `camera-<managerId>`, 영상 트랙). 붙으면 바디캠의 `ingress_started` 와 같은 `cameraAttached`(녹화 시작·첫 연결 푸시), 끊기면 `cameraDetached`. 재조정기는 참가자 목록으로 같은 일을 한다.
+- **장비 상태 화면**: 카메라 줄은 앱이 휴대폰 카메라 미리보기 결과로 그린다(서버의 바디캠 줄 대신). 앱은 `GET /live/sessions/{id}` 의 `source` 로 모드를 안다.
+- **일시정지 재개(unmute)**: 서버가 클라이언트가 올린 트랙의 mute 를 풀려면 LiveKit 프로젝트의 원격 unmute 허용이 필요할 수 있다 — 실기기 확인 항목. 일시정지 중엔 고객 구독도 막혀 있다(`viewers_blocked`).
+- 앱 쪽 구조: `apps/manager/src/live/sources/`(영상 입력 — 지금 `cameraVideoSource.js`) → `liveClient.js`(상태·publish) → `roomConnector.js`(LiveKit). 바디캠·네이티브 카메라가 다시 필요하면 `sources/` 에 파일을 더한다.
+
 ### 8.1 구성
 - **바디캠 1대 = 매니저 1명 = LiveKit Ingress 1개(영구).** 운영자가 기기를 등록하면(`manager_devices`, §13-20) Spring 이 `IngressServiceClient.createIngress(RTMP_INPUT, name="device-<serial>", roomName="parking-<managerId>", participantIdentity="camera-<managerId>", participantName="<매니저 이름> 바디캠", enableTranscoding=true, reusable=true)` 로 Ingress 를 만들고 `ingress_id`·`stream_url`(`rtmp://<project>.livekit.cloud/x`)·`stream_key` 를 저장한다. 기기에는 이 주소와 키를 **한 번만** 설정한다(매니저 앱 `촬영 장비` 화면에 주소 + 마스킹된 키 + "운영자에게 전체 키 요청" 안내).
 - **대기 방 규칙**: 작업이 없을 때 Ingress 는 항상 `parking-<managerId>` 방을 가리킨다. 이 방의 토큰은 아무에게도 발급하지 않고 Egress 도 없다 → 매니저가 실수로 카메라를 켜 두어도 아무도 못 보고 저장되지 않는다.
@@ -1201,11 +1210,11 @@ FIREBASE_SERVICE_ACCOUNT_JSON=        # base64 한 줄 (B6)
 | 11 | 서버 인스턴스 수 | 1대(메모리 rate limit·스케줄러) / 여러 대(Redis 필요) | **1대** |
 | 12 | 녹화본 형식 | MP4 만 / HLS 도 | **MP4** |
 | 13 | 고객 화면의 실시간 상태(일시정지 등) | 30초 폴링 / LiveKit 데이터 채널 / Supabase Realtime | **폴링** |
-| 14 | ~~매니저 앱 백그라운드 송출~~ | 바디캠 결정으로 사라짐 | — |
+| 14 | 매니저 앱 백그라운드 송출 | 앱이 백그라운드로 가면 WebView 카메라가 멈춘다 — Foreground Service(Android)·iOS 제약 | **다시 열림 (2026-10-10, #18 변경)**. 지금은 화면 꺼짐 방지(Keep Awake)만. 백그라운드 송출은 네이티브 작업이 필요해 별도 결정 |
 | 15 | 캡처 저장 위치 | 사진첩(iOS `NSPhotoLibraryAddUsageDescription` 이미 있음) / 앱 폴더 | 사진첩 |
 | 16 | 호스팅 | Fly.io(Tokyo) / Railway / AWS(직접) | **Fly.io** |
 | 17 | 정산 계좌 원본 보관 | 저장 안 함(정산 대행) / 암호화 저장 | **저장 안 함** |
-| 18 | 촬영 장비 | 매니저 휴대폰 = 카메라 / 별도 카메라 기기(`안심캠`) | **결정: 별도 바디캠** (2026-09-19) → §8 을 Ingress 구조로 다시 씀 |
+| 18 | 촬영 장비 | 매니저 휴대폰 = 카메라 / 별도 카메라 기기(`안심캠`) | ~~결정: 별도 바디캠 (2026-09-19) → §8 을 Ingress 구조로 다시 씀~~ → **결정: 매니저 휴대폰 (2026-10-10 사용자 결정 "바디캠이 아닌 스마트폰으로")**. `app.livekit.source`(`LIVE_SOURCE`) 기본 `app`, Ingress 코드는 `ingress` 로 남김(§8.0) |
 | 19 | **바디캠 기기 사양** | 모델명·RTMP 푸시 지원·H.264/AAC·상태 API 유무 (§8.3) | **공장 답변 대기 (2026-09-19)**. B5 실기기 검증 전까지만 필요. 그 전엔 ffmpeg/OBS 로 대체(§8.1). RTMP 가 안 되면 중계 서버 항목이 추가된다 |
 | 22 | 매니저 방문 취소·미방문 | — | **결정: 점수제** (2026-09-22, `backend/docs/manager-policy.md`). 24시간 전 월 2회 무료·이후 1점 / 24~4시간 1점 / 미방문 3점 / 지각(30분 초과) 0.5점. 3점 경고·5점 7일 정지·8점 30일 정지·10점 심사. 12개월 롤링 + 무사고 3개월마다 1점 회복. 증빙은 운영자 면제(`POST /admin/penalties/{id}/waive`, X-Admin-Token — 점수와 정지 해제가 한 트랜잭션, 문제 목록 3번). 숫자는 `app_settings.manager_penalty` |
 | 21 | 정기청소 단위 | — | **결정: 매월 1회** (2026-09-22 사용자 정정. 그 전 2026-09-19 결정은 '한 달 동안 매주'였다). 첫 방문일부터 매월 같은 날짜에 1회씩 `series_term_months` 회(기본 6)를 한 번에 생성, 주말이면 다음 평일, 자동 연장 없음(종료 7일 전 안내). 회차 매칭은 방문 7일 전 (§6.8) |

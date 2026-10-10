@@ -104,6 +104,7 @@ Figma: `oByA7xoimyX0pPaS7aJpuo` (Page 1 = 고객용, `청소매니저 앱` = 매
 | `@capacitor/core` `@capacitor/ios` `@capacitor/android` (+ dev `@capacitor/cli`) | 웹 앱을 iOS/Android 앱으로 감싼다. 두 앱(customer, manager) 각각 | 단계 6 |
 | `livekit-client` | 고객 시청·매니저 바디캠 프리뷰: LiveKit 방 연결 + 트랙을 `<video>` 에 붙임. 두 앱 각각, `live/roomConnector.js` 에서만 import (발행 없음 — 영상은 바디캠 → Ingress) | 단계 B5 |
 | `@capacitor/push-notifications` | 푸시 권한·기기 토큰(APNs/FCM)·알림 탭 이벤트. 두 앱 각각, `push/pushClient.js` 에서만 import. 웹에서는 동작하지 않는다 | 단계 B6 |
+| `@capacitor-community/keep-awake` | 매니저 앱이 휴대폰 카메라로 송출하는 동안 화면이 꺼지지 않게(꺼지면 WebView 카메라가 멈춰 송출이 끊긴다). 매니저 앱만, `live/liveClient.js` 에서만 import (2026-10-10, BACKEND_PLAN §8.0) | 단계 5 |
 | `capacitor-secure-storage-plugin` | 네이티브 앱의 로그인 세션 저장(iOS Keychain / Android Keystore 암호화). WKWebView 의 localStorage 는 저장 공간 압박 때 지워질 수 있어 사용자가 이유 없이 로그아웃됐다(BACKEND_PLAN 결정 10: B7 전 이전). 처음엔 `@capacitor/preferences`(평문 UserDefaults/SharedPreferences)였으나 보안 검토(2026-09-22)에서 탈옥·루팅 기기·iOS 백업에서 토큰이 읽히는 문제로 교체. 두 앱 각각 `api/session.js` 에서만 import, 웹은 localStorage 그대로 | 2026-09-22 |
 
 ---
