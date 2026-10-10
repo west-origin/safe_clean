@@ -179,6 +179,9 @@ async function request(method, path, body, { idempotencyKey, retry = true, timeo
     }
     throw new ApiError(res.status, err.code ?? 'HTTP_' + res.status, err.message ?? defaultMessage(res.status));
   }
+  // 성공(2xx)인데 본문이 JSON 이 아니다 = 서버가 아닌 곳이 답했다. 예: Capacitor 앱에서 VITE_API_URL 이 비어 앱 자신의 index.html 이 왔다.
+  // null 을 돌려주면 부른 쪽이 엉뚱한 곳에서 터진다(로그인의 session.set(null) → "Cannot destructure property 'accessToken'") — 여기서 오류로 끝낸다
+  if (text && data === null) throw new ApiError(res.status, 'BAD_RESPONSE', defaultMessage(res.status));
   return data;
 }
 

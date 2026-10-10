@@ -128,6 +128,12 @@ describe('http — 본문 없는 오류 문구', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   // mockResolvedValue(Once 없음)는 몇 번을 불러도 같은 응답 — 상태 코드마다 fetch 를 바꿔 끼우며 문구를 본다
+  // Capacitor 앱에서 VITE_API_URL 이 비면 /api/v1/... 요청에 앱 자신의 index.html 이 200 으로 온다 — null 을 돌려주면 로그인이 session.set(null) 에서 터졌다
+  it('200 인데 본문이 JSON 이 아니면 null 대신 BAD_RESPONSE 로 던진다', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => '<!doctype html><html></html>' }));
+    await expect(http.post('/auth/login', { phone: '12345678', password: 'x' })).rejects.toMatchObject({ code: 'BAD_RESPONSE' });
+  });
+
   it('404·5xx·429 는 원인을 구분해 말한다', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(raw(404, '<html>Not Found</html>')));
     await expect(http.get('/customer/home')).rejects.toMatchObject({ status: 404, message: '요청한 정보를 찾을 수 없어요' });
