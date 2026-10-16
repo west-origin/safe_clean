@@ -205,7 +205,7 @@ public class BookingService implements ManagerWorkLookup {
         // 첫 회차만 즉시 매칭. 나머지 회차는 SeriesDispatcher 가 방문 7일 전에 (§6.8)
         startAssigning(visits.get(0), customerId, null);
         if (req.saveAddress()) profiles.rememberAddress(customerId, road, detail);
-        // PAYMENT: PG 연동 시 여기(예약 시 결제) 또는 booking.complete() 뒤(완료 후 결제, §13-5)에서 paymentGateway.charge(...). 지금은 payment_status='unpaid'
+        // 결제는 별도 CheckoutService에서 고객 동작으로 시작한다. 예약 생성은 청구하지 않고 unpaid로 둔다.
         return BookingMapper.toBooking(visits.get(0), category.getLabel(), unassignedLabel(visits.get(0)), visits); // 후보가 없어 바로 매칭 실패했으면 실패 안내 (목록과 같게)
     }
 

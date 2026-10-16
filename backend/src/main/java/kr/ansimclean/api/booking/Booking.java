@@ -147,7 +147,7 @@ public class Booking {
     @Column(columnDefinition = "text", nullable = false)
     private BookingStatus status;
 
-    // 결제 상태. PG 연동 전이라 지금은 늘 "unpaid" (create 에서만 넣는다)
+    // 결제 원장의 요약 상태. CheckoutService가 원장과 같은 트랜잭션에서 갱신한다.
     @Column(name = "payment_status", columnDefinition = "text", nullable = false)
     private String paymentStatus;
 
@@ -318,6 +318,16 @@ public class Booking {
     public Instant getEndsAt() { return endsAt; }
     public BookingStatus getStatus() { return status; }
     public String getPaymentStatus() { return paymentStatus; }
+
+    /** 결제 원장과 같은 트랜잭션에서만 갱신한다. 부분 환불은 잔액이 있어 paid로 표시한다. */
+    public void recordPayment(String paymentState) {
+        paymentStatus = switch (paymentState) {
+            case "paid", "partially_refunded" -> "paid";
+            case "refunded" -> "refunded";
+            case "authorized" -> "authorized";
+            default -> "unpaid";
+        };
+    }
     public Instant getAssignedAt() { return assignedAt; }
     public Instant getMatchingFailedAt() { return matchingFailedAt; }
     public Instant getLateNotifiedAt() { return lateNotifiedAt; }

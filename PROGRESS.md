@@ -1,6 +1,19 @@
 # PROGRESS
 
 세션을 시작할 때 이 파일을 먼저 읽는다. 완료된 항목은 다시 만들지 않는다.
+
+## 결제 연동 (2026-10-17 사용자 요청)
+- [x] 기존 payment 구조 확인 후 회차별 토스 일회성 카드 결제로 확장. 예약·매칭 흐름은 유지하고 고객이 별도 결제. 자동결제는 제외.
+- [x] Flyway V052: payments 상태·환불액·재조정 시각·중복 방지 인덱스, payment_refunds 및 RLS/클라이언트 권한 차단.
+- [x] 결제 준비·조회·승인 API, PG 조회 기반 웹훅, 아웃박스 승인/환불, 상태 재조정 스케줄러 추가.
+- [x] 앱 결제 진입·복귀, 서버 상태 확인, 취소/완료 주문의 버튼 차단, 환불 중 표시. 고객 빌드만 토스 SDK/frame CSP 허용.
+- [x] 승인/환불 확인 중 탈퇴 차단 + 새 승인 요청과 탈퇴의 프로필 잠금 직렬화.
+- [x] Java `mvnw -DskipITs verify`: 550개 통과, 프론트 149파일/395개 통과, lint·check:tokens·두 앱 build 통과. 이전 실패 주문의 늦은 알림이 새 결제 완료 상태를 되돌리지 않는 회귀 검사 포함. 초기 샌드박스의 Vitest 임시 파일/Mockito JVM 연결 제한은 작업 폴더 TEMP와 승인된 Java 실행으로 해결.
+- [x] 로컬 PostgreSQL WASM(PGlite 0.5.10)으로 원본 Flyway SQL 50개 전체 실행. 중복 결제/환불·금액 범위·RLS/권한·실제 재조정/탈퇴 가드 SQL 통과. `scripts/verify-payment-schema.mjs`와 운영 안내 `backend/docs/payments.md` 추가.
+- [ ] Docker 기반 CheckoutIT는 컴파일 완료·Docker 없어 IT 미실행. 실PG 승인·환불, Capacitor 외부 결제앱 복귀, 별도 로컬 서버 health 검증 미실행.
+- [ ] 원격 DB 임시 스키마 검증은 자동 승인 심사가 공유 환경 DDL 위험으로 거부. 실행되지 않았고 로컬 PostgreSQL 검증으로 대체.
+- [ ] 운영 적용/실결제: PG 계약·키가 없어 미실행. 운영 서버/DB에는 아직 적용하지 않음.
+
 계획 전체는 `PLAN.md`.
 
 ## 단계 0 — 부트스트랩

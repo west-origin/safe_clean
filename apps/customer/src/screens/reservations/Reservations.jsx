@@ -5,9 +5,32 @@
 // 헤더 문구·탭 목록·예약 목록을 받는다. 각 예약의 tab(어느 탭에 속하는지)·status·rows(카드 행 문구)는 서버가 정해 준다.
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ScreenLayout, TabBar, UnderlineTabs, ReservationCard, EmptyState, Sheet, Button, RadioOption, ScreenError, ScreenLoading, usePolling, useAsync, useAction, cx, ActionError, showToast } from '@ansimclean/ui';
+import {
+  ScreenLayout,
+  TabBar,
+  UnderlineTabs,
+  ReservationCard,
+  EmptyState,
+  Sheet,
+  Button,
+  RadioOption,
+  ScreenError,
+  ScreenLoading,
+  usePolling,
+  useAsync,
+  useAction,
+  cx,
+  ActionError,
+  showToast,
+} from '@ansimclean/ui';
 import { getReservations, cancelReservation, getSupportPhone } from '../../api/customer.js';
-import { RESERVATIONS_EMPTY, CANCEL_COPY, CHANGE_LOCK_COPY, CHANGE_DEADLINE_HOURS } from '../../api/mock.js';
+import {
+  RESERVATIONS_EMPTY,
+  CANCEL_COPY,
+  CHANGE_LOCK_COPY,
+  CHANGE_DEADLINE_HOURS,
+  PAYMENT_COPY,
+} from '../../api/mock.js';
 import { useCustomerTabs } from '../useCustomerTabs.js';
 import { onPushReceived } from '../../push/pushClient.js';
 
@@ -20,7 +43,10 @@ export default function Reservations() {
   const selectTab = useCustomerTabs(); // 하단 탭바를 눌렀을 때 그 탭 화면으로 보내는 함수
   // 30초마다·배정/완료 푸시가 오면·앱이 다시 보이면 조용히 갱신. 취소 뒤 invalidate 로 늦은 폴링 응답을 버린다 (외부 검토 4차)
   // 푸시 종류는 가리지 않는다 — 앱이 떠 있을 때 온 푸시면 무엇이든 목록을 다시 받는다 (pushClient.js onPushReceived)
-  const { data, error, reload, refresh, invalidate } = usePolling(() => getReservations(), [], { interval: REFRESH_MS, subscribe: onPushReceived });
+  const { data, error, reload, refresh, invalidate } = usePolling(() => getReservations(), [], {
+    interval: REFRESH_MS,
+    subscribe: onPushReceived,
+  });
   // 기한이 지난 카드에 "N시간 전까지 할 수 있어요" 만 있어 아직 되는 것처럼 읽혔다 → 안 된다는 것과 연락처 (직접 사용 점검 U2). 번호가 없으면 1:1 문의
   const { data: supportPhone } = useAsync(() => getSupportPhone(), []);
   const [tab, setTab] = useState('upcoming'); // 보고 있는 탭 key: 'upcoming' 예정 | 'done' 완료 | 'cancelled' 취소
@@ -49,11 +75,15 @@ export default function Reservations() {
 
   const countOf = (key) => data.reservations.filter((r) => r.tab === key).length; // 그 탭에 속한 예약 수
   // Figma 탭 문구 "예정 2" — 예정 탭에만 건수가 붙는다
-  const options = data.tabs.map((t) => ({ key: t.key, label: t.key === 'upcoming' ? `${t.label} ${countOf(t.key)}` : t.label }));
+  const options = data.tabs.map((t) => ({
+    key: t.key,
+    label: t.key === 'upcoming' ? `${t.label} ${countOf(t.key)}` : t.label,
+  }));
   // 서버 목록은 최신순(내림차순) — 예정 탭만 가까운 방문이 위로 오게 뒤집는다 (검증 검토)
   const list = data.reservations.filter((r) => r.tab === tab);
   // 'YYYY-MM-DD HH:mm' 문자열은 글자 순서가 곧 시간 순서라 문자열 비교로 이른 방문이 앞에 온다. filter 가 만든 새 배열이라 원본 목록은 그대로다
-  if (tab === 'upcoming') list.sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+  if (tab === 'upcoming')
+    list.sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
   // 취소 시트에 보여 줄 예약 (시트가 닫혀 있으면 null)
   const cancelling = cancelId === null ? null : data.reservations.find((r) => r.id === cancelId);
   // 변경·취소 기한(방문 몇 시간 전까지) — 서버 설정 값(없으면 기본 24). 카드 잠금(changeable)을 정한 것과 같은 값이라
@@ -66,40 +96,65 @@ export default function Reservations() {
         <h1 className={cx('text-heading-m', styles.title)}>{data.header.title}</h1>
         <p className={cx('text-body-s', styles.description)}>{data.header.description}</p>
       </header>
-      {options.length > 0 && <UnderlineTabs options={options} value={tab} onChange={setTab} ariaLabel="예약 상태" />}
+      {options.length > 0 && (
+        <UnderlineTabs options={options} value={tab} onChange={setTab} ariaLabel="예약 상태" />
+      )}
       <div className={styles.list}>
         {list.length === 0 && <EmptyState icon="calendar" title={RESERVATIONS_EMPTY[tab]} />}
         {/* changeable 이 없으면 바꿀 수 있는 것으로 본다. false(기한 지남)면 카드가 버튼 대신 notChangeableNote 문구를 보여 준다.
             '녹화 영상 보기'(onReplay)는 같은 시청 화면에 &replay=1 을 붙여 녹화본으로 연다 */}
         {list.map((r) => (
-          <ReservationCard
-            key={r.id}
-            title={r.title}
-            status={r.status}
-            rows={r.rows}
-            changeable={r.changeable ?? true}
-            notChangeableNote={CHANGE_LOCK_COPY.card(deadlineHours, supportPhone)}
-            onChange={() => navigate(`/booking/${r.category}/datetime?edit=${r.id}`, { state: { date: r.date, time: r.time } })} // 현재 일정을 달력에 미리 채운다
-            onCancel={() => openCancel(r.id)}
-            onWatch={() => navigate(`/service/live?booking=${r.id}`)} // 소개 화면을 거치지 않고 바로 시청
-            recordingReady={r.recordingReady}
-            onReplay={() => navigate(`/service/live?booking=${r.id}&replay=1`)}
-          />
+          <div key={r.id}>
+            <ReservationCard
+              title={r.title}
+              status={r.status}
+              rows={r.rows}
+              changeable={r.changeable ?? true}
+              notChangeableNote={CHANGE_LOCK_COPY.card(deadlineHours, supportPhone)}
+              onChange={() =>
+                navigate(`/booking/${r.category}/datetime?edit=${r.id}`, {
+                  state: { date: r.date, time: r.time },
+                })
+              } // 현재 일정을 달력에 미리 채운다
+              onCancel={() => openCancel(r.id)}
+              onWatch={() => navigate(`/service/live?booking=${r.id}`)} // 소개 화면을 거치지 않고 바로 시청
+              recordingReady={r.recordingReady}
+              onReplay={() => navigate(`/service/live?booking=${r.id}&replay=1`)}
+            />
+            <Button
+              variant="secondary"
+              chevron={false}
+              onClick={() => navigate(`/payments/checkout?booking=${r.id}`)}
+            >
+              {PAYMENT_COPY.title}
+            </Button>
+          </div>
         ))}
       </div>
 
       {/* 취소 확인 시트. 정기청소 회차(series)면 범위 선택이 보이고, 버튼 문구도 고른 범위를 그대로 말한다 */}
       <Sheet open={cancelId !== null} onClose={() => setCancelId(null)} title={CANCEL_COPY.title}>
         {/* 비슷한 카드가 여러 장(정기 회차)이라 시트만 보고는 어느 방문을 취소하는지 알 수 없었다 (전체 점검 G5) */}
-        {cancelling && <p className={cx('text-title-small', styles.description)}>{[cancelling.title, cancelling.rows?.[0]?.value].filter(Boolean).join(' · ')}</p>}
+        {cancelling && (
+          <p className={cx('text-title-small', styles.description)}>
+            {[cancelling.title, cancelling.rows?.[0]?.value].filter(Boolean).join(' · ')}
+          </p>
+        )}
         <p className={cx('text-body-default', styles.description)}>{CANCEL_COPY.description}</p>
         {cancelling?.series && (
           <div role="radiogroup" aria-label="취소 범위" className={styles.scope}>
             {CANCEL_COPY.scopeOptions.map((o) => (
-              <RadioOption key={o.key} label={o.label} selected={scope === o.key} onSelect={() => setScope(o.key)} />
+              <RadioOption
+                key={o.key}
+                label={o.label}
+                selected={scope === o.key}
+                onSelect={() => setScope(o.key)}
+              />
             ))}
             {/* 고른 뒤에 나타나면 아래 버튼이 밀려 잘못 눌린다 — 항상 같은 자리에 둔다 (사용성 검토 2026-09-22) */}
-            <p className={cx('text-body-s', styles.description)}>{CANCEL_COPY.seriesNote(deadlineHours)}</p>
+            <p className={cx('text-body-s', styles.description)}>
+              {CANCEL_COPY.seriesNote(deadlineHours)}
+            </p>
           </div>
         )}
         <ActionError error={cancel.error} fallback={CANCEL_COPY.failed} />

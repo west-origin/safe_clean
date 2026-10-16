@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
   // define: 코드 안의 import.meta.env.VITE_APP_VERSION 글자를 버전 문자열로 바꿔 넣는다 (screens/settings/Settings.jsx 의 버전 행이 읽는다)
   define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(version) },
   // react(): JSX 변환 + 개발 중 화면 즉시 갱신. cspPlugin(): 빌드 때만 index.html 에 CSP 를 넣는다
-  plugins: [react(), cspPlugin()],
+  plugins: [react(), cspPlugin({ payments: true })],
   server: { port: 5173 }, // .claude/launch.json 의 customer 와 같은 포트. 가짜 서버 모드(dev:customer:mock)는 --port 5175 로 띄운다
   optimizeDeps: {
     // @ansimclean/ui 는 워크스페이스 링크 패키지라 Vite 가 그 안의 react 사용을 뒤늦게 발견하고

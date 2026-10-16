@@ -6,28 +6,38 @@
 // CSP: 이 페이지가 스크립트·스타일·이미지·연결을 어디서 받아도 되는지 브라우저에 알려 주는 목록. 목록 밖은 브라우저가 막는다.
 // 'self' = 앱과 같은 출처, data: = 내용을 주소에 직접 담은 것, blob:·mediastream: = 코드가 메모리·카메라 스트림으로 만든 주소,
 // https:·wss: = 그 방식이면 어느 도메인이든.
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'", // CSS Modules 는 파일이지만 Skeleton·진행 막대는 style 속성을 쓴다
-  "img-src 'self' data: blob: https:", // 수리 사진 미리보기·기사 화면의 첨부 사진 = Supabase Storage 서명 URL
-  "font-src 'self'",
-  "media-src 'self' blob: mediastream: https:", // 라이브 <video> + 녹화본(Supabase Storage 서명 URL)
-  "connect-src 'self' https: wss:",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join('; ');
+const policy = (payments) =>
+  [
+    "default-src 'self'",
+    payments
+      ? "script-src 'self' https://js.tosspayments.com https://*.tosspayments.com https://static.toss.im"
+      : "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'", // CSS Modules 는 파일이지만 Skeleton·진행 막대는 style 속성을 쓴다
+    "img-src 'self' data: blob: https:", // 수리 사진 미리보기·기사 화면의 첨부 사진 = Supabase Storage 서명 URL
+    "font-src 'self'",
+    "media-src 'self' blob: mediastream: https:", // 라이브 <video> + 녹화본(Supabase Storage 서명 URL)
+    "connect-src 'self' https: wss:",
+    "base-uri 'self'",
+    payments ? "form-action 'self' https://*.tosspayments.com" : "form-action 'self'",
+    ...(payments ? ["frame-src 'self' https://*.tosspayments.com https://*.toss.im"] : []),
+  ].join('; ');
 
 // Vite 플러그인 객체를 돌려준다. apply: 'build' = 빌드 때만 동작, transformIndexHtml = index.html 을 내보내기 전에 고치는 자리
-export function cspPlugin() {
+export function cspPlugin({ payments = false } = {}) {
   return {
     name: 'ansimclean-csp',
     apply: 'build',
     transformIndexHtml(html) {
       // charset 메타 태그 바로 뒤에 CSP 메타 태그를 끼운다 — 두 앱 index.html 에 이 글자 그대로의 태그가 있어야 한다
       const marker = '<meta charset="UTF-8" />';
-      if (!html.includes(marker)) throw new Error('vite-csp-plugin: index.html 에서 <meta charset="UTF-8" /> 를 찾지 못해 CSP 를 넣을 수 없어요'); // 조용히 빠지면 CSP 없는 빌드가 나간다
-      return html.replace(marker, `${marker}\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`);
+      if (!html.includes(marker))
+        throw new Error(
+          'vite-csp-plugin: index.html 에서 <meta charset="UTF-8" /> 를 찾지 못해 CSP 를 넣을 수 없어요'
+        ); // 조용히 빠지면 CSP 없는 빌드가 나간다
+      return html.replace(
+        marker,
+        `${marker}\n    <meta http-equiv="Content-Security-Policy" content="${policy(payments)}" />`
+      );
     },
   };
 }

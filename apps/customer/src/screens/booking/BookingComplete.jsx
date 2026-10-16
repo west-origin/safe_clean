@@ -9,6 +9,7 @@ import { ScreenLayout, BookingInfoCard, Button, ScreenError, ScreenLoading, useA
 import { getBooking, getCompleteRows } from '../../api/customer.js';
 import { formatDateTime, formatTimeKo } from './bookingDraft.js';
 import styles from './BookingComplete.module.css';
+import { PAYMENT_COPY } from '../../api/mock.js';
 
 /** 예약 완료 화면. 일러스트 + 예약 요약 카드 + '내 예약 보기'·'홈으로' 버튼 */
 export default function BookingComplete() {
@@ -42,6 +43,7 @@ export default function BookingComplete() {
       <div className={styles.bottom}>
         <BookingInfoCard rows={rows.map((r) => ({ icon: r.icon, label: r.label, value: values[r.key] }))} />
         <div className={styles.actions}>
+          <Button variant="primary" chevron={false} onClick={() => navigate(`/payments/checkout?booking=${booking.id}`)}>{PAYMENT_COPY.pay}</Button>
           <Button variant="primary" chevron={false} onClick={() => navigate('/reservations')}>
             내 예약 보기
           </Button>

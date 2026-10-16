@@ -1,5 +1,21 @@
 # API 계약
 
+## 결제 API 추가 (2026-10-17)
+
+기존 결제 구조만 설명은 이번 사용자 구현 요청으로 대체한다. 아래는 `apps/customer/src/api/payments.js`와 동일한 계약이며 상세 운영 절차는 [payments.md](payments.md).
+
+| 메서드 · 경로 | 요청 | 응답 |
+|---|---|---|
+| POST `/customer/bookings/{bookingId}/checkout` | 필수 `Idempotency-Key`, `{}` | CheckoutResponse |
+| GET `/customer/payments/{id}` | — | CheckoutResponse |
+| POST `/customer/payments/{id}/confirm` | 필수 `Idempotency-Key`, `{ paymentKey: string(1~200), amount: 양의 정수 }` | CheckoutResponse (`authorized`는 승인 확인 중) |
+| POST `/payments/webhooks/toss` | `{ eventType: "PAYMENT_STATUS_CHANGED", data: { orderId } }` | HTTP 200. 공개 경로이나 본문 상태를 신뢰하지 않고 PG 조회 결과만 반영 |
+
+공통 접두사 `/api/v1`. 고객 경로는 ROLE_CUSTOMER + 예약 소유권 검사, 타인 자원은 404.
+CheckoutResponse: `{ id, bookingId, orderId, amount, currency: "KRW", status, refundedAmount, clientKey, orderName, payable, refundStatus }`.
+`status`: pending/authorized/paid/failed/partially_refunded/refunded. `refundStatus`: null/pending/done.
+금액은 `bookings.total_amount`로 고정한다. 카드 원문·시크릿 키·PG paymentKey는 응답하지 않는다. 같은 예약은 실패 확정 전까지 같은 주문번호를 재사용하며, 예약 취소 시 잔액 전체 환불한다. 정기청소도 회차별 결제이며 자동결제는 등록하지 않는다.
+
 > **이 파일이 기준이다.** `BACKEND_PLAN.md` §5 에서 B1(2026-09-19)에 옮겨 왔다. 이후 변경은 여기서 하고, 계약을 바꾸면 백엔드·앱 `api/*.js` 를 같은 커밋에서 바꾼다 (CLAUDE.md §11-2).
 > 구현 상태는 맨 아래 "구현 현황". 표시가 없으면 아직 미구현.
 

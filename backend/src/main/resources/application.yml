@@ -93,6 +93,9 @@ app:
   # 관리자 API(/api/v1/admin/ 아래)의 X-Admin-Token 과 비교할 값. 비어 있으면 관리자 API 는 모두 401 (AdminAuth)
   admin:
     token: ${ADMIN_TOKEN:}
+  payment:
+    client-key: ${TOSS_CLIENT_KEY:}
+    secret-key: ${TOSS_SECRET_KEY:}
   push:
     mode: ${PUSH_MODE:}                     # fcm = Firebase. 기본값 없음 — 비면 PushSender 빈이 없어 기동 실패(운영이 조용히 로그 발송으로 돌지 않게). logging 은 local·test 프로필
     firebase-service-account-json: ${FIREBASE_SERVICE_ACCOUNT_JSON:}

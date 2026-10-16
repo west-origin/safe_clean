@@ -14,3 +14,9 @@ dist/
 google-services.json
 GoogleService-Info.plist
 key.properties
+
+# 결제 검증 도구와 생성물
+/artifacts/payment-validation/
+/artifacts/payment-test-tmp/
+/artifacts/payment-*.log
+/artifacts/payment-db-validation.json

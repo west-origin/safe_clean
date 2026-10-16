@@ -476,3 +476,14 @@ export const INPUT_LIMITS = {
   repairDetail: 1000, // 증상 상세
   inquiry: 2000,
 };
+// (코드에서 정함) 결제 기능 문구. 기존 Figma 화면의 문구는 바꾸지 않는다.
+export const PAYMENT_COPY = {
+  refunding: '예약이 취소되어 환불을 처리하고 있어요.', notPayable: '취소된 예약은 결제할 수 없어요.',
+  methodsNote: '내 예약에서 방문 회차별로 결제할 수 있어요. 카드 정보는 결제사에서 처리하며 앱에 저장하지 않아요.',
+  title: '결제', amount: '이번 방문 결제 금액', refund: '환불 금액', pay: '결제하기',
+  checking: '결제 결과를 확인하고 있어요.', refresh: '결제 결과 다시 확인', retry: '다시 결제하기',
+  reservations: '내 예약 보기', perVisit: '정기청소도 방문 회차별로 결제해요. 자동결제는 등록되지 않아요.',
+  invalid: '결제 정보를 확인할 수 없어요. 내 예약에서 다시 열어주세요.',
+  cancelled: '결제가 완료되지 않았어요. 다시 결제할 수 있어요.', failed: '결제창을 열지 못했어요. 다시 시도해주세요.',
+  status: { pending: '결제를 진행해주세요.', authorized: '결제 결과를 확인하고 있어요. 창을 닫아도 서버에서 확인을 계속해요.', paid: '결제가 완료되었어요.', failed: '결제가 실패하거나 만료되었어요.', partially_refunded: '결제 금액의 일부가 환불되었어요.', refunded: '결제 금액이 환불되었어요.' },
+};

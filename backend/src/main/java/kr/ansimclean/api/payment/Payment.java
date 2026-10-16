@@ -4,14 +4,15 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import kr.ansimclean.api.common.error.ApiException;
+import kr.ansimclean.api.common.error.ErrorCode;
 
 import java.time.Instant;
 import java.util.UUID;
 
-// 만드는 곳: PaymentGateway.charge 구현(지금은 NoopPaymentGateway). charge 를 부르는 main 코드는 아직 없다
-// (부를 자리는 BookingService 의 `// PAYMENT:` 주석).
+// 만드는 곳: CheckoutService.prepare. NoopPaymentGateway의 예전 billing 골격도 이 엔티티를 사용한다.
 // 고객 계정 파기(PaymentAccountPurge) 때도 이 행은 예약 기록이라 지우지 않고 결제 수단 참조(payment_method_id)만 비운다.
-/** payments — 결제 1건. PG 연동 전에는 NoopPaymentGateway 가 pending 행만 만든다 */
+/** payments — 방문 회차 한 건의 PG 주문. 실패가 확정된 뒤에만 새 주문으로 재시도한다. */
 @Entity
 @Table(name = "payments")
 public class Payment {
@@ -39,13 +40,20 @@ public class Payment {
     @Column(nullable = false)
     private long amount;
 
-    // DB check 제약이 pending·authorized·paid·failed·refunded 만 허용한다. 지금 코드는 pending 만 만든다
+    // authorized = 승인 요청을 서버에 저장한 상태. PG 승인 확인 뒤에만 paid가 된다.
     @Column(columnDefinition = "text", nullable = false)
     private String status;
 
     // 실패했을 때 PG 가 알려 준 이유 (지금은 채우는 코드가 없다)
     @Column(name = "failure_reason", columnDefinition = "text")
     private String failureReason;
+
+    @Column(name = "refunded_amount", nullable = false)
+    private long refundedAmount;
+    @Column(name = "next_check_at")
+    private Instant nextCheckAt;
+    @Column(name = "last_webhook_at")
+    private Instant lastWebhookAt;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -76,4 +84,48 @@ public class Payment {
     public String getProvider() { return provider; }
     public long getAmount() { return amount; }
     public String getStatus() { return status; }
+    public String getProviderTxId() { return providerTxId; }
+    public long getRefundedAmount() { return refundedAmount; }
+
+    /** 승인 요청을 영속화한다. 다른 키로 같은 주문을 다시 승인할 수 없다. */
+    public void requestConfirmation(String key, long requestedAmount, Instant now) {
+        if (requestedAmount != amount) throw ApiException.validation("결제 금액이 일치하지 않아요");
+        if (providerTxId != null && !providerTxId.equals(key)) throw new ApiException(ErrorCode.INVALID_STATE);
+        if (!"pending".equals(status) && !"authorized".equals(status)) return;
+        providerTxId = key; status = "authorized"; updatedAt = now; nextCheckAt = now;
+    }
+
+    public void defer(Instant now) { nextCheckAt = now.plusSeconds(300); }
+    public boolean acceptWebhook(Instant now) {
+        if (lastWebhookAt != null && lastWebhookAt.plusSeconds(30).isAfter(now)) return false;
+        lastWebhookAt = now;
+        return true;
+    }
+
+    /** PG 조회 결과만 적용. 오래된 응답으로 환불을 되돌리지 않는다. */
+    public void apply(TossPaymentGateway.Result result, Instant now) {
+        if (result == null || !id.toString().equals(result.orderId()) || result.totalAmount() != amount
+                || !"KRW".equals(result.currency()) || result.paymentKey() == null || result.paymentKey().isBlank() || result.status() == null
+                || (providerTxId != null && !providerTxId.equals(result.paymentKey()))
+                || result.balanceAmount() < 0 || result.balanceAmount() > amount) {
+            throw new ApiException(ErrorCode.UPSTREAM);
+        }
+        String next = switch (result.status()) {
+            case "DONE" -> "paid";
+            case "PARTIAL_CANCELED" -> "partially_refunded";
+            case "CANCELED" -> "refunded";
+            case "ABORTED", "EXPIRED" -> "failed";
+            default -> null;
+        };
+        if (next == null) return;
+        long refunded = ("partially_refunded".equals(next) || "refunded".equals(next)) ? amount - result.balanceAmount() : 0;
+        if (("refunded".equals(next) && refunded != amount)
+                || ("partially_refunded".equals(next) && (refunded == 0 || refunded == amount)))
+            throw new ApiException(ErrorCode.UPSTREAM);
+        if (refunded < refundedAmount || ("failed".equals(next) && !"pending".equals(status) && !"authorized".equals(status))) return;
+        // failed 상태가 확정된 주문은 다시 활성화하지 않는다.
+        if ("failed".equals(status)) return;
+        providerTxId = result.paymentKey(); status = next; refundedAmount = refunded; updatedAt = now;
+        nextCheckAt = "failed".equals(next) || "refunded".equals(next) ? null : now.plusSeconds(86400);
+    }
 }

@@ -2,6 +2,9 @@
 # 테스트 클래스가 @ActiveProfiles("test") 로 이 프로필을 켜면 application.yml 위에 덮어쓴다.
 # 아래 비밀값·솔트는 테스트 전용 가짜 값이다 (운영 값과 무관). 이 프로필에서는 스케줄러가 꺼진다(SchedulingConfig)
 app:
+  payment:
+    client-key: ""
+    secret-key: ""
   # SecurityConfigTest 가 이 출처로 CORS 허용을 확인한다
   cors:
     allowed-origins: http://localhost:5175

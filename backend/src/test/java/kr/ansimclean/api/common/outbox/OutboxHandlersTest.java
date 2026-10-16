@@ -45,6 +45,8 @@ class OutboxHandlersTest {
         // 나머지 두 핸들러는 types() 를 부르지 않고 이름을 직접 적는다 — 그 핸들러의 type 을 바꾸면 여기도 같이 바꾼다
         handled.add("AccountMediaDeleted"); // live.AccountMediaDeletionHandler (생성자 의존이 많아 타입만)
         handled.add("CameraReleased");      // live.CameraReleaseHandler (전체 재점검 J1)
+        handled.addAll(new kr.ansimclean.api.payment.PaymentWorkHandler(
+                mock(kr.ansimclean.api.payment.CheckoutService.class), mock(kr.ansimclean.api.payment.TossPaymentGateway.class)).types());
         assertThat(handled).containsAll(events);
         // 겹치면 OutboxDispatcher 생성자가 막는다 — 여기서도 확인
         assertThat(new PushHandler(mock(kr.ansimclean.api.push.PushService.class), mock(kr.ansimclean.api.profile.ProfileService.class)).types()).doesNotContain("AccountDeleted");

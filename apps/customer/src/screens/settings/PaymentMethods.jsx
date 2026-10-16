@@ -3,6 +3,7 @@
 import { useNavigate } from 'react-router';
 import { ScreenLayout, NavBar, EmptyState, ScreenError, ScreenLoading, useAsync } from '@ansimclean/ui';
 import { getPaymentMethods } from '../../api/customer.js';
+import { PAYMENT_COPY } from '../../api/mock.js';
 
 /** 결제 수단 화면. 조회가 성공하면 받은 목록(data)과 상관없이 늘 '등록된 결제 수단이 없어요' 안내를 그린다 */
 export default function PaymentMethods() {
@@ -14,7 +15,7 @@ export default function PaymentMethods() {
   if (!data) return <ScreenLoading navBar={navBar} />;
   return (
     <ScreenLayout navBar={navBar}>
-      <EmptyState icon="smile" title="등록된 결제 수단이 없어요" description="결제 수단 등록은 결제 서비스 연동 후 제공돼요. 지금은 청소 완료 후 안내드리는 방법으로 결제할 수 있어요." />
+      <EmptyState icon="smile" title="등록된 결제 수단이 없어요" description={PAYMENT_COPY.methodsNote} />
     </ScreenLayout>
   );
 }

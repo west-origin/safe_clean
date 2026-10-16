@@ -1,5 +1,7 @@
 # 안심클린 앱 제작 계획 (2026-09-18 승인됨)
 
+2026-10-17: 사용자 결제 구현 요청. 토스 일회성 카드 결제를 방문 회차별로 고객이 시작하도록 추가한다. 예약·매칭 흐름은 유지하며 자동결제·카드 저장은 제외한다. 새 화면 `/payments/checkout`과 예약 완료·내 예약의 결제 진입, Flyway V052 및 복구/환불을 구현한다. 앱 런타임 패키지는 추가하지 않으며, Docker 없는 SQL 검증만 격리된 `artifacts/payment-validation`의 PGlite 0.5.10을 사용한다. 사양은 `backend/docs/payments.md`.
+
 작성일: 2026-09-18
 원본 스펙: `~/Desktop/figma-to-react.md`
 Figma: `oByA7xoimyX0pPaS7aJpuo` (Page 1 = 고객용, `청소매니저 앱` = 매니저용)
