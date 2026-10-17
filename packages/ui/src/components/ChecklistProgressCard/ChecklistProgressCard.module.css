@@ -1,0 +1,49 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-default);
+  box-shadow: inset 0 0 0 1px var(--color-border-default);
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+/* PDF의 Figma 원본값: 진행 막대 높이 7, 열 사이 5. 기존 토큰에 없는 값. */
+.card .bar { height: 7px; background: var(--color-border-default); }
+.groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-lg) 5px;
+  margin-top: var(--spacing-xs);
+}
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.divider {
+  width: 100%;
+  height: 1px;
+  margin: var(--spacing-xs) 0;
+  border: 0;
+  background: var(--color-border-default);
+}
+.primary { color: var(--color-text-primary); }
+.secondary { color: var(--color-text-secondary); }
+.brand { color: var(--color-brand-primary); }

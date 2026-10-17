@@ -17,6 +17,7 @@ import kr.ansimclean.api.common.web.Idempotent;
 import kr.ansimclean.api.job.dto.ActiveJobResponse;
 import kr.ansimclean.api.job.dto.ChecklistResponse;
 import kr.ansimclean.api.job.dto.CompletedJobResponse;
+import kr.ansimclean.api.job.dto.CustomerChecklistResponse;
 import kr.ansimclean.api.job.dto.ContactResponse;
 import kr.ansimclean.api.job.dto.JobIdResponse;
 import kr.ansimclean.api.job.dto.JobResponse;
@@ -24,16 +25,19 @@ import kr.ansimclean.api.job.dto.PauseResponse;
 import kr.ansimclean.api.job.dto.PausedJobResponse;
 import kr.ansimclean.api.job.dto.StartResponse;
 import kr.ansimclean.api.live.LiveSessionService;
+import kr.ansimclean.api.live.LiveSession;
 import kr.ansimclean.api.profile.ProfileService;
 import kr.ansimclean.api.settlement.Settlement;
 import kr.ansimclean.api.settlement.SettlementService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +51,7 @@ import java.util.UUID;
  * 부르는 곳 예: JobController(매니저 앱 작업 화면), offer.OfferService(배정·일정 변경 때 체크리스트).
  * 트랜잭션(CODE_GUIDE.md 3-3): noRollbackFor 가 없어 ApiException 이 나면 그 요청의 변경이 전부 되돌아간다
  * (예: 완료 중 정산 생성이 실패하면 완료도 취소). createChecklist·clearChecklist 는 OfferService 의 묶음에 합쳐진다.
- * 상태를 바꾸는 작업은 먼저 예약 행을 잠근다(CODE_GUIDE.md 3-4) — 같은 작업에 온 동시 요청이 줄을 서게. 체크리스트 체크만 잠그지 않는다.
+ * 체크리스트를 포함한 쓰기는 먼저 예약 행을 잠근다 — 동시 체크·해제·완료가 같은 순서로 처리된다.
  * 예외: 작업 상세의 수리 사진 서명 URL(storage.signedUrl)은 트랜잭션 안에서 Storage 를 직접 부른다 — 상태를 바꾸지 않는 호출이고,
  * 실패하면 그 사진만 빠진다(photoUrls).
  */
@@ -71,6 +75,7 @@ public class JobService {
     static final String CANCELLED_JOB = "취소된 예약이에요";
 
     private final JobChecklistItemRepository checklist;
+    private final JobChecklistEventRepository checklistEvents;
     private final JobPauseRepository pauses;
     private final BookingService bookings;
     private final ProfileService profiles;
@@ -89,7 +94,7 @@ public class JobService {
     static final int PHOTO_URL_SECONDS = 60 * 60; // 수리 사진 서명 URL 유효 시간(1시간). 작업 상세를 열 때마다 새로 만든다
 
     // dispatcher 만 @Lazy(처음 쓸 때 연결): 구현체 OfferService 가 이 JobService 를 받아 쓰므로, 바로 받으면 서로를 먼저 만들어야 해 생성이 꼬인다
-    public JobService(JobChecklistItemRepository checklist, JobPauseRepository pauses, BookingService bookings, ProfileService profiles, CatalogService catalog,
+    public JobService(JobChecklistItemRepository checklist, JobChecklistEventRepository checklistEvents, JobPauseRepository pauses, BookingService bookings, ProfileService profiles, CatalogService catalog,
                       LiveSessionService live, SettlementService settlements, AppSettingsService settings, OutboxService outbox, Idempotent idempotent, AppClock clock,
                       SupabaseStorageClient storage, kr.ansimclean.api.profile.ManagerPenaltyService penalties,
                       @org.springframework.context.annotation.Lazy kr.ansimclean.api.booking.BookingDispatcher dispatcher) {
@@ -97,6 +102,7 @@ public class JobService {
         this.penalties = penalties;
         this.dispatcher = dispatcher;
         this.checklist = checklist;
+        this.checklistEvents = checklistEvents;
         this.pauses = pauses;
         this.bookings = bookings;
         this.profiles = profiles;
@@ -281,14 +287,17 @@ public class JobService {
     }
 
     /**
-     * 체크리스트 한 줄 체크·해제 → { jobId, itemId, done }. 예약 행은 잠그지 않고 읽기만 한다(requireManagerBooking).
-     * 진행 중(in_progress·paused)이 아니면 409, 그 작업의 항목이 아니면 404. 같은 값을 다시 보내도 응답은 같다(체크면 done_at 만 새 시각)
+     * 체크리스트 한 줄 체크·해제. 예약 잠금 뒤 검사하므로 중복 요청과 완료 처리도 직렬화된다.
+     * 같은 상태 재요청은 시각·이력을 바꾸지 않는다. 상태와 이력은 같은 트랜잭션에서 저장된다.
      */
     public ChecklistResponse setChecklistItem(UUID managerId, UUID jobId, UUID itemId, boolean done) {
-        Booking b = bookings.requireManagerBooking(managerId, jobId);
+        Booking b = bookings.lockManagerBooking(managerId, jobId);
         if (!BookingStatus.ACTIVE.contains(b.getStatus())) throw new ApiException(ErrorCode.INVALID_STATE, "진행 중인 작업에서만 체크할 수 있어요");
         JobChecklistItem item = checklist.findByIdAndBookingId(itemId, jobId).orElseThrow(ApiException::notFound);
-        item.mark(done, clock.now());
+        if (item.isDone() == done) return new ChecklistResponse(jobId, itemId, done);
+        Instant now = clock.now();
+        item.mark(done, now);
+        checklistEvents.save(JobChecklistEvent.of(item, done, now, managerId));
         return new ChecklistResponse(jobId, itemId, done);
     }
 
@@ -353,6 +362,45 @@ public class JobService {
         // 탈퇴한 고객이면 requireLive 가 404. 저장된 번호(+82…)를 010-1234-5678 모양으로 바꿔 보낸다
         String phone = profiles.requireLive(b.getCustomerId()).getPhone();
         return new ContactResponse(KoreanFormat.phoneDisplay(phone), b.getRoadAddress());
+    }
+
+    /** 고객 소유권 검사 후 같은 DB 스냅샷에서 현재 상태와 이력을 읽는다 (5초 폴링). */
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public CustomerChecklistResponse customerChecklist(UUID customerId, UUID bookingId) {
+        Booking b = bookings.requireCustomerBooking(customerId, bookingId);
+        List<JobChecklistItem> items = checklist.findByBookingIdOrderBySort(bookingId);
+        Map<String, List<CustomerChecklistResponse.Item>> grouped = new LinkedHashMap<>();
+        for (JobChecklistItem item : items) {
+            grouped.computeIfAbsent(item.getGroupName(), key -> new ArrayList<>())
+                    .add(new CustomerChecklistResponse.Item(item.getId(), item.getLabel(), item.isDone()));
+        }
+        List<CustomerChecklistResponse.Group> groups = grouped.entrySet().stream().map(e -> {
+            int done = (int) e.getValue().stream().filter(CustomerChecklistResponse.Item::done).count();
+            return new CustomerChecklistResponse.Group(e.getKey(), done, e.getValue().size(), e.getValue());
+        }).toList();
+        int done = groups.stream().mapToInt(CustomerChecklistResponse.Group::done).sum();
+        Map<UUID, JobChecklistEvent> latest = new LinkedHashMap<>();
+        for (JobChecklistEvent event : checklistEvents.findLatestByBookingId(bookingId)) latest.put(event.getItemId(), event);
+        Optional<LiveSession> session = live.find(bookingId);
+        // 요청 시각은 진단용 임시값이다. 실제 파일 시작 시각이 확인된 녹화에만 구간을 제공한다.
+        Instant recordingStart = session.filter(LiveSession::isRecordingStartConfirmed).map(LiveSession::getRecordingStartedAt).orElse(null);
+        Integer length = session.map(LiveSession::getDurationSeconds).orElse(null);
+        List<CustomerChecklistResponse.Mark> timeline = items.stream().filter(JobChecklistItem::isDone)
+                .sorted(Comparator.comparing(JobChecklistItem::getDoneAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparingInt(JobChecklistItem::getSort))
+                .map(item -> {
+                    JobChecklistEvent event = latest.get(item.getId());
+                    // 과거 항목의 완료 개수는 유지하되 기록하지 않은 체크 시각은 만들어 내지 않는다.
+                    Long offset = event != null && event.isDone() ? offsetSeconds(event.getChangedAt(), recordingStart, length) : null;
+                    return new CustomerChecklistResponse.Mark(item.getId(), item.getGroupName(), item.getLabel(), offset);
+                }).toList();
+        return new CustomerChecklistResponse(done, items.size(), items.isEmpty() ? 0 : done * 100 / items.size(), groups, timeline, requests(b));
+    }
+
+    static Long offsetSeconds(Instant at, Instant recordingStart, Integer length) {
+        if (recordingStart == null || at == null || at.isBefore(recordingStart)) return null;
+        long offset = Duration.between(recordingStart, at).getSeconds();
+        return length != null && length > 0 ? Math.min(offset, length) : offset;
     }
 
     /** Job/InProgress. 없으면 404 */

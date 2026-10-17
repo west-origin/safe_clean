@@ -13,10 +13,14 @@ import styles from './LiveProgress.module.css';
  * @param {(ratio: number) => void} [props.onSeek] 옮길 위치의 비율. 키보드는 0~1 로 잘라 넘기고, 탭은 자르지 않아 0~1 을 살짝 벗어날 수 있다
  * @param {'onVideo'|'onLight'} [props.tone='onVideo'] onVideo: 영상 위(흰 손잡이·글자, Figma) · onLight: 밝은 화면 배경 위(토큰 색, 코드에서 정함)
  * @param {string} [props.className]
+ * @param {{start:number,end:number,title:string}[]} [props.chapters] 다시보기 구간의 시작·끝 비율
+ * @param {string} [props.chapterTitle] 현재 구간 이름. 시간 글자와 접근성 문구에 함께 표시한다.
  * 트랙·채움·손잡이·시간 글자를 그린다. ratio 가 0~1 밖이어도 그리기 전에 잘라서 쓴다.
  */
-export default function LiveProgress({ ratio, timeLabel, onSeek, tone = 'onVideo', className }) {
+export default function LiveProgress({ ratio, timeLabel, onSeek, tone = 'onVideo', className, chapters = [], chapterTitle = '' }) {
   const pct = Math.max(0, Math.min(1, ratio)) * 100;
+  const chaptered = chapters.length > 1;
+  const label = chapterTitle ? `${timeLabel} · ${chapterTitle}` : timeLabel;
   // 트랙에서 누른 가로 위치를 트랙 폭에 대한 비율로 바꿔 onSeek 에 넘긴다.
   // 여기서는 0~1 로 자르지 않는다: 손잡이가 트랙 양 끝 밖으로 조금 나와 있어 0~1 을 살짝 벗어날 수 있고,
   // 고객 앱에서는 liveClient.seekRatio 가 0~1 로 자른다.
@@ -39,21 +43,29 @@ export default function LiveProgress({ ratio, timeLabel, onSeek, tone = 'onVideo
   return (
     <div className={cx(styles.progress, styles[tone], className)}>
       <div
-        className={styles.track}
+        className={cx(styles.track, chaptered && styles.chaptered)}
         role={onSeek ? 'slider' : 'progressbar'} // onSeek 이 없으면(탐색 없음) 포커스되지 않는 진행 표시
         aria-label="재생 위치"
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(pct)}
-        aria-valuetext={timeLabel}
+        aria-valuetext={label}
         tabIndex={onSeek ? 0 : undefined}
         onClick={onSeek ? seek : undefined}
         onKeyDown={onSeek ? onKeyDown : undefined}
       >
-        <div className={styles.fill} style={{ width: `${pct}%` }} />
+        {chaptered ? (
+          <div className={styles.chapters} aria-hidden="true">
+            {chapters.map((chapter) => (
+              <div key={`${chapter.start}-${chapter.end}`} className={styles.segment} style={{ left: `${chapter.start * 100}%`, width: `${(chapter.end - chapter.start) * 100}%` }}>
+                <div className={styles.segmentFill} style={{ width: `${Math.max(0, Math.min(1, (pct / 100 - chapter.start) / (chapter.end - chapter.start))) * 100}%` }} />
+              </div>
+            ))}
+          </div>
+        ) : <div className={styles.fill} style={{ width: `${pct}%` }} />}
         <div className={styles.knob} style={{ left: `${pct}%` }} />
       </div>
-      <span className={cx('text-label-s', styles.time)}>{timeLabel}</span>
+      <span className={cx('text-label-s', styles.time)} title={label}>{label}</span>
     </div>
   );
 }

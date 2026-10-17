@@ -61,10 +61,11 @@ public class JobChecklistItem {
     public int getSort() { return sort; }
 
     /**
-     * 체크(true)·해제(false). 체크하면 now 를 done_at 에 남기고, 풀면 지운다. 이미 체크된 항목을 다시 체크하면 done_at 이 새 시각이 된다.
+     * 체크(true)·해제(false). 같은 상태 재요청은 최초 시각을 보존한다. 해제 후 재체크는 새 완료 시각이다.
      * JobService.setChecklistItem 은 save 를 부르지 않는다 — 커밋 때 바뀐 필드가 저장된다 (CODE_GUIDE.md 3-3)
      */
     public void mark(boolean done, Instant now) {
+        if (this.done == done) return;
         this.done = done;
         this.doneAt = done ? now : null;
     }

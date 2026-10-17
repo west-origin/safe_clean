@@ -23,6 +23,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 // livekit.* 클래스(LivekitWebhook·LivekitIngress 등)가 그 타입이다. 웹훅 본문은 그 메시지를 JSON 으로 찍은 것이다.
 // Ingress 잠금 테스트(Twirp UpdateIngress)만 이 컴퓨터(127.0.0.1)에 가짜 HTTP 서버를 띄워 실제로 나가는 요청 바이트를 받아 본다.
 class LiveKitCloudGatewayTest {
+    @Test
+    void 영상_시작은_Egress_시작이_아닌_실제_파일_시작이다() {
+        long process = 1_790_000_000_000_000_000L;
+        long file = process + 5_000_000_000L;
+        var result = LiveKitCloudGateway.toEgress(LivekitEgress.EgressInfo.newBuilder()
+                .setEgressId("e").setStartedAt(process)
+                .addFileResults(LivekitEgress.FileInfo.newBuilder().setFilename("r.mp4").setStartedAt(file).setDuration(11_000_000_000L)).build());
+        assertThat(result.startedAt()).isEqualTo(java.time.Instant.ofEpochSecond(0, file));
+        assertThat(result.durationSeconds()).isEqualTo(11);
+        assertThat(LiveKitCloudGateway.toEgress(LivekitEgress.EgressInfo.newBuilder().setStartedAt(process).build()).startedAt()).isNull();
+    }
     // 테스트 전용 가짜 키·비밀값 (실제 LiveKit 계정 값이 아니다)
     static final String KEY = "APIkey1234567";
     static final String SECRET = "secret-secret-secret-secret-secret-32";

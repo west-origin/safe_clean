@@ -11,6 +11,17 @@ import IconButton from '../IconButton/IconButton.jsx';
 const css = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'LiveProgress.module.css'), 'utf8');
 
 describe('LiveProgress · IconButton', () => {
+  it('구간이 있어도 같은 비율로 탐색하고 현재 구간을 접근성 문구에 표시한다', () => {
+    const onSeek = vi.fn();
+    const chapters = [{ start: 0, end: 0.25, title: '바닥' }, { start: 0.25, end: 1, title: '' }];
+    const { container } = render(<LiveProgress ratio={0.2} timeLabel="2:00 / 10:00" chapters={chapters} chapterTitle="바닥" onSeek={onSeek} />);
+    const slider = screen.getByRole('slider');
+    expect(slider).toHaveAttribute('aria-valuetext', '2:00 / 10:00 · 바닥');
+    slider.getBoundingClientRect = () => ({ left: 0, width: 200 });
+    fireEvent.click(slider, { clientX: 50 });
+    expect(onSeek).toHaveBeenCalledWith(0.25);
+    expect(container.querySelector('[aria-hidden="true"]')?.children).toHaveLength(2);
+  });
   it('slider 로 진행률·시간을 드러내고 탭하면 onSeek', () => {
     const onSeek = vi.fn();
     render(<LiveProgress ratio={0.51} timeLabel="5:20 / 10:30" onSeek={onSeek} />);
@@ -31,7 +42,8 @@ describe('LiveProgress · IconButton', () => {
     const { container: light } = render(<LiveProgress tone="onLight" ratio={0.5} timeLabel="5:20 / 10:30" />);
     expect(light.firstChild.className).toContain('onLight');
     // .onLight 로 시작하는 규칙(트랙·손잡이·시간·포커스)은 모두 --color-* 토큰이고 흰색(--raw-on-video)·흰 32% 트랙을 쓰지 않는다
-    const lightRules = [...css.matchAll(/\.onLight [^{]+\{([^}]*)\}/g)].map((m) => m[1]);
+    // 구간 틈의 transparent 규칙은 색을 칠하지 않는다. 실제 색을 칠하는 선택자만 검사한다.
+    const lightRules = [...css.matchAll(/\.onLight \.(?:track(?::focus-visible)?|knob|time|segment)\s*\{([^}]*)\}/g)].map((m) => m[1]);
     expect(lightRules.length).toBeGreaterThanOrEqual(4);
     for (const body of lightRules) {
       expect(body).toMatch(/var\(--color-/);

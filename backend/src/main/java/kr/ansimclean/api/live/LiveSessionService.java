@@ -56,7 +56,7 @@ public class LiveSessionService implements RecordingLookup {
         }).orElseGet(() -> sessions.save(LiveSession.create(bookingId)));
     }
 
-    // 예약 id 로 세션 행을 읽는다 (잠그지 않음). 지금 main 코드에서 부르는 곳은 없다
+    // 예약 id로 읽는다. 고객 체크리스트(JobService)가 실제 녹화 시작 시각·길이를 조회한다.
     @Transactional(readOnly = true)
     public Optional<LiveSession> find(UUID bookingId) {
         return sessions.findById(bookingId);

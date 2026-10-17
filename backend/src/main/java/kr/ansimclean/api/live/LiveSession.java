@@ -87,6 +87,11 @@ public class LiveSession {
     @Column(name = "duration_seconds")
     private Integer durationSeconds; // 녹화본 길이(초). Integer 라 비어 있을(null) 수 있다
 
+    @Column(name = "recording_started_at")
+    private Instant recordingStartedAt; // 실제 파일 녹화 시작 시각. 요청 시각이면 confirmed=false (V053)
+    @Column(name = "recording_start_confirmed", nullable = false)
+    private boolean recordingStartConfirmed;
+
     @Column(name = "viewer_count", nullable = false)
     private int viewerCount; // 지금 보고 있는 고객 수 — 웹훅으로 늘고 줄며, 재조정기가 참가자 목록으로 바로잡는다
 
@@ -135,6 +140,8 @@ public class LiveSession {
     public String getRecordingStatus() { return recordingStatus; }
     public String getRecordingPath() { return recordingPath; }
     public Integer getDurationSeconds() { return durationSeconds; }
+    public Instant getRecordingStartedAt() { return recordingStartedAt; }
+    public boolean isRecordingStartConfirmed() { return recordingStartConfirmed; }
     public int getViewerCount() { return viewerCount; }
 
     /** 영상이 고객에게 나가고 있는가 (live). 일시정지 선행 조건(§8.2.1)은 이것이 아니라 아래 mayBeStreaming 이다. paused = mute 가 확인된 상태 */
@@ -285,8 +292,19 @@ public class LiveSession {
 
     /** 녹화(Egress)를 시작했다 — LiveService.ensureRecording, 또는 서버가 egressId 를 아직 모를 때 온 egress 웹훅(LiveWebhookService) */
     public void recordingStarted(String egressId) {
+        if (!java.util.Objects.equals(this.egressId, egressId)) {
+            recordingStartedAt = null;
+            recordingStartConfirmed = false;
+        }
         this.egressId = egressId;
         this.recordingStatus = REC_RECORDING;
+    }
+
+    /** exact는 LiveKit 파일의 시작 시각이다. 웹훅·종료 응답·재조정기가 같은 Egress를 확인한 뒤 부른다. */
+    public void noteRecordingStart(Instant at, boolean exact) {
+        if (at == null) return;
+        if (exact || recordingStartedAt == null) recordingStartedAt = at;
+        if (exact) recordingStartConfirmed = true;
     }
 
     /** 정지 명령을 보냈다: 녹화 중이던 것만 '업로드 중' 으로. 파일이 다 올라가면 웹훅·재조정기가 ready/failed 로 적는다 */
@@ -312,6 +330,8 @@ public class LiveSession {
         recordingStatus = REC_NONE;
         recordingPath = null;
         durationSeconds = null;
+        recordingStartedAt = null;
+        recordingStartConfirmed = false;
     }
 
     /**

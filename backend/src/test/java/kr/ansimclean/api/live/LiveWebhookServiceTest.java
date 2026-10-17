@@ -33,10 +33,34 @@ import static org.mockito.Mockito.when;
 
 /** 웹훅 6종의 전이와 중복 방어 (BACKEND_PLAN.md §8.1) */
 // LiveWebhookService.handle 단위 테스트. 여기서 보는 웹훅: ingress_started·ingress_ended(바디캠 송출 시작·끝), egress_ended(녹화 끝),
-// participant_joined·participant_left(시청자 입장·퇴장), room_finished(방 닫힘). egress_started·updated 는 이 파일에서 시험하지 않는다.
+// participant_joined·participant_left(시청자 입장·퇴장), room_finished(방 닫힘), egress_started·updated의 실제 녹화 시작 시각 보정.
 // LiveService 는 목이라 cameraAttached·lockIngress 같은 공통 처리는 '불렸는지' 만 확인하고, 세션·기기 상태 변화는 웹훅 서비스가 직접 한 것만 본다.
 // 준비: 진행 중(in_progress) 예약 한 건, 그 예약 방의 세션(카메라 대기), Ingress "ing-1" 인 MANAGER 의 바디캠
 class LiveWebhookServiceTest {
+    @Test
+    void 실제_녹화_시각은_시작_웹훅과_종료_복구에서_보정한다() {
+        session.recordingStarted("eg-1");
+        session.noteRecordingStart(NOW.minusSeconds(5), false);
+        var exact = NOW.minusSeconds(3);
+        service.onEgressUpdated(new WebhookEvent("start", "egress_started", room, null, null,
+                new EgressInfo("eg-1", room, "active", null, 0, null, exact)));
+        assertThat(session.getRecordingStartedAt()).isEqualTo(exact);
+        assertThat(session.isRecordingStartConfirmed()).isTrue();
+        service.applyEgress(session, new EgressInfo("old", room, "complete", "old.mp4", 11, null, NOW));
+        assertThat(session.getRecordingStartedAt()).isEqualTo(exact);
+        // 시작 웹훅이 없어도 종료 이벤트·재조정기의 공통 처리에서 보정한다.
+        session.recordingStarted("eg-2");
+        session.noteRecordingStart(NOW, false);
+        service.applyEgress(session, new EgressInfo("eg-2", room, "complete", "r.mp4", 11, null, exact));
+        assertThat(session.getRecordingStartedAt()).isEqualTo(exact);
+        assertThat(session.isRecordingReady()).isTrue();
+        session.noteRecordingStart(NOW, false);
+        assertThat(session.getRecordingStartedAt()).isEqualTo(exact);
+        session.recordingDeleted();
+        assertThat(session.getRecordingStartedAt()).isNull();
+        assertThat(session.isRecordingStartConfirmed()).isFalse();
+    }
+
     static final AppClock CLOCK = new AppClock(Clock.fixed(NOW, AppClock.ZONE)); // NOW 에 멈춘 시계
 
     LiveSessionRepository sessions = mock(LiveSessionRepository.class);

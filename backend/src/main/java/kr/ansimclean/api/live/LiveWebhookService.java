@@ -202,6 +202,7 @@ public class LiveWebhookService {
         sessions.lockByRoomName(e.egress().roomName()).ifPresent(s -> {
             // 녹화를 아직 모를 때만 — ready/failed 뒤에 늦게 온 started/updated 가 상태를 되돌리지 않게
             if (LiveSession.REC_NONE.equals(s.getRecordingStatus()) && s.getEgressId() == null && !e.egress().isFinished()) s.recordingStarted(e.egress().egressId());
+            if (e.egress().egressId() != null && e.egress().egressId().equals(s.getEgressId())) s.noteRecordingStart(e.egress().startedAt(), true);
         });
     }
 
@@ -213,6 +214,10 @@ public class LiveWebhookService {
 
     /** 웹훅·재조정기 공통: 끝난 Egress 를 세션에 반영 */
     void applyEgress(LiveSession s, LiveKitGateway.EgressInfo egress) {
+        // started/updated 웹훅을 놓쳐도 종료 이벤트·재조정기로 실제 시작 시각을 복구한다.
+        if (egress.egressId() != null && (s.getEgressId() == null || egress.egressId().equals(s.getEgressId()))) {
+            s.noteRecordingStart(egress.startedAt(), true);
+        }
         // 이미 ready 면 다시 적지 않는다 — 웹훅과 재조정기가 같은 성공 녹화를 두 번 넘겨도 RecordingReady 는 한 번만 나간다.
         // (실패 쪽은 재조정기가 recording·uploading 인 세션만 넘기므로 failed 뒤에 재조정기가 다시 넘기지는 않는다.) 끝나지 않은 녹화도 무시
         if (s.isRecordingReady() || !egress.isFinished()) return;

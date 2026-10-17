@@ -95,6 +95,8 @@ import Dot from '../components/Dot/index.js';
 import SegmentedControl from '../components/SegmentedControl/index.js';
 import SettlementCard from '../components/SettlementCard/index.js';
 import ProgressBar from '../components/ProgressBar/index.js';
+import ChecklistProgressCard from '../components/ChecklistProgressCard/index.js';
+import ChecklistRequests from '../components/ChecklistRequests/index.js';
 import ActionError from '../components/ActionError/index.js';
 import LoadingBar from '../components/LoadingBar/index.js';
 import { showToast } from '../utils/toast.js';
@@ -834,6 +836,30 @@ function CustomerGallery() {
         <Row label="IconButton dark: 뒤로 / 설정">
           <IconButton icon={<Icons.LiveBackIcon />} label="뒤로가기" />
           <IconButton icon={<Icons.SettingsIcon />} label="설정" />
+        </Row>
+      </Section>
+      <Section title="ChecklistProgressCard · ChecklistRequests" figma="PDF: ProgressOverlay 6003:2260 카드만 최신 화면에 추가">
+        <Row label="9개 중 4개 · 요청 없음">
+          <ChecklistProgressCard
+            copy={{ title: '청소 체크리스트', basis: '매니저 완료 체크 기준', requestsTitle: '고객 요청사항', requestsStatus: '완료 여부 미확인', requestsEmpty: '등록된 요청사항 정보가 제공되지 않았습니다.', requestsNote: '청소 진행률과 별도로 완료 상태를 표시합니다.' }}
+            checklist={{ done: 4, total: 9, percent: 44, requests: [], groups: [
+              { group: '거실', done: 3, total: 3, items: ['바닥 청소', '먼지 제거', '테이블 정리'].map((label) => ({ id: label, label, done: true })) },
+              { group: '주방', done: 1, total: 3, items: ['싱크대', '가스레인지', '조리대'].map((label, index) => ({ id: label, label, done: index === 0 })) },
+              { group: '욕실', done: 0, total: 3, items: ['세면대', '변기', '바닥'].map((label) => ({ id: label, label, done: false })) },
+            ] }}
+          />
+        </Row>
+        <Row label="다시보기 요청사항">
+          <ChecklistRequests copy={{ requestsTitle: '고객 요청사항', requestsStatus: '완료 여부 미확인', requestsEmpty: '등록된 요청사항 정보가 제공되지 않았습니다.', requestsNote: '청소 진행률과 별도로 완료 상태를 표시합니다.' }} requests={['반려동물이 있어요', '문을 닫아주세요']} />
+        </Row>
+        <Row label="다시보기 구간 · 밝은 배경">
+          <LiveProgress tone="onLight" ratio={319 / 630} timeLabel="5:19 / 10:30" chapterTitle="주방 · 싱크대" chapters={[
+            { start: 0, end: 165 / 630, title: '거실 · 바닥 청소' },
+            { start: 165 / 630, end: 190 / 630, title: '거실 · 먼지 제거' },
+            { start: 190 / 630, end: 245 / 630, title: '거실 · 테이블 정리' },
+            { start: 245 / 630, end: 320 / 630, title: '주방 · 싱크대' },
+            { start: 320 / 630, end: 1, title: '' },
+          ]} />
         </Row>
       </Section>
       <Section title="ReassuranceBanner · LiveProgress" figma="Service/LivePortrait › ReassuranceBanner 2167:2299 (Mascot 에셋 필요) · LiveLandscape › Progress 2165:2256~2259">

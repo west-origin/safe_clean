@@ -33,6 +33,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -312,8 +313,10 @@ public class LiveKitCloudGateway implements LiveKitGateway {
             default -> "unknown";
         };
         LivekitEgress.FileInfo file = e.getFileResultsList().isEmpty() ? null : e.getFileResultsList().get(0);
+        // Egress 시작과 파일 녹화 시작은 다르다. 영상 구간은 실제 파일의 시작(나노초)으로 계산한다.
+        Instant startedAt = file != null && file.getStartedAt() > 0 ? Instant.ofEpochSecond(0, file.getStartedAt()) : null;
         return new EgressInfo(e.getEgressId(), e.getRoomName(), status, file == null ? null : file.getFilename(),
-                file == null ? 0 : file.getDuration() / 1_000_000_000L, e.getError().isBlank() ? null : e.getError());
+                file == null ? 0 : file.getDuration() / 1_000_000_000L, e.getError().isBlank() ? null : e.getError(), startedAt);
     }
 
     // ── retrofit 호출 공통 ──

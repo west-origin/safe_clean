@@ -1,6 +1,7 @@
 package kr.ansimclean.api.live;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,7 +35,11 @@ public interface LiveKitGateway {
 
     /** status: starting | active | ending | complete | failed | aborted | limit_reached */
     // filename = 저장된 파일 경로(끝났을 때), durationSeconds = 녹화 길이(초), error = 실패 사유(없으면 null)
-    record EgressInfo(String egressId, String roomName, String status, String filename, long durationSeconds, String error) {
+    record EgressInfo(String egressId, String roomName, String status, String filename, long durationSeconds, String error, Instant startedAt) {
+        // startedAt는 Egress 프로세스 생성 시각이 아닌 FileInfo.started_at이다. 모르면 null.
+        public EgressInfo(String egressId, String roomName, String status, String filename, long durationSeconds, String error) {
+            this(egressId, roomName, status, filename, durationSeconds, error, null);
+        }
         /** 파일이 다 올라가 녹화본을 쓸 수 있다 */
         public boolean isComplete() {
             return "complete".equals(status);

@@ -1282,3 +1282,5 @@ FIREBASE_SERVICE_ACCOUNT_JSON=        # base64 한 줄 (B6)
   8. 정기청소 주문 내용: `POST /customer/bookings/quote` + 확인 화면 "요금" 행(회차 일정·회차 금액·총액), 생성 응답에 회차·금액.
   9. 취소·변경 기한을 `starts_at − now ≥ 24h` 하나로. 지역 매칭은 '시도 시군구' 전체 문자열 + `manager_profiles.sido`. B3 테스트 문구를 본문과 일치. B1 생성 명령 4.0.x. `repair_type` 컬럼 + 결정 24.
 - **2026-09-19 (1차)** — 초안 작성, 결정 1·2·3·5·18 반영.
+
+> 2026-10-17 사용자 요청: PDF 체크리스트 기능은 V053(실제 파일 녹화 시작)·V054(체크 이력), job 패키지의 고객 API로 추가한다. 기존 V051·V052는 보존한다. 확정된 추가 계약과 규칙은 `backend/docs/api.md`·`backend/docs/domain.md`의 고객 체크리스트 절을 따른다.

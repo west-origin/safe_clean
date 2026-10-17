@@ -9,6 +9,17 @@ import { LIVE_BOOKING_ID, READY_BOOKING_ID, UPLOADING_BOOKING_ID } from '../test
 vi.mock('../api/http.js', async () => (await import('../test/fakeHttp.js')).fakeHttpModule());
 
 describe('customer liveClient (시청·녹화본)', () => {
+  it('재생 메타데이터와 현재 시각을 초 단위로 화면에 전달한다', async () => {
+    const video = document.createElement('video');
+    Object.defineProperty(video, 'duration', { value: 630, configurable: true });
+    video.play = vi.fn().mockResolvedValue();
+    video.pause = vi.fn();
+    liveClient.attachVideo(video);
+    await liveClient.join(READY_BOOKING_ID, { replay: true });
+    video.currentTime = 319;
+    video.dispatchEvent(new Event('timeupdate'));
+    expect(liveClient.getState().session.playback).toMatchObject({ currentSeconds: 319, totalSeconds: 630, ratio: 319 / 630 });
+  });
   it('예약 없이 join 하면 mock 세션과 대기 상태, 음소거 토글이 <video>.muted 에 반영되며, leave 로 끝난다', async () => {
     await liveClient.join();
     expect(liveClient.getState().session.manager.name).toBe('김미영 매니저');

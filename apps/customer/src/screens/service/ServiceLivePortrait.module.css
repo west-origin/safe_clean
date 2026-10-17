@@ -107,3 +107,7 @@
   padding: 0 var(--spacing-3xl);
   color: var(--color-status-live);
 }
+.checklist {
+  margin-top: var(--spacing-xs);
+  padding: 0 var(--spacing-4xl);
+}

@@ -53,7 +53,27 @@
   display: block;
   margin-top: var(--spacing-2xl);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+/* 구간 사이 틈 2px (PDF의 코드에서 정한 값). 비율 좌표를 유지해 탐색·손잡이와 경계가 맞는다. */
+.onVideo .track.chaptered,
+.onLight .track.chaptered { background: transparent; }
+.chapters { position: absolute; inset: 0; pointer-events: none; }
+.segment {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  clip-path: inset(0 1px);
+}
+.segment:first-child { clip-path: inset(0 1px 0 0); }
+.segment:last-child { clip-path: inset(0 0 0 1px); }
+.onVideo .segment { background: var(--raw-progress-track); }
+.onLight .segment { background: var(--color-border-default); }
+.segmentFill { height: 100%; background: var(--raw-danger); }
 
 /* tone="onVideo"(기본): 영상 위. Figma LiveLandscape 의 색 — 트랙 흰 32%, 손잡이·시간 글자·포커스 테두리 흰색 */
 .onVideo .track {

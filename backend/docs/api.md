@@ -1,5 +1,25 @@
 # API 계약
 
+## 고객 체크리스트 추가 (2026-10-17)
+
+`GET /api/v1/customer/bookings/{id}/checklist` → 앱 `getLiveChecklist(bookingId)`.
+고객 역할 + 자기 예약 소유권 검사(타인 예약 404). `job` 패키지에서 제공하며 기존 라이브 응답은 유지한다.
+
+```js
+{ done, total, percent, // 완료 수/전체 수, percent는 버림. 전체 0이면 0
+  groups: [{ group, done, total, items: [{ id, label, done }] }],
+  timeline: [{ id, group, label, offsetSeconds }],
+  requests: [] // 고객 요청사항 string[]
+}
+```
+
+현재 완료인 항목만 timeline에 담고 완료 시각순으로 정렬한다. 위치는 마지막 완료 이력 시각에서 **실제 파일 녹화 시작 시각**을 뺀 초다.
+이력 없음(적용 전 항목), 녹화 시작 미확인, 녹화 전 체크는 `offsetSeconds: null`; 녹화 길이를 넘으면 길이로 제한한다.
+배정 전에는 `total: 0`, 빈 groups/timeline이며 requests는 예약의 기존 요청사항이다.
+세로 라이브는 5초 폴링, 다시보기는 최초·화면 복귀 조회(주기 폴링 없음), 가로 실시간은 조회하지 않는다.
+`PUT /manager/jobs/{id}/checklist/{itemId}`의 응답은 기존과 동일하다. 같은 상태 재요청은 시각·이력을 바꾸지 않는다.
+변경은 예약 잠금 → 진행 중 검사 → 항목 변경·이력 추가를 하나의 트랜잭션으로 처리한다.
+
 ## 결제 API 추가 (2026-10-17)
 
 기존 결제 구조만 설명은 이번 사용자 구현 요청으로 대체한다. 아래는 `apps/customer/src/api/payments.js`와 동일한 계약이며 상세 운영 절차는 [payments.md](payments.md).

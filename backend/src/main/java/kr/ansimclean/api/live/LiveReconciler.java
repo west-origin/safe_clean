@@ -274,7 +274,8 @@ public class LiveReconciler {
 
         // 녹화가 진행·업로드 중으로 남았는데 LiveKit 에선 이미 끝났으면(egress 웹훅 유실) 결과를 세션에 적는다
         if (s.getEgressId() != null && (LiveSession.REC_RECORDING.equals(s.getRecordingStatus()) || LiveSession.REC_UPLOADING.equals(s.getRecordingStatus()))) {
-            livekit.getEgress(s.getEgressId()).filter(LiveKitGateway.EgressInfo::isFinished).ifPresent(info -> webhooks.applyEgress(s, info));
+            // 진행 중에도 파일 시작 시각을 복구한다. 종료 상태 반영 여부는 applyEgress가 판단한다.
+            livekit.getEgress(s.getEgressId()).ifPresent(info -> webhooks.applyEgress(s, info));
         }
         // 송출 중이라 미뤄 둔 방 바인딩(pending_room)이 있으면 다시 시도한다 — 실패해도 던지지 않고 다음 분에 또
         if (device.getPendingRoom() != null) live.bindIngressQuietly(device, device.getPendingRoom());

@@ -236,6 +236,8 @@ class LiveServiceTest {
         when(livekit.startRecording(anyString(), anyString())).thenReturn(new LiveKitGateway.EgressInfo("eg-1", room, "active", null, 0, null));
         service.cameraAttached(s, device, "T1");
         verify(livekit).mutePublishedTrack(room, "camera-" + MANAGER, "A1", true);
+        assertThat(s.getRecordingStartedAt()).isEqualTo(NOW);
+        assertThat(s.isRecordingStartConfirmed()).isFalse(); // 요청 시각을 실제 파일 시작으로 오인하지 않는다.
         verify(livekit, never()).mutePublishedTrack(room, "camera-" + MANAGER, "T1", true);
     }
 

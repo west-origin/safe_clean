@@ -152,6 +152,14 @@ class JobFlowIT {
         String itemId = active.get("checklist").get(0).get("items").get(0).get("id").asString();
         mvc.perform(put("/api/v1/manager/jobs/" + today1 + "/checklist/" + itemId).header("Authorization", manager.bearer()).contentType(MediaType.APPLICATION_JSON).content("{\"done\":true}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.done").value(true));
+        mvc.perform(put("/api/v1/manager/jobs/" + today1 + "/checklist/" + itemId).header("Authorization", manager.bearer()).contentType(MediaType.APPLICATION_JSON).content("{\"done\":true}"))
+                .andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select count(*) from job_checklist_events where item_id = ?::uuid", Integer.class, itemId)).isEqualTo(1);
+        mvc.perform(get("/api/v1/customer/bookings/" + today1 + "/checklist").header("Authorization", customer.bearer()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.done").value(1))
+                .andExpect(jsonPath("$.timeline[0].id").value(itemId)).andExpect(jsonPath("$.timeline[0].offsetSeconds").doesNotExist());
+        ItSupport.User stranger = ItSupport.signedUp(profiles, jwtDecoder, "customer", "다른 고객");
+        mvc.perform(get("/api/v1/customer/bookings/" + today1 + "/checklist").header("Authorization", stranger.bearer())).andExpect(status().isNotFound());
 
         // 일시정지 (라이브 세션은 created → 영상이 안 나가므로 통과) → 재개
         CLOCK.set(Instant.parse("2026-09-16T01:00:00Z")); // 10:00 서울
@@ -211,6 +219,32 @@ class JobFlowIT {
         mvc.perform(post("/api/v1/admin/jobs/" + job + "/complete").header("X-Admin-Token", ADMIN)).andExpect(status().isOk()); // 다시 불러도 그대로
         mvc.perform(get("/api/v1/manager/jobs/active").header("Authorization", manager.bearer())).andExpect(status().isNotFound());
         assertThat(getJson("/api/v1/manager/settlements").get("items")).hasSize(1);
+    }
+
+    @Test
+    void 동시에_같은_항목을_체크해도_이력은_한_줄이고_완료_뒤_변경은_거부한다() throws Exception {
+        UUID job = scheduled("2026-09-16", "10:00");
+        CLOCK.set(Instant.parse("2026-09-16T01:00:00Z"));
+        mvc.perform(post("/api/v1/manager/jobs/" + job + "/start").header("Authorization", manager.bearer())).andExpect(status().isOk());
+        String item = getJson("/api/v1/manager/jobs/active").get("checklist").get(0).get("items").get(0).get("id").asString();
+        var gate = new java.util.concurrent.CountDownLatch(1);
+        try (var pool = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            java.util.concurrent.Callable<Integer> check = () -> {
+                gate.await();
+                return mvc.perform(put("/api/v1/manager/jobs/" + job + "/checklist/" + item).header("Authorization", manager.bearer())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"done\":true}")).andReturn().getResponse().getStatus();
+            };
+            var first = pool.submit(check);
+            var second = pool.submit(check);
+            gate.countDown();
+            assertThat(first.get(10, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(200);
+            assertThat(second.get(10, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(200);
+        }
+        assertThat(jdbc.queryForObject("select count(*) from job_checklist_events where item_id=?::uuid", Integer.class, item)).isEqualTo(1);
+        mvc.perform(post("/api/v1/manager/jobs/" + job + "/complete").header("Authorization", manager.bearer())).andExpect(status().isOk());
+        mvc.perform(put("/api/v1/manager/jobs/" + job + "/checklist/" + item).header("Authorization", manager.bearer())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"done\":false}")).andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("select count(*) from job_checklist_events where item_id=?::uuid", Integer.class, item)).isEqualTo(1);
     }
 
     // LateStartNotifier.notifyDue 를 스케줄러 대신 직접 부른다 (돌려주는 값 = 이번에 안내를 쌓은 예약 수).

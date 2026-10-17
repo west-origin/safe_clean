@@ -13,7 +13,7 @@ import { fromDateKey } from '@ansimclean/ui';
 import {
   TERMS, TERM_BODIES, HOME_SLIDES, REPAIR_HERO, RESERVATIONS, RESERVATIONS_HEADER, RESERVATION_TABS, SETTINGS_HEADER, PROFILE, SETTINGS_GROUPS,
   NOTIFICATION_SETTINGS, BOOKING_CATEGORIES, TIME_SLOTS, BOOKABLE_DAYS, CHANGE_DEADLINE_HOURS, SERIES_TERM_MONTHS, BOOKING_OPTIONS, FREE_OPTION_LIMIT, NOTICE_CHIPS, NOTES_COPY, FREQUENCY_DESCRIPTIONS,
-  CONFIRM_COPY, SAVED_ADDRESS, CLEANER_PENDING, ADDRESS_RESULTS, PROFILE_FORM, ADDRESSES, LIVE_SESSION,
+  CONFIRM_COPY, SAVED_ADDRESS, CLEANER_PENDING, ADDRESS_RESULTS, PROFILE_FORM, ADDRESSES, LIVE_SESSION, LIVE_CHECKLIST,
   FAQ, NOTICES,
 } from '../api/mock.js';
 
@@ -121,6 +121,7 @@ export function fakeHttpModule() {
     inquiries: [], // 1:1 문의 내용(문자열). 목록에서는 첫 번째 것만 '답변 완료'로 보여준다
     pushTokens: [], // PUT /push/token 으로 받은 본문들. DELETE /push/token 은 token 이 같은 것을 뺀다
     liveStates: {}, // 예약 id → 라이브 state. 넣어 두면 GET …/live 가 기본값 대신 이 값을 준다
+    liveChecklists: {}, // 예약별 체크리스트. 테스트에서 폴링으로 바뀌는 서버 응답을 꾸민다.
     failOnce: new Set(), // 'GET /경로' 모양의 문자열. 넣은 요청은 한 번만 NETWORK 로 실패한다 (아래 call 참고)
     holdOnce: new Map(), // 'GET /경로' → Promise. 그 요청의 응답(요청 때 만든 값)을 Promise 가 끝날 때까지 한 번 늦춘다 — 늦게 도착한 옛 응답 흉내
     // 서버 설정 값 흉내: 변경·취소 기한(cancel_deadline_hours)·정기청소 회차 수(series_term_months). 테스트가 바꿔 운영자가 설정을 바꾼 경우를 만든다
@@ -306,6 +307,7 @@ export function fakeHttpModule() {
     ['GET', /^\/catalog\/categories\/([^/]+)\/notice-chips$/, ([c]) => ({ chips: NOTICE_CHIPS[c] ?? [], copy: NOTES_COPY })],
     ['GET', /^\/catalog\/categories\/([^/]+)\/confirm-copy$/, ([c]) => ({ copy: CONFIRM_COPY, frequencyDescriptions: FREQUENCY_DESCRIPTIONS[c] ?? FREQUENCY_DESCRIPTIONS.home, seriesTermMonths: state.seriesTermMonths })],
     ['GET', /^\/catalog\/address\?q=(.*)$/, ([q]) => ({ query: decodeURIComponent(q), results: ADDRESS_RESULTS })], // 검색어와 상관없이 같은 결과
+    ['GET', /^\/customer\/bookings\/([^/]+)\/checklist$/, ([id]) => structuredClone(state.liveChecklists[id] ?? LIVE_CHECKLIST)],
     // 라이브 세션 상태. 기본값: 녹화본 준비(READY·readyRecordings)나 업로드 중(UPLOADING)이면 ended,
     // LIVE_BOOKING_ID 는 live, 나머지는 waiting. recording 은 'ready'|'pending'|'none' 만 흉내 낸다 ('failed' 는 없다)
     ['GET', /^\/customer\/bookings\/([^/]+)\/live$/, ([id]) => {

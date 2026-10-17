@@ -4,9 +4,11 @@
 // (B5, 결정 §13-23) 바디캠은 영상만 보내므로 소리 설정 시트는 없고 음소거·설정 버튼은 비활성. ?replay=1 이면 녹화본 재생. 상태 문구(카메라 대기·중단·종료)는 서버가 준다
 // 들어오는 길 예: 내 예약 카드의 영상 보기(?booking=…)·녹화 영상 보기(&replay=1), 라이브 푸시 탭(pushClient.js).
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ScreenLayout, IconButton, LiveBackIcon, SettingsIcon, FullscreenIcon, ManagerIdentity, RealtimePill, VideoSurface, LiveBadge, ViewerChip, CleaningStatusCard, LiveLabeledControl, LiveCircleControl, LiveProgress, ReassuranceBanner, ScreenError, ScreenLoading, ASSETS, cx } from '@ansimclean/ui';
+import { ScreenLayout, IconButton, LiveBackIcon, SettingsIcon, FullscreenIcon, ManagerIdentity, RealtimePill, VideoSurface, LiveBadge, ViewerChip, CleaningStatusCard, LiveLabeledControl, LiveCircleControl, LiveProgress, ReassuranceBanner, ScreenError, ScreenLoading, ASSETS, cx, Card, usePolling, ChecklistProgressCard, ChecklistRequests, ErrorState } from '@ansimclean/ui';
 import { useLiveSession } from '../../live/useLiveSession.js';
-import { LIVE_ERROR_COPY } from '../../api/mock.js';
+import { LIVE_ERROR_COPY, LIVE_CHECKLIST_COPY } from '../../api/mock.js';
+import { getLiveChecklist } from '../../api/customer.js';
+import { buildChapters, chapterTitleAt } from './timeline.js';
 import styles from './ServiceLivePortrait.module.css';
 
 /**
@@ -17,8 +19,15 @@ export default function ServiceLivePortrait() {
   const navigate = useNavigate();
   const { search } = useLocation(); // 가로 화면으로 갈 때 그대로 붙여 넘길 쿼리 문자열 (?booking=…&replay=…)
   const [params] = useSearchParams();
+  const bookingId = params.get('booking') ?? undefined;
+  const replay = params.get('replay') === '1';
   // 훅은 조건문(아래 early return)보다 먼저 불러야 해서(React 규칙) booking 이 없어도 일단 부르고 아래에서 돌려보낸다
-  const { session, status, mode, error, videoRef, muted, capture, leave, retry, seekRatio, back15, forward15, togglePause } = useLiveSession(params.get('booking') ?? undefined, { replay: params.get('replay') === '1' });
+  const { session, status, mode, error, videoRef, muted, capture, leave, retry, seekRatio, back15, forward15, togglePause } = useLiveSession(bookingId, { replay });
+  const readReplay = replay || (session != null && mode === 'replay');
+  // PDF 카드만 최신 화면에 추가한다. 숨겨진 화면에서는 usePolling이 간격 조회를 멈춘다.
+  const { data: checklist, error: checklistError, reload: retryChecklist } = usePolling(() => bookingId ? getLiveChecklist(bookingId) : Promise.resolve(null), [bookingId, readReplay], { interval: readReplay ? 0 : 5000 });
+  const chapters = mode === 'replay' ? buildChapters(checklist?.timeline, session?.playback.totalSeconds ?? 0) : [];
+  const chapterTitle = chapterTitleAt(chapters, session?.playback.ratio ?? 0);
   const isLive = mode === 'live' && status === 'live'; // 실시간 모드이면서 지금 영상이 나오는 중일 때만 LIVE 배지·실시간 표시
   const avatar = ASSETS[session?.manager?.avatar] ?? { src: session?.manager?.avatar }; // 서명 URL 이 오면 그대로 (§5.2 avatar = 키 또는 URL)
 
@@ -73,6 +82,12 @@ export default function ServiceLivePortrait() {
               {error.message || LIVE_ERROR_COPY}
             </p>
           )}
+          {mode !== 'replay' && checklist?.total > 0 && (
+            <div className={styles.checklist}><ChecklistProgressCard checklist={checklist} copy={LIVE_CHECKLIST_COPY} /></div>
+          )}
+          {checklistError && (
+            <div className={styles.checklist}><ErrorState error={checklistError} onRetry={retryChecklist} /></div>
+          )}
           {mode === 'replay' && ( // 녹화본: 세로 화면에도 재생/멈춤·15초 탐색·진행 막대 (코드에서 정함 — 자동 재생만 있고 멈출 길이 전체 화면뿐이었다)
             // 영상 아래 흰 화면 배경에 놓이므로 tone="onLight": 진행 막대의 손잡이·시간 글자와 원 버튼의 포커스 테두리가 흰색이면 배경에 묻힌다
             <div className={styles.replayControls}>
@@ -81,8 +96,11 @@ export default function ServiceLivePortrait() {
                 <LiveCircleControl type={status === 'paused' ? 'play' : 'pause'} tone="onLight" onClick={togglePause} />
                 <LiveCircleControl type="forward15" tone="onLight" onClick={forward15} />
               </div>
-              <LiveProgress tone="onLight" ratio={session.playback.ratio} timeLabel={`${session.playback.currentLabel} / ${session.playback.totalLabel}`} onSeek={seekRatio} />
+              <LiveProgress tone="onLight" ratio={session.playback.ratio} timeLabel={`${session.playback.currentLabel} / ${session.playback.totalLabel}`} onSeek={seekRatio} chapters={chapters} chapterTitle={chapterTitle} />
             </div>
+          )}
+          {mode === 'replay' && checklist && (
+            <div className={styles.checklist}><Card padding="sm" gap="sm"><ChecklistRequests copy={LIVE_CHECKLIST_COPY} requests={checklist.requests} /></Card></div>
           )}
           <div className={styles.controls}>
             <LiveLabeledControl type="capture" onClick={capture} />

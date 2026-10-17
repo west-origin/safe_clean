@@ -72,7 +72,7 @@ function syncPlayback() {
   if (!v || state.mode !== 'replay' || !state.session) return;
   const total = Number.isFinite(v.duration) ? v.duration : 0;
   const label = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; // 초 → 'm:ss'
-  set({ session: { ...state.session, playback: { currentLabel: label(v.currentTime), totalLabel: label(total), ratio: total ? v.currentTime / total : 0 } } });
+  set({ session: { ...state.session, playback: { currentLabel: label(v.currentTime), totalLabel: label(total), ratio: total ? v.currentTime / total : 0, currentSeconds: v.currentTime, totalSeconds: total } } });
 }
 
 /** 녹화본의 길이 등 메타데이터를 읽은 뒤(loadedmetadata): 기억해 둔 위치로 옮기고 진행 막대를 맞춘다 */

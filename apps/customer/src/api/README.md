@@ -111,3 +111,9 @@
 | `getNotices()` / `getNotice(id)` | `GET /support/notices?audience=customer` / `GET /support/notices/{id}?audience=customer` | `[{ id, title, date: "2026.09.10" }]` / `{ id, title, date, body }` |
 | `submitInquiry({ content, submitKey })` | `POST /support/inquiries` (+ `Idempotency-Key`) | `{ id }` — 공백만이면 VALIDATION. 키는 `newInquiryKey()`, 내용을 고치면 화면이 새 키 |
 | `registerPushToken({ platform, token })` | `PUT /push/token` | `{ ok }` — `push/pushClient.js` 가 부른다. `logout()` 은 먼저 `DELETE /push/token` |
+## 고객 라이브 체크리스트 (2026-10-17)
+
+`getLiveChecklist(bookingId)` → `GET /customer/bookings/{id}/checklist`.
+응답은 `{done,total,percent,groups,timeline,requests}`. groups는 `{group,done,total,items:[{id,label,done}]}`, timeline은 `{id,group,label,offsetSeconds}` 배열이다.
+percent는 완료 비율을 버린 정수. 실제 파일 시작 시각·완료 이력이 없거나 녹화 전 체크면 offsetSeconds는 null이다.
+세로 라이브 5초 폴링, 다시보기는 최초·화면 복귀 조회. 가로 실시간은 부르지 않는다. 현재 완료 수와 요청사항은 과거 예약도 제공한다.

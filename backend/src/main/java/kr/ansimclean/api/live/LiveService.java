@@ -648,8 +648,11 @@ public class LiveService {
         if (s.isMutePending() || s.isUnmutePending()) return;
         try {
             // 방 영상을 녹화해 Storage 에 '예약id.mp4' 로 올리게 한다. 받은 egressId 를 세션에 적어 정지·완료 확인에 쓴다
+            Instant requestedAt = clock.now();
             LiveKitGateway.EgressInfo egress = livekit.startRecording(s.getRoomName(), s.getBookingId() + ".mp4");
             s.recordingStarted(egress.egressId());
+            s.noteRecordingStart(requestedAt, false);
+            s.noteRecordingStart(egress.startedAt(), true);
         } catch (ApiException e) {
             log.warn("녹화 시작 실패 {} — 재조정기가 다시 시도", s.getRoomName());
         }

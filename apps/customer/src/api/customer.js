@@ -2,7 +2,7 @@
 // 서버(backend)를 부르는 함수는 http.js 를 거치고, 서버 오류는 ApiError 로 던진다 (화면의 useAsync/useAction 이 받는다).
 // Figma 문구처럼 앱 안에 둔 값(mock.js)을 그대로 돌려주는 함수, 가입 초안(localStorage)·세션(session.js)을 다루는 함수도 여기 있다.
 // 화면 말고도 부르는 곳이 있다 (예: App.jsx 의 refreshMe, live/liveClient.js 의 라이브 세션·시청 토큰). 전부 찾으려면 검색한다.
-import { SIGN_UP_METHODS, PASSWORD_OK_MESSAGE, HOUSING_TYPES, PET_OPTIONS, FREQUENCY_OPTIONS, ADDRESS_REUSE_OPTIONS, COMPLETE_ROWS, LIVE_SESSION, REPAIR_BOOKING } from './mock.js';
+import { SIGN_UP_METHODS, PASSWORD_OK_MESSAGE, HOUSING_TYPES, PET_OPTIONS, FREQUENCY_OPTIONS, ADDRESS_REUSE_OPTIONS, COMPLETE_ROWS, LIVE_SESSION, LIVE_CHECKLIST, REPAIR_BOOKING } from './mock.js';
 import { deviceToken } from '../push/deviceToken.js';
 
 import { http, ApiError, newIdempotencyKey } from './http.js';
@@ -429,6 +429,15 @@ export async function getLiveSession(bookingId) {
     throw new ApiError(404, 'NOT_FOUND', '진행 중인 청소가 없어요');
   }
   return http.get(`/customer/bookings/${encodeURIComponent(bookingId)}/live`);
+}
+
+/** 고객 소유 예약의 현재 체크 상태·요청사항·다시보기 구간. 실시간 세로 화면은 5초마다 조회한다. */
+export async function getLiveChecklist(bookingId) {
+  if (!bookingId) {
+    if (import.meta.env.DEV) return structuredClone(LIVE_CHECKLIST);
+    throw new ApiError(404, 'NOT_FOUND', '진행 중인 청소가 없어요');
+  }
+  return http.get(`/customer/bookings/${encodeURIComponent(bookingId)}/checklist`);
 }
 
 /** 시청 토큰 { url, token, roomName }. 진행 중이 아니면 ApiError(LIVE_NOT_AVAILABLE) — liveClient 가 상태만 보여준다 */

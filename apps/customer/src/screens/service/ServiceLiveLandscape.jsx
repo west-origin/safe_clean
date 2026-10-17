@@ -7,9 +7,11 @@
 // '전체 화면 닫기' 는 같은 쿼리로 세로 화면으로 돌아가고, '종료' 는 이 기기의 시청만 바로 끝내고(leave) 내 예약으로 간다.
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
-import { VideoSurface, ManagerIdentity, LivePillControl, LiveCircleControl, LiveProgress, IconButton, MuteSpeakerIcon, FullscreenIcon, ScreenError, ASSETS, cx } from '@ansimclean/ui';
+import { VideoSurface, ManagerIdentity, LivePillControl, LiveCircleControl, LiveProgress, IconButton, MuteSpeakerIcon, FullscreenIcon, ScreenError, ASSETS, cx, usePolling } from '@ansimclean/ui';
 import { useLiveSession } from '../../live/useLiveSession.js';
 import { LIVE_ERROR_COPY } from '../../api/mock.js';
+import { getLiveChecklist } from '../../api/customer.js';
+import { buildChapters, chapterTitleAt } from './timeline.js';
 import styles from './ServiceLiveLandscape.module.css';
 
 // Figma 가로 프레임 크기. 화면은 이 크기로 그린 뒤 통째로 크기를 맞추고 회전한다 (CSS 의 .stage 와 같은 값)
@@ -47,8 +49,15 @@ export default function ServiceLiveLandscape() {
   const navigate = useNavigate();
   const { search } = useLocation(); // '전체 화면 닫기' 때 세로 화면에 그대로 넘길 쿼리 문자열 (?booking=…&replay=…)
   const [params] = useSearchParams();
+  const bookingId = params.get('booking') ?? undefined;
+  const replay = params.get('replay') === '1';
   // 훅은 조건문(아래 early return)보다 먼저 불러야 해서(React 규칙) booking 이 없어도 일단 부르고 아래에서 돌려보낸다
-  const { session, mode, error, videoRef, muted, capture, seekRatio, back15, forward15, togglePause, status, leave, retry } = useLiveSession(params.get('booking') ?? undefined, { replay: params.get('replay') === '1' });
+  const { session, mode, error, videoRef, muted, capture, seekRatio, back15, forward15, togglePause, status, leave, retry } = useLiveSession(bookingId, { replay });
+  const readReplay = replay || (session != null && mode === 'replay');
+  // 가로 화면은 다시보기 구간만. 실시간 체크리스트 조회는 하지 않는다.
+  const { data: checklist } = usePolling(() => readReplay && bookingId ? getLiveChecklist(bookingId) : Promise.resolve(null), [bookingId, readReplay], { interval: 0 });
+  const chapters = mode === 'replay' ? buildChapters(checklist?.timeline, session?.playback.totalSeconds ?? 0) : [];
+  const chapterTitle = chapterTitleAt(chapters, session?.playback.ratio ?? 0);
   const { rotate, scale } = useStageTransform();
   const isLive = mode === 'live' && status === 'live'; // LIVE 배지는 실시간 모드이면서 지금 영상이 나오는 중일 때만
   // 매니저 사진: 공용 UI 의 ASSETS 에 같은 키가 있으면 그 이미지, 없으면 받은 값을 이미지 주소로 쓴다
@@ -92,7 +101,7 @@ export default function ServiceLiveLandscape() {
                     <LiveCircleControl type="forward15" onClick={forward15} />
                   </div>
                   <div className={styles.progress}>
-                    <LiveProgress ratio={session.playback.ratio} timeLabel={`${session.playback.currentLabel} / ${session.playback.totalLabel}`} onSeek={seekRatio} />
+                    <LiveProgress ratio={session.playback.ratio} timeLabel={`${session.playback.currentLabel} / ${session.playback.totalLabel}`} onSeek={seekRatio} chapters={chapters} chapterTitle={chapterTitle} />
                   </div>
                 </>
               )}

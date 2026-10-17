@@ -61,6 +61,7 @@ class JobServiceTest {
     static final UUID MANAGER = UUID.randomUUID();
 
     JobChecklistItemRepository checklist = mock(JobChecklistItemRepository.class);
+    JobChecklistEventRepository checklistEvents = mock(JobChecklistEventRepository.class);
     JobPauseRepository pauses = mock(JobPauseRepository.class);
     BookingService bookings = mock(BookingService.class);
     ProfileService profiles = mock(ProfileService.class);
@@ -82,7 +83,7 @@ class JobServiceTest {
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        service = new JobService(checklist, pauses, bookings, profiles, catalog, live, settlements, settings, outbox, idempotent, CLOCK, storage, penalties, dispatcher);
+        service = new JobService(checklist, checklistEvents, pauses, bookings, profiles, catalog, live, settlements, settings, outbox, idempotent, CLOCK, storage, penalties, dispatcher);
         booking = TestBookings.scheduled(CUSTOMER, MANAGER, TODAY, LocalTime.of(10, 0));
         when(bookings.requireManagerBooking(MANAGER, booking.getId())).thenReturn(booking);
         when(bookings.lockManagerBooking(MANAGER, booking.getId())).thenReturn(booking); // 상태를 바꾸는 API 는 잠그고 읽는다
@@ -363,6 +364,73 @@ class JobServiceTest {
         service.setChecklistItem(MANAGER, booking.getId(), item.getId(), true);
         assertThat(item.isDone()).isTrue();
         assertThat(item.getDoneAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void 같은_체크는_시각과_이력을_보존하고_해제_재체크는_남긴다() {
+        JobChecklistItem item = JobChecklistItem.of(booking.getId(), "거실", "바닥 청소", 1);
+        when(checklist.findByIdAndBookingId(item.getId(), booking.getId())).thenReturn(Optional.of(item));
+        booking.start(NOW, TODAY);
+        service.setChecklistItem(MANAGER, booking.getId(), item.getId(), true);
+        service.setChecklistItem(MANAGER, booking.getId(), item.getId(), true);
+        assertThat(item.getDoneAt()).isEqualTo(NOW);
+        service.setChecklistItem(MANAGER, booking.getId(), item.getId(), false);
+        assertThat(item.getDoneAt()).isNull();
+        service.setChecklistItem(MANAGER, booking.getId(), item.getId(), true);
+        var saved = org.mockito.ArgumentCaptor.forClass(JobChecklistEvent.class);
+        verify(checklistEvents, org.mockito.Mockito.times(3)).save(saved.capture());
+        assertThat(saved.getAllValues()).extracting(JobChecklistEvent::isDone).containsExactly(true, false, true);
+        assertThat(saved.getAllValues()).allSatisfy(event -> {
+            assertThat(event.getManagerId()).isEqualTo(MANAGER);
+            assertThat(event.getLabel()).isEqualTo("바닥 청소");
+            assertThat(event.getChangedAt()).isEqualTo(NOW);
+        });
+        verify(bookings, org.mockito.Mockito.times(4)).lockManagerBooking(MANAGER, booking.getId());
+    }
+
+    @Test
+    void 고객_체크리스트는_현재_완료만_정확한_녹화_기준으로_계산한다() {
+        when(bookings.requireCustomerBooking(CUSTOMER, booking.getId())).thenReturn(booking);
+        when(catalog.noticeLabels(eq("home"), any())).thenReturn(List.of());
+        Instant rec = NOW.minusSeconds(600);
+        JobChecklistItem floor = JobChecklistItem.of(booking.getId(), "거실", "바닥 청소", 1);
+        JobChecklistItem dust = JobChecklistItem.of(booking.getId(), "거실", "먼지 제거", 2);
+        JobChecklistItem sink = JobChecklistItem.of(booking.getId(), "주방", "싱크대", 3);
+        floor.mark(true, rec.plusSeconds(165));
+        sink.mark(true, rec.minusSeconds(30));
+        when(checklist.findByBookingIdOrderBySort(booking.getId())).thenReturn(List.of(floor, dust, sink));
+        when(checklistEvents.findLatestByBookingId(booking.getId())).thenReturn(List.of(
+                JobChecklistEvent.of(floor, true, floor.getDoneAt(), MANAGER),
+                JobChecklistEvent.of(dust, false, rec.plusSeconds(190), MANAGER),
+                JobChecklistEvent.of(sink, true, sink.getDoneAt(), MANAGER)));
+        var session = kr.ansimclean.api.live.LiveSession.create(booking.getId());
+        session.noteRecordingStart(rec, false);
+        when(live.find(booking.getId())).thenReturn(Optional.of(session));
+        var provisional = service.customerChecklist(CUSTOMER, booking.getId());
+        assertThat(provisional.timeline()).allSatisfy(mark -> assertThat(mark.offsetSeconds()).isNull());
+        session.noteRecordingStart(rec, true);
+        var res = service.customerChecklist(CUSTOMER, booking.getId());
+        assertThat(res.done()).isEqualTo(2);
+        assertThat(res.total()).isEqualTo(3);
+        assertThat(res.percent()).isEqualTo(66);
+        assertThat(res.groups()).extracting(kr.ansimclean.api.job.dto.CustomerChecklistResponse.Group::group).containsExactly("거실", "주방");
+        assertThat(res.timeline()).extracting(kr.ansimclean.api.job.dto.CustomerChecklistResponse.Mark::offsetSeconds).containsExactly(null, 165L);
+        assertThat(res.requests()).containsExactly("잘 부탁드려요");
+        // 과거 항목은 현재 완료 수를 유지하지만 없던 이력을 만들지 않는다.
+        when(checklistEvents.findLatestByBookingId(booking.getId())).thenReturn(List.of());
+        assertThat(service.customerChecklist(CUSTOMER, booking.getId()).timeline()).allSatisfy(mark -> assertThat(mark.offsetSeconds()).isNull());
+    }
+
+    @Test
+    void 배정_전은_빈_체크리스트이고_영상_위치는_길이를_넘지_않는다() {
+        when(bookings.requireCustomerBooking(CUSTOMER, booking.getId())).thenReturn(booking);
+        when(catalog.noticeLabels(eq("home"), any())).thenReturn(List.of());
+        var res = service.customerChecklist(CUSTOMER, booking.getId());
+        assertThat(res.total()).isZero();
+        assertThat(res.percent()).isZero();
+        assertThat(res.timeline()).isEmpty();
+        assertThat(JobService.offsetSeconds(NOW.plusSeconds(700), NOW, 630)).isEqualTo(630L);
+        assertThat(JobService.offsetSeconds(NOW.minusSeconds(1), NOW, 630)).isNull();
     }
 
     // 1) 알려진 사유("sick")로 취소: 멱등 키가 run 에 넘어가고, 예약은 assigning(매니저 비움)으로 돌아가 다시 콜을 보내며,

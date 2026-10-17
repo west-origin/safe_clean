@@ -304,7 +304,35 @@ export const LIVE_SESSION = {
   status: { title: '거실 청소 중', description: '깨끗한 공간을 만들어가고 있어요!' },
   reassurance: { title: '안심하고 지켜보세요!', description: '항상 최선을 다해 청소하고 있어요 💙' },
   /** 녹화본 탐색 표시 (LiveLandscape 예시: 5:20 / 10:30, 진행 410/804) */
-  playback: { currentLabel: '5:20', totalLabel: '10:30', ratio: 410 / 804 },
+  playback: { currentLabel: '5:20', totalLabel: '10:30', ratio: 320 / 630, currentSeconds: 320, totalSeconds: 630 },
+};
+
+/** PDF의 ProgressOverlay 카드와 다시보기 구간 예시. 실서비스는 고객 체크리스트 API를 쓴다. */
+export const LIVE_CHECKLIST = {
+  done: 4, total: 9, percent: 44,
+  groups: [
+    { group: '거실', done: 3, total: 3, items: [
+      { id: 'c1', label: '바닥 청소', done: true }, { id: 'c2', label: '먼지 제거', done: true }, { id: 'c3', label: '테이블 정리', done: true },
+    ] },
+    { group: '주방', done: 1, total: 3, items: [
+      { id: 'c4', label: '싱크대', done: true }, { id: 'c5', label: '가스레인지', done: false }, { id: 'c6', label: '조리대', done: false },
+    ] },
+    { group: '욕실', done: 0, total: 3, items: [
+      { id: 'c7', label: '세면대', done: false }, { id: 'c8', label: '변기', done: false }, { id: 'c9', label: '바닥', done: false },
+    ] },
+  ],
+  timeline: [
+    { id: 'c1', group: '거실', label: '바닥 청소', offsetSeconds: 165 },
+    { id: 'c2', group: '거실', label: '먼지 제거', offsetSeconds: 190 },
+    { id: 'c3', group: '거실', label: '테이블 정리', offsetSeconds: 245 },
+    { id: 'c4', group: '주방', label: '싱크대', offsetSeconds: 320 },
+  ],
+  requests: [],
+};
+export const LIVE_CHECKLIST_COPY = {
+  title: '청소 체크리스트', basis: '매니저 완료 체크 기준', requestsTitle: '고객 요청사항',
+  requestsStatus: '완료 여부 미확인', requestsEmpty: '등록된 요청사항 정보가 제공되지 않았습니다.',
+  requestsNote: '청소 진행률과 별도로 완료 상태를 표시합니다.',
 };
 
 /** 약관 본문 (Figma 에 화면 없음 — 코드에서 정함). 실제 문안은 법무 검토 후 실서버에서 내려받는다 */
