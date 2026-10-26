@@ -1,0 +1,13 @@
+{
+  "projectId": "safeclean-511807",
+  "projectNumber": "649043347047",
+  "displayName": "SafeClean",
+  "region": "asia-northeast3",
+  "service": "ansimclean-api",
+  "serviceUrl": "https://ansimclean-api-rbtzr3o4cq-du.a.run.app",
+  "apiUrl": "https://ansimclean-api-rbtzr3o4cq-du.a.run.app/api/v1",
+  "livekitWebhookUrl": "https://ansimclean-api-rbtzr3o4cq-du.a.run.app/api/v1/live/webhooks/livekit",
+  "revision": "ansimclean-api-00001-zkw",
+  "secretVersion": "1",
+  "buildId": "187702cf-930a-4851-99bc-15a6ffe3db47"
+}

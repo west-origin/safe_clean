@@ -38,6 +38,15 @@ import static org.mockito.Mockito.when;
 // 준비: 진행 중(in_progress) 예약 한 건, 그 예약 방의 세션(카메라 대기), Ingress "ing-1" 인 MANAGER 의 바디캠
 class LiveWebhookServiceTest {
     @Test
+    void 시작_응답을_잃고_실패로_남아도_늦은_시작_웹훅으로_복구한다() {
+        session.recordingFailed();
+        service.onEgressUpdated(new WebhookEvent("late-start", "egress_started", room, null, null,
+                new EgressInfo("eg-late", room, "active", null, 0, null, NOW)));
+        assertThat(session.getEgressId()).isEqualTo("eg-late");
+        assertThat(session.getRecordingStatus()).isEqualTo(LiveSession.REC_RECORDING);
+        assertThat(session.isRecordingStartConfirmed()).isTrue();
+    }
+    @Test
     void 실제_녹화_시각은_시작_웹훅과_종료_복구에서_보정한다() {
         session.recordingStarted("eg-1");
         session.noteRecordingStart(NOW.minusSeconds(5), false);

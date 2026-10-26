@@ -12,7 +12,7 @@ import styles from './repair.module.css';
 
 // 바로 아래 한 줄은 화면 설명이 아니라 달력의 날짜 규칙 설명이다. 실제 판정은 WeekCalendar 에 넘기는
 // notBookableWithin 이 하고, 예약 가능 기간(bookableDays) 밖의 날도 막는다 (화면 설명은 그 아래)
-/** 서버 규칙(§6.1 '내일부터 예약할 수 있어요')과 같게 — 오늘·이전·주말은 고를 수 없다 */
+/** 서버 규칙과 같게 오늘·이전은 고를 수 없고, 주말은 허용한다. */
 
 /** 방문 날짜·시간을 고르는 화면. 둘 다 골라야 '다음' 을 누를 수 있다 */
 export default function RepairDateTime() {
@@ -32,8 +32,8 @@ export default function RepairDateTime() {
       <div className={styles.body}>
         <div className={cx(styles.stack, styles.stackWide)}>
           <StepQuestion service={serviceName(category, catalog, draft)} title={copy.title} description={copy.description} />
-          {/* 오늘·지난 날·주말, 그리고 오늘부터 bookableDays 일 뒤보다 늦은 날은 고를 수 없게 회색으로 둔다 */}
-          <WeekCalendar value={draft.date} onChange={(date) => update({ date })} isDisabled={notBookableWithin(catalog.bookableDays)} />
+          {/* 오늘·지난 날과 예약 가능 기간 밖은 막되, 토·일도 선택할 수 있다. */}
+          <WeekCalendar value={draft.date} onChange={(date) => update({ date })} isDisabled={notBookableWithin(catalog.bookableDays, undefined, { allowWeekends: true })} />
           <InfoNote glyph="📅">{BOOKING_DATE_NOTE}</InfoNote>
           <TimeSlotGrid layout="flat" title={copy.timeTitle} slots={catalog.timeSlots} value={draft.time} onChange={(time) => update({ time })} />
           {/* 날짜와 시간을 둘 다 고르면 고른 일정을 한 줄로 보여 준다 (예: 9월 23일(수) 오전 11시) */}

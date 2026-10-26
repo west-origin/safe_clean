@@ -10,6 +10,7 @@
 //   Job/InProgress ─ Secondary → Job/PauseSheet · Primary → Job/CompleteConfirm
 //   Job/PauseSheet ─ Primary → Job/Paused · Job/Paused ─ Primary → Job/InProgress
 //   Job/CompleteConfirm ─ Secondary → Job/InProgress · Primary → Job/Complete
+//   [코드에서 정함] Job/InProgress ─ 청소 전 사진 찍기 → /job/photo · 청소 완료(청소 후 사진 빠짐) → /job/photos/after ─ 위치 → /job/photo?id= · 청소 완료 → CompleteConfirm
 //   Job/Complete ─ Secondary → Settlement · Primary → Home
 //   Schedule ─ Secondary → Schedule/Availability · Schedule/Availability ─ Back → Schedule · Secondary → Schedule/AddUnavailable
 //   Schedule/AddUnavailable ─ Primary → Schedule/Availability
@@ -52,6 +53,11 @@ const protectedRoutes = [
   { path: '/job/in-progress', lazy: page(() => import('./screens/job/JobInProgress.jsx')) }, // M3 Manager/Job/InProgress (+PauseSheet)
   { path: '/job/paused', lazy: page(() => import('./screens/job/JobPaused.jsx')) }, // M3 Manager/Job/Paused
   { path: '/job/complete', lazy: page(() => import('./screens/job/JobComplete.jsx')) }, // M4 Manager/Job/Complete (CompleteConfirm 은 InProgress 안의 Sheet)
+  // 청소 전·후 사진 (Figma 에 없음 — 코드에서 정함, 2026-10-23): 진행 화면 '청소 전 사진 찍기' → /job/photo,
+  // 진행 화면 '청소 완료'(청소 후 사진이 빠졌을 때) → /job/photos/after → 위치 줄 → /job/photo?id=… → 다 찍으면 '청소 완료' → 진행 화면의 완료 확인 시트
+  { path: '/job/photo', lazy: page(() => import('./screens/job/JobPhotoCapture.jsx')) },
+  { path: '/job/photos/before', lazy: page(() => import('./screens/job/JobBeforePhotos.jsx')) },
+  { path: '/job/photos/after', lazy: page(() => import('./screens/job/JobAfterPhotos.jsx')) },
   { path: '/settlement', lazy: page(() => import('./screens/settlement/Settlement.jsx')) }, // M4 Manager/Settlement
   { path: '/settlement/:id', lazy: page(() => import('./screens/settlement/SettlementDetail.jsx')) }, // M4 Manager/Settlement/Detail
   { path: '/schedule', lazy: page(() => import('./screens/schedule/Schedule.jsx')) }, // M5 Manager/Schedule (+Empty)

@@ -9,6 +9,7 @@ import kr.ansimclean.api.support.SupportService;
 import kr.ansimclean.api.support.TermsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -58,6 +59,7 @@ public class DeletedAccountPurger {
 
     /** 스케줄러 입구. 실패해도 예외를 밖으로 던지지 않고 로그만 남긴다 — 다음 날 다시 돈다 */
     @Scheduled(cron = "0 20 4 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "DeletedAccountPurger", lockAtLeastFor = "PT1M")
     public void run() {
         try {
             int n = purgeDue();

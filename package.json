@@ -14,6 +14,8 @@
     "dev:customer:mock": "VITE_API_MOCK=1 npm run dev -w apps/customer -- --port 5175",
     "dev:manager:mock": "VITE_API_MOCK=1 npm run dev -w apps/manager -- --port 5176",
     "build": "npm run build --workspaces --if-present",
+    "build:development": "npm run build:development --workspaces --if-present",
+    "cap:sync:development": "npm run cap:sync:development --workspaces --if-present",
     "tokens": "node scripts/build-tokens.js",
     "check:tokens": "node scripts/check-tokens.js",
     "lint": "eslint .",
@@ -37,6 +39,6 @@
     "vitest": "^4.0.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }

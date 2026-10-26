@@ -7,6 +7,7 @@ import kr.ansimclean.api.common.supabase.SupabaseStorageClient;
 import kr.ansimclean.api.common.time.AppClock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +45,7 @@ public class RecordingRetention {
     // 실패해도 예외를 밖으로 던지지 않고 로그만 남긴다. 그때는 묶음 전체(이벤트 행 삭제 포함)가 되돌려지고 다음 날 다시 돈다 —
     // 이미 지운 Storage 파일은 되돌릴 수 없지만, 다시 지울 때 없는 파일(404)을 성공으로 쳐서 그때 세션이 정리된다
     @Scheduled(cron = "0 0 4 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "RecordingRetention", lockAtLeastFor = "PT1M")
     public void run() {
         // run() 이 같은 클래스의 purge() 을 직접 부르면 @Transactional 프록시를 거치지 않는다(Spring 자기 호출).
         // 그래서 트랜잭션은 여기서 TransactionTemplate 으로 연다. purge() 의 @Transactional 은 빈을 통해 직접 부르는 테스트용.

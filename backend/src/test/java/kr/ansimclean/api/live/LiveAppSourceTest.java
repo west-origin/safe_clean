@@ -61,6 +61,8 @@ class LiveAppSourceTest {
         booking = TestBookings.scheduled(CUSTOMER, MANAGER, TODAY, LocalTime.of(10, 0));
         room = "booking-" + booking.getId();
         when(bookings.requireManagerBooking(MANAGER, booking.getId())).thenReturn(booking);
+        booking.confirmBeforePhotos(NOW);
+        when(bookings.lockManagerBooking(MANAGER, booking.getId())).thenReturn(booking);
         when(bookings.find(booking.getId())).thenReturn(Optional.of(booking));
         when(devices.findById(MANAGER)).thenReturn(Optional.empty());
         when(devices.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -107,6 +109,8 @@ class LiveAppSourceTest {
     void 오늘_작업이_아니면_거절() {
         Booking tomorrow = TestBookings.scheduled(CUSTOMER, MANAGER, TODAY.plusDays(1), LocalTime.of(10, 0));
         when(bookings.requireManagerBooking(MANAGER, tomorrow.getId())).thenReturn(tomorrow);
+        tomorrow.confirmBeforePhotos(NOW);
+        when(bookings.lockManagerBooking(MANAGER, tomorrow.getId())).thenReturn(tomorrow);
         assertThatThrownBy(() -> service.start(MANAGER, tomorrow.getId())).isInstanceOf(ApiException.class);
         verify(livekit, never()).publishToken(anyString(), anyString(), anyString(), any());
     }

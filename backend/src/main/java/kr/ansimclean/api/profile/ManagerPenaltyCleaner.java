@@ -2,6 +2,7 @@ package kr.ansimclean.api.profile;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -32,6 +33,7 @@ public class ManagerPenaltyCleaner {
      * 만료에서 예외가 나면 회복은 이번에는 건너뛰고, 어느 쪽이든 로그만 남긴 뒤 다음 날 다시 돈다
      */
     @Scheduled(cron = "0 20 3 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "ManagerPenaltyCleaner", lockAtLeastFor = "PT1M")
     public void run() {
         try {
             int expired = tx.execute(status -> penalties.expireOld()); // 만료로 바꾼 행 수 (recover 는 회복 행을 적은 매니저 수)

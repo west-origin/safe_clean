@@ -12,12 +12,13 @@ import styles from './TimeSlotGrid.module.css';
  * @param {{ am: string[], pm: string[] }} props.slots 시간 문구 (Figma: 09:00~12:00 / 13:00~18:00)
  * @param {string} [props.value] 선택한 시간 (예: '11:00')
  * @param {(time: string) => void} [props.onChange]
+ * @param {(time: string) => boolean} [props.isDisabled] 현재 선택 날짜에서 막을 시간
  * @param {string} [props.title='방문 시간 선택']
  * @param {'grouped'|'flat'} [props.layout='grouped'] grouped=오전/오후 묶음(청소 예약), flat=제목 아래 한 격자(수리 예약 1:398 — 줄바꿈, 간격 8/10)
  * @param {string} [props.className]
  */
 // layout 에 따라 오전/오후 두 묶음(grouped) 또는 한 격자(flat)로 시간 칸을 그린다. value 와 같은 칸이 선택 상태다.
-export default function TimeSlotGrid({ slots, value, onChange, title = '방문 시간 선택', layout = 'grouped', className }) {
+export default function TimeSlotGrid({ slots, value, onChange, isDisabled = () => false, title = '방문 시간 선택', layout = 'grouped', className }) {
   // grouped 에서 쓰는 한 묶음: 소제목(h3, "오전"/"오후") + 시간 칸 격자.
   // groupClass(styles.am / styles.pm)로 소제목 위 여백을 고르고, 같은 값으로 격자 위 여백(gridAm / gridPm)도 고른다.
   const group = (label, list, groupClass) => (
@@ -25,7 +26,7 @@ export default function TimeSlotGrid({ slots, value, onChange, title = '방문 �
       <h3 className={cx('text-body-bold', styles.groupLabel, groupClass)}>{label}</h3>
       <div className={cx(styles.grid, groupClass === styles.am ? styles.gridAm : styles.gridPm)} role="radiogroup" aria-label={`${label} 시간`}>
         {list.map((t) => (
-          <button key={t} type="button" role="radio" aria-checked={t === value} className={cx('text-label-default', styles.slot, t === value && styles.selected)} onClick={() => onChange && onChange(t)}>
+          <button key={t} type="button" role="radio" disabled={isDisabled(t)} aria-checked={t === value && !isDisabled(t)} className={cx('text-label-default', styles.slot, t === value && !isDisabled(t) && styles.selected)} onClick={() => onChange && onChange(t)}>
             {t}
           </button>
         ))}
@@ -39,7 +40,7 @@ export default function TimeSlotGrid({ slots, value, onChange, title = '방문 �
         <h2 className={cx('text-heading-s', styles.title)}>{title}</h2>
         <div className={styles.flatGrid} role="radiogroup" aria-label="방문 시간">
           {[...slots.am, ...slots.pm].map((t) => (
-            <button key={t} type="button" role="radio" aria-checked={t === value} className={cx('text-label-default', styles.slot, t === value && styles.selected)} onClick={() => onChange && onChange(t)}>
+            <button key={t} type="button" role="radio" disabled={isDisabled(t)} aria-checked={t === value && !isDisabled(t)} className={cx('text-label-default', styles.slot, t === value && !isDisabled(t) && styles.selected)} onClick={() => onChange && onChange(t)}>
               {t}
             </button>
           ))}

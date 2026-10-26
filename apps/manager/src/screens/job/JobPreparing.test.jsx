@@ -17,14 +17,14 @@ function renderPreparing(id) {
     <MemoryRouter initialEntries={[`/job/${id}/preparing`]}>
       <Routes>
         <Route path="/job/:id/preparing" element={<JobPreparing />} />
-        <Route path="/job/in-progress" element={<p>진행 화면</p>} />
+        <Route path="/job/photos/before" element={<p>전 사진 화면</p>} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
 describe('청소 시작 (B4 §9.2-3)', () => {
-  it('작업 상태를 먼저 바꾸고 그 다음 라이브를 시작한 뒤 진행 화면으로 간다', async () => {
+  it('작업을 시작한 뒤 송출 없이 전 사진 화면으로 간다', async () => {
     const { __fake } = await import('../../api/http.js');
     // 준비: liveClient.start 를 가짜로 바꿔 서버를 부르지 않고 order 에 'live' 만 적게 한다.
     // 확인: 진행 화면으로 갔고, 가짜 서버에 작업 시작 요청이 멱등 키('key-1' = 가짜 서버의 고정 키)와 함께 남았고, 라이브 시작이 불렸다.
@@ -34,10 +34,10 @@ describe('청소 시작 (B4 §9.2-3)', () => {
     const spy = vi.spyOn(liveClient, 'start').mockImplementation(async () => order.push('live'));
     renderPreparing('job-1');
     fireEvent.click(await screen.findByRole('button', { name: '청소 시작' }));
-    expect(await screen.findByText('진행 화면')).toBeInTheDocument();
+    expect(await screen.findByText('전 사진 화면')).toBeInTheDocument();
     const start = __fake.calls.find((c) => c.method === 'POST' && c.path === '/manager/jobs/job-1/start');
     expect(start.idempotencyKey).toBe('key-1');
-    expect(order).toEqual(['live']);
+    expect(order).toEqual([]);
     expect(__fake.calls.indexOf(start)).toBeLessThan(__fake.calls.length); // 주의: 늘 참이라 순서를 확인하지 못한다(start 가 목이라 calls 에 라이브 호출이 없다)
     spy.mockRestore();
   });

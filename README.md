@@ -1,5 +1,7 @@
 # 안심클린 앱
 
+Mac의 iOS/Android 개발 빌드는 [Mac 빌드 안내](docs/mac-build.md)를 따른다.
+
 고객용 앱과 청소매니저 앱. React + Vite로 만들고 Capacitor로 iOS/Android 앱으로 감싼다.
 사용 언어는 HTML / CSS / JavaScript(JSX)뿐이다. TypeScript, Tailwind는 쓰지 않는다.
 
@@ -35,3 +37,6 @@ backend/           API 서버 (Java 21 + Spring Boot, 백엔드 컴퓨터에서 
 백엔드 실행은 `backend/README.md` (`./mvnw spring-boot:run`). 앱은 `VITE_API_URL` 로 그 서버를 부른다 (단계 B2 부터). 서버 없이 화면만 보려면 `npm run dev:customer:mock`(5175) · `npm run dev:manager:mock`(5176) — 테스트용 가짜 서버(`src/test/fakeHttp.js`), DEV 전용.
 
 자세한 계획은 `PLAN.md`, 진행 상태는 `PROGRESS.md`.
+
+운영 API 서버는 **Google Cloud Run 서울 리전**에 배포한다. Supabase는 이전한 서울 프로젝트를 계속 쓴다.
+새 GCP 프로젝트 생성, Secret Manager, 소스 배포·검증·롤백은 [배포 안내](deploy/cloudrun/README.md)를 따른다.

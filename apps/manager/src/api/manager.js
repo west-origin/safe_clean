@@ -3,7 +3,7 @@
 // (요일 번호, 반복 문구, 날짜·시각 형식, 서버가 null 로 주는 선택 문구 → undefined).
 // 로그인·가입의 세션 저장(session.js)과 가입 초안(localStorage), DEV 확인용 ?scenario=empty|error 도 여기서 처리한다.
 // 부르는 곳은 대부분 screens/* 화면이다. 화면 밖의 예: live/liveClient.js(라이브 세션 함수), App.jsx(refreshMe).
-import { REPEAT_OPTIONS, SUPPORT_COPY, AUTH_COPY, MANAGER_PASSWORD_OK_MESSAGE } from './mock.js';
+import { REPEAT_OPTIONS, SUPPORT_COPY, AUTH_COPY, MANAGER_PASSWORD_OK_MESSAGE, PHOTO_COPY } from './mock.js';
 import { deviceToken } from '../push/deviceToken.js';
 
 import { http, ApiError, newIdempotencyKey } from './http.js';
@@ -177,6 +177,50 @@ export async function resumeJob(jobId) {
 /** 청소 완료 → { jobId }. 정산이 같이 만들어진다 */
 export async function completeJob(jobId) {
   return withActionKey(`complete:${jobId}`, (key) => http.post(`/manager/jobs/${encodeURIComponent(jobId)}/complete`, {}, { idempotencyKey: key }));
+}
+
+// ── 청소 전·후 사진 (2026-10-23, backend/docs/api.md '청소 전·후 사진 추가') ──
+// 사진 한 장 = { id, location, beforeUrl, afterUrl }. 주소는 1시간짜리 서명 URL 이라 화면을 열 때마다 목록을 다시 받는다
+
+/** 위치 이름 글자 수 (서버 검사와 같다) */
+export const PHOTO_LOCATION_MAX = 20;
+
+/** 이 작업의 청소 전·후 사진 → { photos: [{ id, location, beforeUrl, afterUrl|null }], max } */
+export async function getJobPhotos(jobId) {
+  return http.get(`/manager/jobs/${encodeURIComponent(jobId)}/photos`);
+}
+
+/** 모든 필수 공간의 전 사진 검사 뒤 송출 허용. */
+export const confirmBeforePhotos = (jobId) => http.post(`/manager/jobs/${encodeURIComponent(jobId)}/photos/confirm-before`, {});
+/** 라이브 종료 단계로 고정한 뒤 live.stop을 호출한다. */
+export const finishJobVideo = (jobId) => http.post(`/manager/jobs/${encodeURIComponent(jobId)}/finish-video`, {});
+/** 현장의 추가 공간을 필수 사진과 체크리스트에 등록. */
+export const addJobRoom = (jobId, name) => http.post(`/manager/jobs/${encodeURIComponent(jobId)}/rooms`, { name });
+
+/**
+ * 청소 전 사진 한 장 올리기 (위치 이름 + 사진 파일) → 사진 한 장. 진행 중 작업에서만, 위치 max 곳까지 (서버 검사).
+ * 위치가 비었거나 20자를 넘으면 보내기 전에 ApiError(400, VALIDATION)
+ */
+export async function addBeforePhoto(jobId, location, file) {
+  const name = (location ?? '').trim();
+  if (!name || name.length > PHOTO_LOCATION_MAX) throw new ApiError(400, 'VALIDATION', PHOTO_COPY.locationRequired);
+  // FormData 로 보내면 http.js 가 파일 업로드(multipart)로 보내고 더 오래(UPLOAD_TIMEOUT_MS) 기다린다
+  const form = new FormData();
+  form.append('location', name);
+  form.append('file', file);
+  return http.post(`/manager/jobs/${encodeURIComponent(jobId)}/photos`, form);
+}
+
+/** 같은 위치의 청소 후 사진 올리기(다시 찍으면 바뀐다) → 사진 한 장 */
+export async function addAfterPhoto(jobId, photoId, file) {
+  const form = new FormData();
+  form.append('file', file);
+  return http.put(`/manager/jobs/${encodeURIComponent(jobId)}/photos/${encodeURIComponent(photoId)}/after`, form);
+}
+
+/** 사진 한 곳(전·후 둘 다) 지우기 — 위치를 잘못 찍었을 때 */
+export async function deleteJobPhoto(jobId, photoId) {
+  await http.delete(`/manager/jobs/${encodeURIComponent(jobId)}/photos/${encodeURIComponent(photoId)}`);
 }
 
 /** Job/Complete — 마지막으로 완료한 작업 */

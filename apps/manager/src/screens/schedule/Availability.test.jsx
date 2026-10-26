@@ -1,7 +1,7 @@
 // 근무 일정 관리(Availability.jsx) 화면 테스트: 근무 불가 카드의 '삭제' 가 서버에 DELETE 를 보내고 카드를 목록에서 지우는지.
 // MemoryRouter: 브라우저 주소창 없이 메모리 안에서 도는 라우터 — 시작 주소를 initialEntries 로 정한다.
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import Availability from './Availability.jsx';
 
@@ -9,6 +9,30 @@ import Availability from './Availability.jsx';
 vi.mock('../../api/http.js', async () => (await import('../../test/fakeHttp.js')).fakeHttpModule());
 
 describe('근무 일정 관리 — 근무 불가', () => {
+  it('토요일·일요일 휴무를 해제하고 근무시간을 저장할 수 있다', async () => {
+    render(
+      <MemoryRouter initialEntries={['/schedule/availability']}>
+        <Routes><Route path="/schedule/availability" element={<Availability />} /></Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: '기본 근무시간 수정' }));
+    const sheet = screen.getByRole('dialog', { name: '기본 근무시간 수정' });
+    for (const day of ['토', '일']) {
+      const row = within(sheet).getByText(day).parentElement;
+      fireEvent.click(within(row).getByRole('checkbox', { name: '휴무' }));
+      fireEvent.change(within(row).getByLabelText('시작'), { target: { value: '09:00' } });
+      fireEvent.change(within(row).getByLabelText('종료'), { target: { value: '18:00' } });
+    }
+    fireEvent.click(within(sheet).getByRole('button', { name: '저장' }));
+    const { __fake } = await import('../../api/http.js');
+    await waitFor(() => expect(__fake.calls.find((c) => c.method === 'PUT' && c.path === '/manager/availability/hours')).toBeTruthy());
+    const saved = __fake.calls.find((c) => c.method === 'PUT' && c.path === '/manager/availability/hours').body;
+    expect(saved).toEqual(expect.arrayContaining([
+      { weekday: 5, start: '09:00', end: '18:00', off: false },
+      { weekday: 6, start: '09:00', end: '18:00', off: false },
+    ]));
+  });
+
   it('근무 불가 카드에 삭제가 있고 누르면 서버에서 지운 뒤 목록에서 사라진다', async () => {
     render(
       <MemoryRouter initialEntries={['/schedule/availability']}>

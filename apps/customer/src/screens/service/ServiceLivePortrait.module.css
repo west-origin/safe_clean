@@ -111,3 +111,20 @@
   margin-top: var(--spacing-xs);
   padding: 0 var(--spacing-4xl);
 }
+
+/* 청소 전·후 비교 (코드에서 정함, 2026-10-23): 제목 → 안내 → 위치마다 비교 사진 + 위치 이름. 좌우 24 는 영상 카드와 같다 */
+.photos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-3xl);
+  padding: 0 var(--spacing-4xl);
+}
+
+/* 비교 사진 한 장: 사진 → 위치 이름 (figure 기본 여백 제거) */
+.photo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin: 0;
+}

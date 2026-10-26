@@ -309,6 +309,42 @@ export const PHONE_CAMERA_COPY = {
   busy: '다른 앱이 카메라를 쓰고 있어요. 그 앱을 닫고 카메라 다시 연결을 눌러주세요.',
   failed: '휴대폰 카메라를 켜지 못했어요. 카메라 다시 연결을 눌러주세요.',
 };
+/**
+ * 청소 전·후 사진 (2026-10-23 사용자 요청 — Figma 에 없어 코드에서 정함, PROGRESS "Figma 에 없어 코드에서 정한 화면").
+ * 쓰는 곳: JobInProgress('청소 전 사진' 묶음), JobPhotoCapture(촬영 화면), JobAfterPhotos(청소 완료 직전 '청소 후 사진' 화면)
+ */
+export const PHOTO_COPY = {
+  // 청소 진행 화면의 묶음
+  sectionTitle: '청소 전 사진',
+  sectionHint: '청소를 시작하기 전에 위치마다 한 장씩 찍어주세요. 청소를 마치면 같은 위치를 다시 찍어요.',
+  empty: '아직 찍은 사진이 없어요.',
+  takeBefore: '청소 전 사진 찍기',
+  beforeDescription: '청소 전 사진',
+  remove: '삭제',
+  removeFailed: '사진을 지우지 못했어요. 다시 시도해주세요.',
+  loadFailed: '사진 목록을 불러오지 못했어요.',
+  // 촬영 화면
+  beforeTitle: '청소 전 사진',
+  afterTitle: '청소 후 사진',
+  locationLabel: '촬영 위치',
+  locationPlaceholder: '예: 거실 소파 앞',
+  locationRequired: '촬영 위치를 1~20자로 적어주세요.',
+  beforeGuide: '위치를 적고 청소 전 모습을 찍어주세요.',
+  afterGuide: '반투명하게 겹친 청소 전 사진에 맞춰 같은 각도로 찍어주세요.',
+  shoot: '촬영하기',
+  retake: '다시 찍기',
+  save: '저장',
+  cameraNotReady: '카메라가 아직 준비되지 않았어요. 잠시 후 다시 찍어주세요.',
+  saveFailed: '사진을 저장하지 못했어요. 다시 시도해주세요.',
+  notFound: '찾을 수 없는 사진이에요. 목록에서 다시 골라주세요.',
+  // 청소 후 사진 화면 (청소 완료 직전)
+  afterListGuide: '청소 전에 찍은 곳을 같은 각도로 다시 찍어주세요. 모두 찍으면 청소를 완료할 수 있어요.',
+  afterNeeded: '촬영 필요',
+  afterDone: '촬영 완료 · 다시 찍기',
+  afterAction: '청소 후 사진 찍기',
+  afterRemaining: '곳이 남았어요', // 앞에 남은 수가 붙는다: '2곳이 남았어요'
+  complete: '청소 완료',
+};
 /** Profile/Equipment 바디캠 설정 정보 (B5 §9.2-4 — 코드에서 정함) */
 export const EQUIPMENT_SETUP_COPY = {
   title: '바디캠 설정',

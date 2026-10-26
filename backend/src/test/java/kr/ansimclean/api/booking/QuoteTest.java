@@ -75,9 +75,9 @@ class QuoteTest {
 
     @Test
     void 정기_견적은_매월_같은_날짜_6회차와_총액() {
-        // 2026-11-02(월) 부터 매월 1회 6회. 2027-01-02 은 토요일 → 다음 평일 1/4(월)
+        // 2026-11-02 부터 매월 1회 6회. 2027-01-02 토요일도 날짜를 유지한다.
         QuoteResponse q = service.quote(new QuoteRequest("home", "recurring", "2026-11-02", "10:00", List.of("dishes"), List.of("fridge")));
-        assertThat(q.visits()).extracting(QuoteResponse.Visit::date).containsExactly("2026-11-02", "2026-12-02", "2027-01-04", "2027-02-02", "2027-03-02", "2027-04-02");
+        assertThat(q.visits()).extracting(QuoteResponse.Visit::date).containsExactly("2026-11-02", "2026-12-02", "2027-01-02", "2027-02-02", "2027-03-02", "2027-04-02");
         assertThat(q.visitsPlanned()).isEqualTo(6);
         assertThat(q.perVisit().total()).isEqualTo(85000);
         assertThat(q.totalAmount()).isEqualTo(510000); // 85,000 × 6회
@@ -85,19 +85,19 @@ class QuoteTest {
     }
 
     @Test
-    void 없는_날짜는_그_달_마지막_날로_가고_주말이면_다음_평일() {
-        // 1/29(금) → 2월은 28일까지 (2027) → 2/28(일) → 3/1(월). 두 달 뒤는 3/29(월)
+    void 없는_날짜만_그_달_마지막_날로_가고_주말은_그대로_유지한다() {
         assertThat(BookingSeries.monthlyDates(LocalDate.of(2027, 1, 29), 3))
-                .containsExactly(LocalDate.of(2027, 1, 29), LocalDate.of(2027, 3, 1), LocalDate.of(2027, 3, 29));
+                .containsExactly(LocalDate.of(2027, 1, 29), LocalDate.of(2027, 2, 28), LocalDate.of(2027, 3, 29));
+        assertThat(BookingSeries.monthlyDates(LocalDate.of(2027, 1, 31), 3))
+                .containsExactly(LocalDate.of(2027, 1, 31), LocalDate.of(2027, 2, 28), LocalDate.of(2027, 3, 31));
         // 저장된 시리즈(term_start ~ term_end)에서 다시 만들어도 같은 목록
         assertThat(BookingSeries.visitDates(LocalDate.of(2026, 11, 2), LocalDate.of(2027, 4, 2))).hasSize(6);
     }
 
-    // 일요일·오늘·운영 시간대 밖은 SLOT_UNAVAILABLE(409), 없는 날짜(13월)는 형식 오류라 VALIDATION(400)
+    // 주말도 견적 가능. 최소 예약 간격·운영 시간대·날짜 형식 제한은 유지한다.
     @Test
-    void 주말_과거_오늘_슬롯_밖은_SLOT_UNAVAILABLE() {
-        assertThatThrownBy(() -> service.quote(new QuoteRequest("home", "oneTime", "2026-11-01", "10:00", List.of(), List.of()))) // 일요일
-                .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
+    void 주말은_허용하고_과거와_슬롯_밖은_SLOT_UNAVAILABLE() {
+        assertThat(service.quote(new QuoteRequest("home", "oneTime", "2026-11-01", "10:00", List.of(), List.of())).visits().get(0).date()).isEqualTo("2026-11-01");
         assertThatThrownBy(() -> service.quote(new QuoteRequest("home", "oneTime", "2026-09-15", "10:00", List.of(), List.of()))) // 오늘
                 .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
         assertThatThrownBy(() -> service.quote(new QuoteRequest("home", "oneTime", "2026-09-16", "10:30", List.of(), List.of()))) // 슬롯 밖

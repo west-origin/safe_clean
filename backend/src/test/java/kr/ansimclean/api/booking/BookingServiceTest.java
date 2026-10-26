@@ -53,6 +53,67 @@ import static org.mockito.Mockito.when;
 // ArgumentCaptor = 가짜에 넘어간 인자를 붙잡아 꺼내 보는 도구(저장된 Booking 을 확인할 때), any()/eq() = 인자 조건.
 // 시계와 시간당 한도(RateLimiter)는 진짜다 — 한도는 setUp 이 테스트마다 새로 만들어 횟수가 테스트끼리 섞이지 않는다.
 class BookingServiceTest {
+    @Test
+    void 주말에_시작하는_정기청소도_선택한_날짜로_생성한다() {
+        CreateBookingRequest weekend = new CreateBookingRequest("home", "recurring", "2026-09-19", "10:00", "서울특별시 강남구 테헤란로 123", "3층",
+                List.of(), List.of(), List.of(), null, null, null, false);
+        BookingResponse result = service.create(CUSTOMER, "weekend-series", weekend);
+        assertThat(result.visits()).extracting(BookingResponse.Visit::date)
+                .containsExactly("2026-09-19", "2026-10-19", "2026-11-19", "2026-12-19", "2027-01-19", "2027-02-19");
+    }
+
+    @Test
+    void 일정_변경도_새_방문_시간은_3시간_이상_남아야_한다() {
+        Booking b = existing(BookingStatus.SCHEDULED);
+        assertThatThrownBy(() -> service.reschedule(CUSTOMER, b.getId(), new ScheduleChangeRequest("2026-09-15", "16:00")))
+                .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
+        service.reschedule(CUSTOMER, b.getId(), new ScheduleChangeRequest("2026-09-15", "17:00"));
+        assertThat(b.getServiceDate()).isEqualTo(CLOCK.today());
+        assertThat(b.getServiceTime()).isEqualTo(LocalTime.of(17, 0));
+    }
+
+    @Test
+    void 청소는_현재부터_정확히_3시간이면_당일도_가능하다() {
+        for (String category : List.of("home", "office", "appliance", "move-in")) {
+            service.requireBookableSchedule(category, CLOCK.today(), LocalTime.of(17, 0), CLOCK.today());
+            assertThatThrownBy(() -> service.requireBookableSchedule(category, CLOCK.today(), LocalTime.of(16, 59), CLOCK.today()))
+                    .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
+        }
+    }
+
+    @Test
+    void 청소는_시간이_흐르면_같은_선택도_서버에서_다시_거부한다() {
+        AppClock later = new AppClock(Clock.fixed(CLOCK.now().plusSeconds(1), AppClock.ZONE));
+        service = new BookingService(bookings, seriesRepo, history, catalog, pricing, settings, profiles, dispatcher,
+                mock(RecordingLookup.class), outbox, idempotent, later, new kr.ansimclean.api.common.web.RateLimiter(later), photoUploads);
+        assertThatThrownBy(() -> service.requireBookableSchedule("home", CLOCK.today(), LocalTime.of(17, 0), CLOCK.today()))
+                .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
+    }
+
+    @Test
+    void 청소_생성과_견적은_3시간_미만이면_거부하고_저장하지_않는다() {
+        CreateBookingRequest early = new CreateBookingRequest("home", "oneTime", "2026-09-15", "16:00", "서울특별시 강남구 테헤란로 123", "3층",
+                List.of(), List.of(), List.of(), null, null, null, false);
+        assertThatThrownBy(() -> service.create(CUSTOMER, "early", early))
+                .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
+        assertThatThrownBy(() -> service.quote(new kr.ansimclean.api.booking.dto.QuoteRequest("home", "oneTime", "2026-09-15", "16:00", List.of(), List.of())))
+                .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
+        verify(bookings, never()).save(any());
+    }
+
+    @Test
+    void 주말도_허용하고_수리의_당일_예약_금지와_운영시간_제한은_유지한다() {
+        assertThatThrownBy(() -> service.requireBookableSchedule("repair", CLOCK.today(), LocalTime.of(18, 0), CLOCK.today()))
+                .isInstanceOf(ApiException.class).hasMessage("내일부터 예약할 수 있어요");
+        for (String category : List.of("home", "office", "appliance", "move-in", "repair")) {
+            service.requireBookableSchedule(category, LocalDate.of(2026, 9, 19), LocalTime.of(17, 0), CLOCK.today());
+            service.requireBookableSchedule(category, LocalDate.of(2026, 9, 20), LocalTime.of(17, 0), CLOCK.today());
+        }
+        when(catalog.isTimeSlot("23:00")).thenReturn(false);
+        assertThatThrownBy(() -> service.requireBookableSchedule("home", CLOCK.today(), LocalTime.of(23, 0), CLOCK.today()))
+                .isInstanceOf(ApiException.class).hasMessage("선택할 수 없는 시간이에요");
+    }
+
     static final AppClock CLOCK = new AppClock(Clock.fixed(Instant.parse("2026-09-15T05:00:00Z"), AppClock.ZONE)); // 화 14:00 서울
     static final UUID CUSTOMER = UUID.randomUUID();
     static final UUID MANAGER = UUID.randomUUID();
@@ -273,7 +334,7 @@ class BookingServiceTest {
         assertThat(visits.subList(1, 6)).allMatch(v -> v.getStatus() == BookingStatus.REQUESTED);
         assertThat(visits).allMatch(v -> v.getSeriesId() != null && v.getSeriesId().equals(res.seriesId()));
         verify(dispatcher, times(1)).dispatch(any(), any());
-        assertThat(res.visits()).extracting(BookingResponse.Visit::date).containsExactly("2026-11-02", "2026-12-02", "2027-01-04", "2027-02-02", "2027-03-02", "2027-04-02"); // 1/2(토) → 1/4(월)
+        assertThat(res.visits()).extracting(BookingResponse.Visit::date).containsExactly("2026-11-02", "2026-12-02", "2027-01-02", "2027-02-02", "2027-03-02", "2027-04-02"); // 토요일도 선택일 유지
         assertThat(res.totalAmount()).isEqualTo(480000);
         assertThat(res.perVisitLabel()).isEqualTo("80,000원");
     }
@@ -552,11 +613,11 @@ class BookingServiceTest {
     }
 
     @Test
-    void 일정_변경도_주말은_SLOT_UNAVAILABLE() {
+    void 일정_변경도_주말을_선택할_수_있다() {
         Booking b = existing(BookingStatus.ASSIGNING);
-        assertThatThrownBy(() -> service.reschedule(CUSTOMER, b.getId(), new ScheduleChangeRequest("2026-11-07", "14:00"))) // 11/7 은 토요일
-                .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
-        verify(dispatcher, never()).onRescheduled(any(), isNull());
+        service.reschedule(CUSTOMER, b.getId(), new ScheduleChangeRequest("2026-11-07", "14:00"));
+        assertThat(b.getServiceDate()).isEqualTo(LocalDate.of(2026, 11, 7));
+        verify(dispatcher).onRescheduled(b, null);
     }
 
     // 열린 예약 조회가 늦은 것(9/25)·이른 것(9/18) 순으로 돌려줘도 가장 이른 9/18 카드가 나오고, 전체 이력 조회는 부르지 않는다

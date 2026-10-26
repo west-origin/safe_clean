@@ -21,6 +21,21 @@ class FcmPushSenderTest {
     FirebaseMessaging messaging = mock(FirebaseMessaging.class); // 가짜 Firebase 발송 클라이언트
     FcmPushSender sender = new FcmPushSender(messaging);
 
+    @Test
+    void 두_앱의_Android_iOS_알림에는_소리를_지정하지_않는다() throws Exception {
+        when(messaging.send(any(Message.class))).thenReturn("sent");
+        sender.send("token", "알림", "본문", Map.of("type", "call"), "call-1");
+        var captured = org.mockito.ArgumentCaptor.forClass(Message.class);
+        org.mockito.Mockito.verify(messaging).send(captured.capture());
+        String wire = com.google.api.client.json.gson.GsonFactory.getDefaultInstance().toString(captured.getValue());
+        var json = com.google.gson.JsonParser.parseString(wire).getAsJsonObject();
+        var android = json.getAsJsonObject("android").getAsJsonObject("notification");
+        assertThat(android.get("channel_id").getAsString()).isEqualTo("ansimclean_silent_v1");
+        assertThat(android.get("default_sound").getAsBoolean()).isFalse();
+        assertThat(android.has("sound")).isFalse();
+        assertThat(json.getAsJsonObject("apns").getAsJsonObject("payload").getAsJsonObject("aps").has("sound")).isFalse();
+    }
+
     /** 가짜 FCM 오류 하나를 만든다 — getMessagingErrorCode 가 code 를, getMessage 가 "x" 를 돌려준다 (code 가 null 이면 코드를 못 읽은 오류) */
     static FirebaseMessagingException error(MessagingErrorCode code) {
         FirebaseMessagingException e = mock(FirebaseMessagingException.class);

@@ -2,6 +2,7 @@ package kr.ansimclean.api.support;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -26,6 +27,7 @@ public class InquiryRetention {
 
     // 예외를 여기서 잡아 로그만 남긴다 — 지우지 못한 행은 purge_after 가 그대로라 다음 날 실행이 다시 지운다
     @Scheduled(cron = "0 30 4 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "InquiryRetention", lockAtLeastFor = "PT1M")
     public void run() {
         try {
             int n = support.purgeExpiredInquiries();

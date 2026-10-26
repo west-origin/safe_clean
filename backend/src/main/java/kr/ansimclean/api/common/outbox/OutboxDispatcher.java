@@ -7,6 +7,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.TaskScheduler;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -85,6 +86,7 @@ public class OutboxDispatcher {
      * 이미 다른 스레드가 돌고 있으면 기다리지 않고 runAgain 표시만 남긴다 → 돌던 쪽이 끝난 뒤 한 번 더 돈다.
      */
     @Scheduled(fixedDelay = 5000)
+    @SchedulerLock(name = "OutboxDispatcher", lockAtLeastFor = "PT4S")
     public void dispatch() {
         if (!running.compareAndSet(false, true)) {
             runAgain.set(true);

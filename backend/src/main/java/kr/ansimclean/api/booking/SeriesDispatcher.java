@@ -2,6 +2,7 @@ package kr.ansimclean.api.booking;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -26,6 +27,7 @@ public class SeriesDispatcher {
      * 이미 끝난 앞 단계는 커밋돼 남고, 예외가 난 단계는 그 단계 전체가 되돌려진다(예: 매칭 중 한 회차가 실패하면 그날 매칭 전부).
      */
     @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "SeriesDispatcher", lockAtLeastFor = "PT1M")
     public void run() {
         try {
             // dispatchDue: 방문이 dispatch_lead_days 일 안으로 다가온 requested 회차를 매칭에 넣는다.

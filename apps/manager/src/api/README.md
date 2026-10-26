@@ -152,3 +152,23 @@ CompleteConfirm 의 "아직 완료하지 않은 항목" 은 InProgress 체크리
 | `getManagerNotices()` / `getManagerNotice(id)` | `GET /support/notices?audience=manager` / `GET /support/notices/{id}?audience=manager` | `[{ id, title, date }]` / `{ id, title, date, body }` |
 | `submitSupportInquiry({ content, submitKey })` | `POST /support/inquiries` (+ `Idempotency-Key`) | `{ id }` — 키는 `newInquiryKey()`, 내용을 고치면 화면이 새 키. 문구(`getSupportCopy`)는 mock 그대로 |
 | `registerPushToken({ platform, token })` | `PUT /push/token` | `{ ok }` — `push/pushClient.js` 가 부른다. `logout()` 은 먼저 `DELETE /push/token` |
+
+## 청소 전·후 사진 (2026-10-23 — Figma 에 없음, 코드에서 정함. 서버 `backend/docs/api.md` '청소 전·후 사진 추가')
+
+2026-10-24 변경: 사진은 필수 단계로 변경되었다. `requiredRooms`의 모든 공간을 촬영 → `confirmBeforePhotos` → 라이브 → `finishJobVideo`와 `live.stop` → 모든 후 사진 → 완료 순서다. `getJobPhotos`는 `requiredRooms`와 `phase`를 추가 반환한다. `addJobRoom`으로 현장의 추가 공간과 완료 체크 항목을 등록한다. 전 사진 위치는 등록 공간명과 일치해야 한다. 자세한 계약은 `backend/docs/recording-labels.md`를 따른다.
+| 함수 | 서버 | 화면 |
+|---|---|---|
+| `getJobPhotos(jobId)` | `GET /manager/jobs/{id}/photos` | JobInProgress('청소 전 사진' 묶음) · JobPhotoCapture · JobAfterPhotos |
+| `addBeforePhoto(jobId, location, file)` | `POST /manager/jobs/{id}/photos` (multipart `location`·`file`) | JobPhotoCapture (청소 전) |
+| `addAfterPhoto(jobId, photoId, file)` | `PUT /manager/jobs/{id}/photos/{photoId}/after` (multipart `file`) | JobPhotoCapture (`?id=`, 청소 후) |
+| `deleteJobPhoto(jobId, photoId)` | `DELETE /manager/jobs/{id}/photos/{photoId}` (204) | JobInProgress |
+
+| 필드 | 타입 | 예 |
+|---|---|---|
+| `photos[].id` | string | `'photo-1'` |
+| `photos[].location` | string (1~20자) | `'거실 소파 앞'` |
+| `photos[].beforeUrl` | string (서명 URL, 1시간) | |
+| `photos[].afterUrl` | string \| null | 청소 후 사진이 없으면 `null` |
+| `max` | number | `10` (위치 수 상한) |
+
+사진은 `liveClient.capturePhoto()` 가 송출 중인 카메라 영상의 장면을 3:4 JPEG(긴 변 1600)로 만든다 — 카메라를 따로 열지 않는다. 문구는 `mock.js` `PHOTO_COPY`.

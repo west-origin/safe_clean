@@ -98,7 +98,9 @@ public class LiveService {
     /** §8.1 작업 시작: 방 생성 → Ingress 를 이 방에 → waiting_camera → 프리뷰 토큰. 같은 세션에 다시 불러도 같다(폴링 재시도 겸) */
     // 부르는 곳: 매니저 앱 api/manager.js 의 startLiveSession (POST /live/sessions/{id}/start). 결과 cameraBusy 는 아래 bindIngress 참고
     public StartLiveResponse start(UUID managerId, UUID bookingId) {
-        Booking b = bookings.requireManagerBooking(managerId, bookingId); // 이 매니저에게 배정된 작업이 아니면 404
+        Booking b = bookings.lockManagerBooking(managerId, bookingId); // 종료 요청과 같은 예약 → 세션 잠금 순서
+        if (b.getBeforePhotosConfirmedAt() == null || b.getVideoFinishedAt() != null)
+            throw new ApiException(ErrorCode.INVALID_STATE, "모든 공간의 전 사진을 찍은 뒤에만 영상을 시작할 수 있어요. 종료한 영상은 다시 시작할 수 없어요");
         boolean active = BookingStatus.ACTIVE.contains(b.getStatus()); // ACTIVE = 진행 중(in_progress)·일시정지(paused)
         // 날짜 조건은 '아직 시작 전' 인 작업에만 — 이미 진행 중인 작업은 자정을 넘겨 앱을 다시 열어도 같은 세션에 다시 붙어야 한다 (검수 3차)
         if (!active && !(b.getStatus() == BookingStatus.SCHEDULED && b.getServiceDate().equals(clock.today()))) {
@@ -176,7 +178,9 @@ public class LiveService {
         boolean busy = device.map(d -> d.getPendingRoom() != null && s.isPresent() && d.getPendingRoom().equals(s.get().getRoomName())).orElse(false);
         return new LiveStatusResponse(status, s.map(LiveSession::isCameraOnline).orElse(false), LiveSession.PAUSED.equals(status), busy,
                 s.map(LiveSession::getViewerCount).orElse(0), s.map(LiveSession::getStartedAt).map(Instant::toString).orElse(null),
-                s.map(LiveSession::isVideoHeld).orElse(false), props.livekit().source());
+                s.map(LiveSession::isVideoHeld).orElse(false), props.livekit().source(),
+                s.map(LiveSession::getRecordingStatus).orElse(LiveSession.REC_NONE),
+                s.map(LiveSession::isRecordingStartFailed).orElse(false));
     }
 
     /**
@@ -245,6 +249,7 @@ public class LiveService {
         // 예약을 먼저 잠그고(JobService.pause 와 같은 예약 → 세션 순서) 읽는다 — 동시에 처리 중인 jobs/pause 가 커밋한 뒤의 상태를 보려고.
         // 잠그지 않고 읽으면 옛 '진행 중' 을 믿고 일시정지된 작업의 영상을 켤 수 있었다
         Booking b = bookings.lockManagerBooking(managerId, bookingId);
+        if (b.getVideoFinishedAt() != null) throw new ApiException(ErrorCode.INVALID_STATE, "종료한 영상은 재개할 수 없어요");
         if (b.getStatus() == BookingStatus.PAUSED) throw new ApiException(ErrorCode.INVALID_STATE, "작업을 먼저 재개해주세요"); // 늦게 도착한 옛 resume 이 일시정지 중 영상을 켜지 않게 (jobs/pause 의 STOP_VIDEO_FIRST 와 대칭)
         LiveSession s = sessions.lockById(bookingId).orElse(null); // pause 와 같이 행을 잠그고 읽는다
         devices.findById(managerId).ifPresent(this::unlockIngress); // 일시정지 중 잠근 Ingress 를 연다 — 끊겼던 바디캠이 다시 붙을 수 있게 (감사 H-02). 실패는 재조정기가
@@ -308,14 +313,20 @@ public class LiveService {
     // 부르는 곳: 매니저 앱 api/manager.js 의 stopLiveSession. 세션이 없으면 할 일 없이 200
     public OkResponse stop(UUID managerId, UUID bookingId) {
         Booking b = bookings.requireManagerBooking(managerId, bookingId);
-        if (b.getStatus() != BookingStatus.DONE && b.getStatus() != BookingStatus.CANCELLED) throw new ApiException(ErrorCode.INVALID_STATE, "청소를 먼저 완료해주세요"); // scheduled 세션을 끊으면 재시작 뒤 녹화가 없다
-        sessions.lockById(bookingId).ifPresent(s -> stopSession(s, devices.findById(managerId).orElse(null)));
+        if (b.getStatus() != BookingStatus.DONE && b.getStatus() != BookingStatus.CANCELLED && b.getVideoFinishedAt() == null)
+            throw new ApiException(ErrorCode.INVALID_STATE, "영상 종료를 먼저 요청해주세요");
+        sessions.lockById(bookingId).ifPresent(s -> {
+            // 후 사진 촬영은 원격 방 종료 확인 뒤에만 허용한다. 실패하면 앱에서 재시도한다.
+            if (b.getVideoFinishedAt() != null && !s.isEnded()) livekit.deleteRoom(s.getRoomName());
+            stopSession(s, devices.findById(managerId).orElse(null));
+        });
         return new OkResponse(true);
     }
 
     /**
      * 세션 하나를 끝낸다: 녹화 중이면 녹화(Egress) 정지 → 방 삭제 → 바디캠 정리(releaseDevice) → ended. 이미 ended 면 아무것도 안 한다.
-     * LiveKit 호출 실패(ApiException)는 던지지 않고 로그만 남긴다 — 재조정기가 끝난 세션의 방 삭제·잠금 해제(끝난 뒤 15분 동안)와
+     * 방 삭제가 실패하면 ended로 확정하지 않는다. 재조정기가 다음 주기에 방 종료를 다시 시도한다.
+     * 다른 LiveKit 호출 실패(ApiException)는 던지지 않고 로그만 남긴다 — 재조정기가 끝난 세션의 방 삭제·잠금 해제(끝난 뒤 15분 동안)와
      * recording/uploading 으로 남은 녹화를 다시 본다. 부르는 곳: stop, LiveReconciler(작업이 done·cancelled 인데 세션이 안 끝났을 때). device 는 null 일 수 있다
      */
     void stopSession(LiveSession s, ManagerDevice device) {
@@ -331,7 +342,8 @@ public class LiveService {
         try {
             livekit.deleteRoom(s.getRoomName());
         } catch (ApiException e) {
-            log.warn("방 삭제 실패 {} (empty timeout 으로 사라진다)", s.getRoomName());
+            log.warn("방 삭제 실패 {} — 종료 확정을 보류하고 재시도한다", s.getRoomName());
+            return; // 웹훅·재조정기 경로도 실제 송출 종료 전 후 사진 단계의 안전 검사를 통과시키지 않는다.
         }
         releaseDevice(s, device);
         s.end(clock.now());
@@ -379,7 +391,7 @@ public class LiveService {
         Booking b = bookings.requireCustomerBooking(customerId, bookingId); // 남의 예약이면 404
         LiveSession s = sessions.findById(bookingId).orElse(null);
         // 주는 조건: 작업이 in_progress(일시정지 아님) + 방이 열려 있음 + 영상이 paused 아님 + 매니저가 멈춘 채가 아님(video_held) + mute/unmute 확인 대기 없음
-        if (b.getStatus() != BookingStatus.IN_PROGRESS || s == null || !s.isActive() || s.isVideoHeld()
+        if (b.getStatus() != BookingStatus.IN_PROGRESS || b.getVideoFinishedAt() != null || s == null || !s.isActive() || s.isVideoHeld()
                 || LiveSession.PAUSED.equals(s.getStatus()) || s.isMutePending() || s.isUnmutePending()) {
             throw new ApiException(ErrorCode.LIVE_NOT_AVAILABLE);
         }
@@ -460,7 +472,7 @@ public class LiveService {
     /** waiting | live | paused | ended */
     // 고객 화면용 라이브 상태. 예약 상태를 먼저 보고, 작업이 in_progress 일 때만 세션 상태를 본다 (default 는 created·waiting_camera)
     static String state(Booking b, LiveSession s) {
-        if (b.getStatus() == BookingStatus.DONE || b.getStatus() == BookingStatus.CANCELLED) return "ended";
+        if (b.getStatus() == BookingStatus.DONE || b.getStatus() == BookingStatus.CANCELLED || b.getVideoFinishedAt() != null) return "ended";
         if (!BookingStatus.ACTIVE.contains(b.getStatus())) return "waiting"; // 청소 시작 전에는 카메라가 붙어 있어도 시청 불가(viewerToken 과 같은 기준)
         if (holdsVideo(b, s)) return "paused"; // 매니저가 일부러 쉬는 중(작업 일시정지, 또는 영상만 멈추고 아직 재개 안 함) — 바디캠을 꺼 세션이 waiting_camera 여도 '카메라 연결을 기다리고 있어요' 로 오해하지 않게 (자체 점검 #4)
         if (s == null) return "waiting";
@@ -495,6 +507,7 @@ public class LiveService {
     void cameraAttached(LiveSession s, ManagerDevice device, String trackSid) {
         Booking b = bookings.find(s.getBookingId()).orElse(null);
         if (b == null) return;
+        if (b.getVideoFinishedAt() != null) { stopSession(s, device); return; }
         device.markOnline(clock.now());
         if (trackSid == null) return; // 참가자는 들어왔는데 영상 트랙이 아직 없다 — live 로 적으면 pause 가 막을 트랙이 없어 jobs/pause 가 409 로 돈다. 재조정기가 트랙이 보일 때 잇는다
         boolean first = s.getCameraOnlineAt() == null; // 이 작업에서 바디캠이 한 번도 붙은 적 없다 (재접속이면 false)
@@ -643,7 +656,8 @@ public class LiveService {
 
     /** 카메라가 붙어 있는데 녹화가 없으면 시작 (§8.2: ingress_started 에서. 실패는 재조정기가 다시) */
     void ensureRecording(LiveSession s) {
-        if (!LiveSession.REC_NONE.equals(s.getRecordingStatus())) return; // 이미 녹화 중·업로드 중·준비됨·실패면 새로 시작하지 않는다
+        if (s.isEnded()) return;
+        if (!LiveSession.REC_NONE.equals(s.getRecordingStatus()) && !s.isRecordingStartFailed()) return;
         // 웹훅뿐 아니라 재조정기도 이 함수를 부른다. mute 미확인 상태에서 새 녹화를 시작하지 않는다.
         if (s.isMutePending() || s.isUnmutePending()) return;
         try {
@@ -654,6 +668,7 @@ public class LiveService {
             s.noteRecordingStart(requestedAt, false);
             s.noteRecordingStart(egress.startedAt(), true);
         } catch (ApiException e) {
+            s.recordingFailed(); // 카메라 송출과 별도로 시작 실패를 저장한다. Egress 미발급 실패만 재시도한다.
             log.warn("녹화 시작 실패 {} — 재조정기가 다시 시도", s.getRoomName());
         }
     }

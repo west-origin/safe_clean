@@ -1,0 +1,98 @@
+/* BeforeAfterSlider.jsx 스타일 (코드에서 정함). 구조: .frame > 사진 2장 + .divider(.handle) + .label 2개 + 숨긴 .input
+   --position 은 JSX 가 style 로 넘기는 막대 위치(0%~100%)다 */
+
+/* 틀: 3:4 비율(매니저 앱 CameraFrame 과 같다), 둥근 모서리, 사진이 오기 전에는 영상 배경과 같은 검정 */
+.frame {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-md);
+  background: var(--raw-video-bg);
+  cursor: ew-resize;
+  touch-action: pan-y; /* 세로 스크롤은 그대로, 가로로 끄는 것만 이 틀이 받는다 */
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 사진 두 장 공통: 틀을 꽉 채운다. cover 라 두 사진이 같은 크기면 같은 자리가 잘려 겹친다 */
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* 청소 전 사진: 막대 왼쪽만 보인다 (오른쪽을 잘라 낸다) */
+.before {
+  clip-path: inset(0 calc(100% - var(--position)) 0 0);
+}
+
+/* 세로 막대: 막대 위치에 2px 흰 선 */
+.divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--position);
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--color-surface-default);
+  pointer-events: none;
+}
+
+/* 막대 가운데 손잡이: 터치 타겟 크기의 흰 원 */
+.handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--color-surface-default);
+  box-shadow: var(--raw-card-shadow);
+}
+
+.arrows {
+  color: var(--color-text-primary);
+}
+
+/* 위쪽 라벨 두 개: 영상 위 글자와 같은 반투명 검정 바탕 */
+.label {
+  position: absolute;
+  top: var(--spacing-lg);
+  padding: var(--spacing-2xs) var(--spacing-sm);
+  border-radius: var(--radius-xs);
+  background: var(--raw-overlay-dark);
+  color: var(--raw-on-video);
+  pointer-events: none;
+}
+
+.labelBefore {
+  left: var(--spacing-lg);
+}
+
+.labelAfter {
+  right: var(--spacing-lg);
+}
+
+/* 키보드용 range: 화면에서는 숨기되(1px) 포커스는 받는다. 포커스되면 손잡이에 테두리를 그린다 */
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  opacity: 0;
+}
+
+.frame:has(.input:focus-visible) .handle {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}

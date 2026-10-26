@@ -69,12 +69,14 @@ export const notBookable = (d) => d <= startOfToday() || d.getDay() === 0 || d.g
  * @param {number} [days] 기준일부터 며칠 뒤까지. 없으면 기간 제한 없이 notBookable 과 같다
  * @param {string} [fromKey] 일정 변경일 때 지금 방문일 'YYYY-MM-DD' — 오늘보다 뒤면 그날부터 센다(서버와 같다).
  *   오늘부터만 세면 60일 뒤의 정기청소 회차는 고를 날짜가 하나도 없었다 (전체 점검 G3)
+ * @param {{ allowToday?: boolean, allowWeekends?: boolean, now?: Date }} [options] 예약 화면은 주말을 허용하고, 청소는 시간별 최소 간격을 따로 검사한다.
  * @returns {(d: Date) => boolean} 날짜를 받아 막을지(true) 알려 주는 함수 — Calendar·WeekCalendar 의 isDisabled 에 그대로 넘긴다
  */
-export const notBookableWithin = (days, fromKey) => (d) => {
-  if (notBookable(d)) return true;
+export const notBookableWithin = (days, fromKey, { allowToday = false, allowWeekends = false, now = new Date() } = {}) => (d) => {
+  const today = fromDateKey(seoulTodayKey(now));
+  if (d < today || (!allowToday && d.getTime() === today.getTime())) return true;
+  if (!allowWeekends && (d.getDay() === 0 || d.getDay() === 6)) return true;
   if (!days) return false;
-  const today = startOfToday();
   const from = fromDateKey(fromKey);
   const last = from && from > today ? from : today; // 기준일: 지금 방문일이 오늘보다 뒤면 그날, 아니면 오늘
   // 마지막 예약 가능일 = 기준일 + days (그날까지는 연다). last 는 방금 새로 만든 Date 라 바꿔도 다른 곳에 영향이 없다

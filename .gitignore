@@ -5,6 +5,14 @@ dist/
 .env
 .env.*
 !.env.example
+!apps/customer/.env.staging
+!apps/manager/.env.staging
+
+# 로컬 도구, 테스트 결과, IDE 설정
+/.tmp/
+/artifacts/
+**/.idea/
+apps/manager/android/app/Install_NexonPlug.exe
 
 # 서명 키·스토어 자격증명 (실수로도 커밋되지 않게)
 *.jks
@@ -14,6 +22,9 @@ dist/
 google-services.json
 GoogleService-Info.plist
 key.properties
+
+# 직접 설치 테스트용 Android APK와 검증 산출물
+/artifacts/android/
 
 # 결제 검증 도구와 생성물
 /artifacts/payment-validation/

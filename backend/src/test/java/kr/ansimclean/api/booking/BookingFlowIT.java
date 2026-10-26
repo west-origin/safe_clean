@@ -41,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 통합 (Docker 필요, B3 완료 기준): 생성 → 목록 upcoming/assigning → 변경 → 취소 → cancelled 탭 → 다시 취소는 같은 카드 · 시스템 취소된 예약의 고객 취소 409 ·
- * 기한 초과 409 · 무료 옵션 3개 400 · 주말 409 ·
+ * 기한 초과 409 · 무료 옵션 3개 400 · 주말 예약 허용 ·
  * 정기청소 생성 → 매월 1회 × 6회차 즉시 requested(첫 회차만 바로 매칭) → SeriesDispatcher → 7일 안 회차만 매칭 → 전체 취소는 기한 안 회차만.
  * 시계는 2026-09-15(화) 14:00 서울에 고정하고 필요할 때 옮긴다.
  */
@@ -203,9 +203,9 @@ class BookingFlowIT {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("INVALID_STATE"));
     }
 
-    // 거절되는 요청들을 실제 HTTP 응답 코드·오류 코드로 확인한다: 기한이 지난 취소·변경 → 입력 검증 → 주말·시간대 → 없는 예약 id(남의 예약과 같은 404)
+    // 기존 제한은 유지하고 주말 견적만 허용하는지 HTTP 응답으로 확인한다.
     @Test
-    void 기한_초과_409_무료_옵션_3개_400_주말_409() throws Exception {
+    void 기한_초과_409_무료_옵션_3개_400_주말_견적_허용() throws Exception {
         // 내일 10:00 은 지금(14:00)부터 20시간 뒤 → 만들 수는 있지만 취소·변경은 안 된다
         String created = mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
                         .content(body("oneTime", "2026-09-16", "10:00", List.of()))).andExpect(status().isOk())
@@ -226,10 +226,10 @@ class BookingFlowIT {
         mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
                         .content(body("oneTime", "2026-09-17", "10:00", List.of("dishes", "laundry", "trash"))))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("VALIDATION"));
-        // 9/19 는 토요일 — 주말은 409 SLOT_UNAVAILABLE
-        mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
-                        .content(body("oneTime", "2026-09-19", "10:00", List.of())))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("SLOT_UNAVAILABLE"));
+        // 9/19 토요일도 선택한 날짜로 견적을 받는다. 저장 없이 기존 테스트 데이터는 유지한다.
+        mvc.perform(post("/api/v1/customer/bookings/quote").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"category\":\"home\",\"frequency\":\"oneTime\",\"date\":\"2026-09-19\",\"time\":\"10:00\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.visits[0].date").value("2026-09-19"));
         // 10:30 은 운영 시간대(app_settings.time_slots)에 없는 시각 — 같은 409
         mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
                         .content(body("oneTime", "2026-09-17", "10:30", List.of())))
@@ -240,11 +240,11 @@ class BookingFlowIT {
 
     // 흐름: 정기청소 생성 → 목록의 회차 카드 → 시계를 옮겨 가며 series.dispatchDue()(매일 09:00 SeriesDispatcher 가 부르는 것 — 2026-09-28 전 03:00, 문제 목록 2번)를 직접 부른다
     // → 한 회차에서 '전체 취소' → 기한 안 회차만 취소됐는지 → 취소된 시리즈에 남은 회차는 더 매칭하지 않는지.
-    // 정기청소는 '매월 같은 날짜에 1회 × series_term_months 회'(V021 에서 6, 2026-09-22 사용자 결정)이고 주말이면 다음 평일로 민다(BookingSeries).
+    // 정기청소는 매월 같은 날짜에 1회 × series_term_months 회, 주말도 선택일 유지.
     // dispatchDue 는 이 클래스의 모든 고객 회차를 센다 — 정기청소를 만드는 테스트가 이것 하나뿐이라 수가 정확하다(DB 를 비우지 않는다)
     @Test
     void 정기청소_매월_6회차_스케줄러_매칭_전체_취소() throws Exception {
-        // 9/18(금) 10:00 부터 매월: 9/18 · 10/19(10/18 이 일요일이라 다음 월요일) · 11/18 · 12/18 · 2027-01-18 · 2027-02-18
+        // 9/18부터 매월: 9/18 · 10/18(일) · 11/18 · 12/18 · 2027-01-18 · 2027-02-18
         String created = mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
                         .content(body("recurring", "2026-09-18", "10:00", List.of()))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.seriesId").isNotEmpty())
@@ -252,7 +252,7 @@ class BookingFlowIT {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         JsonNode booking = json.readTree(created);
         assertThat(booking.get("visits").valueStream().map(v -> v.get("date").asString()).toList())
-                .containsExactly("2026-09-18", "2026-10-19", "2026-11-18", "2026-12-18", "2027-01-18", "2027-02-18");
+                .containsExactly("2026-09-18", "2026-10-18", "2026-11-18", "2026-12-18", "2027-01-18", "2027-02-18");
         String quote = mvc.perform(post("/api/v1/customer/bookings/quote").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"category\":\"home\",\"frequency\":\"recurring\",\"date\":\"2026-09-18\",\"time\":\"10:00\"}"))
                 .andExpect(jsonPath("$.visitsPlanned").value(6))
@@ -265,17 +265,17 @@ class BookingFlowIT {
 
         // 9/15: 7일 안(≤ 9/22)에 requested 회차 없음 (9/18 은 이미 assigning)
         assertThat(series.dispatchDue()).isZero();
-        // 10/11(일) 14:00: 두 번째 회차 10/19 는 8일 뒤라 아직 매칭하지 않는다 (dispatch_lead_days = 7)
-        CLOCK.set(Instant.parse("2026-10-11T05:00:00Z"));
+        // 10/10: 두 번째 회차 10/18은 8일 뒤라 아직 매칭하지 않는다.
+        CLOCK.set(Instant.parse("2026-10-10T05:00:00Z"));
         assertThat(series.dispatchDue()).isZero();
-        // 10/12(월) 14:00: 10/19 가 7일 안에 들어와 매칭을 시작한다
-        CLOCK.set(Instant.parse("2026-10-12T05:00:00Z"));
+        // 10/11: 10/18이 7일 안에 들어와 주말에도 매칭을 시작한다.
+        CLOCK.set(Instant.parse("2026-10-11T05:00:00Z"));
         assertThat(series.dispatchDue()).isEqualTo(1);
         assertThat(series.dispatchDue()).isZero(); // 두 번 돌려도 같은 결과
 
         // 11/17(화) 13:00: 세 번째 회차 11/18 10:00 은 21시간 뒤 → 취소 기한(24시간)이 지나 남는다.
         // 11/11 이후 dispatchDue 를 부르지 않아 11/18 은 requested 그대로다(스케줄러가 며칠 돌지 못한 경우). 12/18 · 1/18 · 2/18 은 취소, 시리즈 cancelled.
-        // 지난 9/18 · 10/19(매칭 실패로 assigning)도 기한이 지나 그대로 남는다
+        // 지난 9/18 · 10/18(매칭 실패로 assigning)도 기한이 지나 그대로 남는다
         CLOCK.set(Instant.parse("2026-11-17T04:00:00Z"));
         String target = booking.get("visits").get(3).get("id").asString(); // 네 번째 회차(12/18)에서 wholeSeries=true 로 취소한다
         mvc.perform(post("/api/v1/customer/reservations/" + target + "/cancel").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON).content("{\"wholeSeries\":true}"))

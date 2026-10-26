@@ -19,7 +19,7 @@ import java.util.UUID;
 /**
  * booking_series — 정기청소 묶음 (BACKEND_PLAN.md §6.8).
  * **매월 같은 날짜에 1회씩 termMonths 개월** (사용자 결정 2026-09-22 — 그 전에는 '한 달 동안 매주'였다). 회차는 bookings(series_id).
- * 방문일이 주말이면 다음 평일로 민다(서버 예약 규칙이 주말을 막는다).
+ * 주말도 선택한 방문일을 유지한다. 해당 날짜가 없는 달만 그 달 마지막 날을 사용한다.
  * 고객이 '정기청소' 로 예약하면 BookingService.doCreate 가 이 행 하나와 회차별 예약(bookings) 행들을 같이 만든다.
  * 묶음 동작(전체 취소·회차 매칭·종료·종료 안내)은 BookingSeriesService, 남은 회차가 없을 때 닫는 일은 BookingService.endSeriesIfNothingLeft.
  */
@@ -121,11 +121,11 @@ public class BookingSeries {
         return s;
     }
 
-    /** 첫 방문일부터 매월 같은 날짜 n회 (주말이면 다음 평일). 31일처럼 없는 날짜는 그 달의 마지막 날로 (java plusMonths 규칙) */
+    /** 첫 방문일부터 매월 같은 날짜 n회. 주말도 유지하고, 없는 날짜만 그 달 마지막 날로 (java plusMonths 규칙) */
     public static List<LocalDate> monthlyDates(LocalDate firstVisit, int months) {
         List<LocalDate> dates = new ArrayList<>();
         // 매번 첫 방문일에 i 개월을 더한다. 앞 회차 날짜에 이어 더하면 1/31 → 2/28 → 3/28 처럼 한 번 줄어든 날이 계속 이어진다
-        for (int i = 0; i < months; i++) dates.add(onWeekday(firstVisit.plusMonths(i)));
+        for (int i = 0; i < months; i++) dates.add(firstVisit.plusMonths(i));
         return dates;
     }
 
@@ -133,21 +133,12 @@ public class BookingSeries {
     public static List<LocalDate> visitDates(LocalDate termStart, LocalDate termEnd) {
         List<LocalDate> dates = new ArrayList<>();
         // visits_planned 를 쓰지 않고 term_end 를 넘을 때까지 센다 — create 가 term_end 를 마지막 회차 날짜로 두었고
-        // 날짜가 달마다 늘기만 하므로(주말 밀기는 최대 2일) create 때와 같은 목록이 나온다
+        // 매번 첫 방문일 기준으로 더하므로 create 때와 같은 목록이 나온다
         for (int i = 0; ; i++) {
-            LocalDate d = onWeekday(termStart.plusMonths(i));
+            LocalDate d = termStart.plusMonths(i);
             if (d.isAfter(termEnd)) return dates;
             dates.add(d);
         }
-    }
-
-    /** 주말은 예약할 수 없다(§6.1) → 토·일이면 다음 월요일 */
-    private static LocalDate onWeekday(LocalDate d) {
-        return switch (d.getDayOfWeek()) {
-            case SATURDAY -> d.plusDays(2);
-            case SUNDAY -> d.plusDays(1);
-            default -> d;
-        };
     }
 
     /** 이 시리즈의 회차 날짜 목록 — BookingService.doCreate 가 회차별 예약 행을 만들 때 쓴다 */

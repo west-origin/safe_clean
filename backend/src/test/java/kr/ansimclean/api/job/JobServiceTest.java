@@ -1,4 +1,5 @@
 package kr.ansimclean.api.job;
+import kr.ansimclean.api.live.LiveSession;
 
 import kr.ansimclean.api.booking.Booking;
 import kr.ansimclean.api.booking.BookingService;
@@ -72,6 +73,8 @@ class JobServiceTest {
     OutboxService outbox = mock(OutboxService.class);
     Idempotent idempotent = mock(Idempotent.class);
     kr.ansimclean.api.common.supabase.SupabaseStorageClient storage = mock(kr.ansimclean.api.common.supabase.SupabaseStorageClient.class);
+    RecordingSegmentRepository segments = mock(RecordingSegmentRepository.class);
+    kr.ansimclean.api.booking.JobMediaService media = mock(kr.ansimclean.api.booking.JobMediaService.class);
     JobService service;
     Booking booking;
 
@@ -83,8 +86,13 @@ class JobServiceTest {
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        service = new JobService(checklist, checklistEvents, pauses, bookings, profiles, catalog, live, settlements, settings, outbox, idempotent, CLOCK, storage, penalties, dispatcher);
+        service = new JobService(checklist, checklistEvents, pauses, bookings, profiles, catalog, live, settlements, settings, outbox, idempotent, CLOCK, storage, penalties, dispatcher, segments, media);
         booking = TestBookings.scheduled(CUSTOMER, MANAGER, TODAY, LocalTime.of(10, 0));
+        booking.confirmBeforePhotos(NOW.minusSeconds(100));
+        when(checklistEvents.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        LiveSession finishedSession = LiveSession.create(booking.getId());
+        finishedSession.end(NOW);
+        when(live.find(any())).thenReturn(Optional.of(finishedSession));
         when(bookings.requireManagerBooking(MANAGER, booking.getId())).thenReturn(booking);
         when(bookings.lockManagerBooking(MANAGER, booking.getId())).thenReturn(booking); // 상태를 바꾸는 API 는 잠그고 읽는다
         when(bookings.lockManagerBookingWithSeries(MANAGER, booking.getId())).thenReturn(booking); // 완료는 시리즈부터 잠근다
@@ -357,6 +365,9 @@ class JobServiceTest {
     // 시작 전(scheduled)에는 409. 시작한 뒤에는 항목이 체크되고 체크 시각(doneAt)이 NOW 로 남는다
     @Test
     void 체크리스트는_진행_중일_때만_바꿀_수_있다() {
+        LiveSession session = LiveSession.create(booking.getId());
+        session.startWaiting("ing-test", NOW.minusSeconds(100));
+        when(live.find(booking.getId())).thenReturn(Optional.of(session));
         JobChecklistItem item = JobChecklistItem.of(booking.getId(), "거실", "바닥 청소", 1);
         when(checklist.findByIdAndBookingId(item.getId(), booking.getId())).thenReturn(Optional.of(item));
         assertThatThrownBy(() -> service.setChecklistItem(MANAGER, booking.getId(), item.getId(), true)).isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.INVALID_STATE);
@@ -368,6 +379,9 @@ class JobServiceTest {
 
     @Test
     void 같은_체크는_시각과_이력을_보존하고_해제_재체크는_남긴다() {
+        LiveSession session = LiveSession.create(booking.getId());
+        session.startWaiting("ing-test", NOW.minusSeconds(100));
+        when(live.find(booking.getId())).thenReturn(Optional.of(session));
         JobChecklistItem item = JobChecklistItem.of(booking.getId(), "거실", "바닥 청소", 1);
         when(checklist.findByIdAndBookingId(item.getId(), booking.getId())).thenReturn(Optional.of(item));
         booking.start(NOW, TODAY);
@@ -525,4 +539,48 @@ class JobServiceTest {
         service.start(MANAGER, justOver.getId(), "k4");
         verify(penalties).record(eq(MANAGER), eq(justOver.getId()), any(), eq(kr.ansimclean.api.profile.ManagerPenalty.TARDY), isNull(), eq("30분 늦게 시작"));
     }
+
+    @Test
+    void 완료_체크는_이전_경계부터_공간_구간을_저장하고_재요청은_중복되지_않는다() {
+        booking.start(NOW, TODAY);
+        JobChecklistItem item = JobChecklistItem.of(booking.getId(), "안방", "바닥", 1);
+        when(checklist.findByIdAndBookingId(item.getId(), booking.getId())).thenReturn(Optional.of(item));
+        LiveSession session = LiveSession.create(booking.getId());
+        session.startWaiting("ing", NOW.minusSeconds(100));
+        when(live.find(booking.getId())).thenReturn(Optional.of(session));
+        RecordingSegment previous = RecordingSegment.of(booking.getId(), JobChecklistEvent.of(item, true, NOW.minusSeconds(10), MANAGER), item, NOW.minusSeconds(100), NOW.minusSeconds(10), MANAGER);
+        when(segments.findFirstByLiveSessionIdOrderByEndAtDesc(booking.getId())).thenReturn(Optional.of(previous));
+        service.setChecklistItem(MANAGER, booking.getId(), item.getId(), true);
+        service.setChecklistItem(MANAGER, booking.getId(), item.getId(), true);
+        var captured = org.mockito.ArgumentCaptor.forClass(RecordingSegment.class);
+        verify(segments).save(captured.capture());
+        assertThat(captured.getValue().getRoomCode()).isEqualTo("bedroom");
+        assertThat(captured.getValue().getRoomName()).isEqualTo("안방");
+        assertThat(captured.getValue().getStartAt()).isEqualTo(NOW.minusSeconds(10));
+        assertThat(captured.getValue().getEndAt()).isEqualTo(NOW);
+        service.setChecklistItem(MANAGER, booking.getId(), item.getId(), false);
+        verify(segments).revoke(booking.getId(), item.getId(), NOW);
+    }
+
+    @Test
+    void 라이브를_시작하지_않고_종료_단계로_건너뛸_수_없다() {
+        booking.start(NOW, TODAY);
+        when(live.find(booking.getId())).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.finishVideo(MANAGER, booking.getId())).isInstanceOf(ApiException.class);
+        verify(media, org.mockito.Mockito.never()).finishVideo(any());
+    }
+
+    @Test
+    void 녹화_시작_실패나_기존_none_세션도_영상_종료를_요청할_수_있다() {
+        booking.start(NOW, TODAY);
+        LiveSession s = LiveSession.create(booking.getId());
+        s.startWaiting(null, NOW);
+        s.cameraAttached("video", false, NOW);
+        when(live.find(booking.getId())).thenReturn(Optional.of(s));
+        service.finishVideo(MANAGER, booking.getId());
+        s.recordingFailed();
+        service.finishVideo(MANAGER, booking.getId());
+        verify(media, org.mockito.Mockito.times(2)).finishVideo(booking);
+    }
+
 }

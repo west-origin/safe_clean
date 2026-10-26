@@ -29,6 +29,7 @@ curl -s localhost:8080/api/v1/catalog/categories/home/options
 - 프로젝트 `ckvanmhgepdlxvfhdxes`, 리전 **ap-northeast-1(도쿄)** — 계획은 서울(ap-northeast-2)이었다. 테스트용이라 그대로 두고, 운영 프로젝트는 서울로 만든다.
 - Postgres **17.6**, `search_path = "$user", public, extensions`. `pgcrypto`·`uuid-ossp` 설치됨, `btree_gist` 는 V001 이 `public` 에 설치한다(Supabase 권고는 `extensions` 스키마지만, Testcontainers 와 동일하게 동작시키려고 기본 스키마를 쓴다 — 보안 경고 lint 는 무시).
 - `auth`·`storage` 스키마 준비됨. **Storage 버킷 `recordings`·`profile-images` 는 아직 없다(만들어야 함).** `repair-photos`(비공개, 수리 사진) 는 2026-09-21 dev 프로젝트에 SQL 로 만들었다: `insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('repair-photos','repair-photos',false,5242880,'{image/jpeg,image/png,image/webp,image/heic,image/heif}')` — prod 에도 같은 문장
+- **`job-photos`(비공개, 청소 전·후 사진, 2026-10-23) 는 dev·prod 모두 아직 없다 — 배포 전에 만든다:** `insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('job-photos','job-photos',false,5242880,'{image/jpeg,image/png,image/webp,image/heic,image/heif}')`
 - `GET /auth/v1/settings` (설정 후): `email:true, phone:true, disable_signup:true, phone_autoconfirm:true, sms_provider:"twilio"(더미)`.
 
 ## 배포·운영
@@ -58,14 +59,15 @@ SMS_PROVIDER=solapi|logging
 SMS_API_KEY=
 SMS_API_SECRET=
 SMS_SENDER=01000000000                # 사전등록한 발신번호
+KAKAO_REST_API_KEY=                   # 카카오 로컬 API REST 키(developers.kakao.com). 비우면 주소 검색이 빈 결과(직접 입력만)
 OTP_SALT=                             # 32바이트 이상 난수
 FIREBASE_SERVICE_ACCOUNT_JSON=        # base64 한 줄 (B6)
 ```
 - 앱 origin: Capacitor iOS 는 `capacitor://localhost`, Android 는 `https://localhost`(`androidScheme: https`), 웹 개발은 5174/5175.
 - DB 접속은 **Session pooler(5432)**. Transaction pooler(6543)는 JPA 의 prepared statement 와 충돌한다. 커넥션 풀 `HikariCP maximumPoolSize=10`(Supabase 무료/프로 플랜 한도 안).
-- 배포: `./mvnw -DskipTests spring-boot:build-image -Dspring-boot.build-image.imageName=ansimclean/api:<git-sha>` → 레지스트리 → Fly.io(`fly deploy`, Tokyo `nrt`, 1 머신 shared-cpu-1x 1GB, `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75`). 헬스체크 `/actuator/health`. 스케줄러(`@Scheduled`)가 있으므로 **인스턴스는 1개**(§13-11 전까지).
-- 마이그레이션: 기동 시 Flyway 자동. 실패하면 기동 실패 → 이전 이미지로 롤백(`fly releases rollback`), SQL 은 새 버전으로 수정 후 재배포. 운영 DB 는 Supabase 일일 백업 + 위험한 마이그레이션 전 수동 백업.
-- 로그: JSON 한 줄(ECS — `logging.structured.format.console=ecs`, local/test 프로필은 텍스트), 요청마다 `rid`(MDC, 응답 헤더 `X-Request-Id`, 500 응답 `requestId`) 로 사용자 신고와 짝지음, 개인정보 마스킹(§3-10), Fly 로그 → 필요 시 외부 수집. 지표는 `/actuator/metrics`(외부 노출 금지 — `management.endpoints.web.exposure.include=health`).
+- 배포: **Google Cloud Run 서울(asia-northeast3)**. `backend/Dockerfile`(Java 21, 테스트 포함 빌드) + `deploy/cloudrun/deploy.ps1`(Cloud Build 소스 배포·Secret Manager·플랫폼 HTTPS). 최소/최대 서비스 인스턴스 1, CPU 상시 할당. 주기 작업은 DB ShedLock으로 리비전 중첩을 조율한다. 상세 절차는 [Cloud Run 배포 안내](../../deploy/cloudrun/README.md).
+- 마이그레이션: 기동 시 Flyway 자동. 실패하면 기동 실패 → 이전 Cloud Run 리비전으로 트래픽 롤백(`gcloud run services update-traffic`, 배포 안내 참조), SQL 은 새 버전으로 수정 후 재배포. 운영 DB 는 Supabase 일일 백업 + 위험한 마이그레이션 전 수동 백업.
+- 로그: JSON 한 줄(ECS — `logging.structured.format.console=ecs`, local/test 프로필은 텍스트), 요청마다 `rid`(MDC, 응답 헤더 `X-Request-Id`, 500 응답 `requestId`) 로 사용자 신고와 짝지음, 개인정보 마스킹(§3-10), Cloud Logging → 필요 시 외부 보관. 지표는 `/actuator/metrics`(외부 노출 금지 — `management.endpoints.web.exposure.include=health`).
 - 키 회전: Supabase service_role·LiveKit secret·Solapi 키는 환경변수만 바꾸고 재배포. 바디캠 스트림 키 회전 = `POST /admin/devices` 에 `rotate: true`(옛 Ingress 삭제 + 재생성) + 기기 재설정. JWT 서명키 회전은 Supabase 가 JWKS 로 알아서(앱 영향 없음).
 - 장애 대응 표: Supabase Auth 다운 → 로그인만 실패(`UPSTREAM`), 기존 토큰은 JWKS 캐시로 계속 검증됨 / 문자 API 다운 → 가입·인증만 실패(`UPSTREAM`), 로그인은 정상 / LiveKit 다운 → 라이브만 실패, 작업 상태는 진행 가능 / 바디캠 끊김 → `waiting_camera`, 매니저 푸시 / Egress 실패 → `recording_status=failed`, 완료 화면 "업로드 실패", 운영자 확인. / 매칭 실패(후보 0명·회차 소진) → `bookings.matching_failed_at` 표시 + 고객 푸시 1회 + ERROR 로그, 예약은 `assigning` 으로 남는다 → 운영자가 아래 SQL 로 찾아 매니저에게 직접 연락하거나 고객과 일정을 조정한다.
 
@@ -144,6 +146,7 @@ update app_settings set value = '"1588-0000"'::jsonb where key = 'support_phone'
 - Supabase 대시보드 Auth › Sessions 의 **비활성 만료(Inactivity timeout)를 90일 이하**로 둔다 — 그보다 오래 사는 refresh 토큰은 목록에서 지워진 뒤 다시 쓸 수 있다.
 - 비밀번호 재설정은 `auth.sessions` 를 **읽기만** 한다(쓰기 금지 원칙 그대로). 서버 DB 계정에 `auth.sessions` select 권한이 있어야 한다(없으면 재설정이 500 — dev 에서 확인).
 - 수리 사진(감사 M-04): 올린 뒤 24시간 안에 예약에 붙지 않은 사진은 매일 03:40 삭제(`repair_photo_uploads`, V024). 탈퇴하면 `repair-photos/<고객id>/` 폴더 전체를 지운다.
+- 청소 전·후 사진(`cleaning_photos`, V055, 버킷 `job-photos`): 청소 완료 뒤 `recording_retention_days`(기본 90일)가 지나면 매일 04:20(`CleaningPhotoRetention`) 파일과 행을 지운다. 고객이 탈퇴하면 그 고객 예약의 `job-photos/<예약id>/` 폴더 전체를 지운다. 로그: "청소 사진 삭제 실패 … 내일 다시", "청소 사진 파일 삭제 실패 … 나중 정리에 맡긴다"(행은 지워졌지만 파일이 남은 경우 — 탈퇴 정리, 또는 그 예약에 사진 행이 남아 있으면 보존 정리가 예약 폴더 목록으로 다시 지운다).
 
 ## 일시정지 중 바디캠 잠금 (감사 H-02, 2026-09-24)
 - 일시정지 중 카메라가 끊겨 있으면 서버가 Ingress 를 `enabled=false` 로 잠근다(`manager_devices.ingress_enabled=false`). 재개·작업 종료·다음 작업 시작 때 연다. 로그: "일시정지 — 바디캠 Ingress 잠금", "바디캠 Ingress 잠금 해제".

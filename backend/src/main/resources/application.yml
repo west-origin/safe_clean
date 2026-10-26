@@ -43,7 +43,7 @@ spring:
   # Jackson 3 기본값이 계약과 같다: 날짜는 ISO 문자열, null 필드 포함, camelCase → 별도 설정 없음
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:${PORT:8080}}
   # 스프링 기본 오류 응답에 스택트레이스·예외 메시지를 넣지 않는다 (응답에 내부 정보가 나가지 않게, CLAUDE.md 11장 3번)
   error:
     include-stacktrace: never
@@ -93,6 +93,9 @@ app:
   # 관리자 API(/api/v1/admin/ 아래)의 X-Admin-Token 과 비교할 값. 비어 있으면 관리자 API 는 모두 401 (AdminAuth)
   admin:
     token: ${ADMIN_TOKEN:}
+  # 주소 검색 (카카오 로컬 API REST 키, §13-4). 비우면 검색 결과가 늘 빈 목록 — 앱은 적은 주소 그대로 진행한다 (AddressSearchService)
+  address:
+    kakao-rest-key: ${KAKAO_REST_API_KEY:}
   payment:
     client-key: ${TOSS_CLIENT_KEY:}
     secret-key: ${TOSS_SECRET_KEY:}

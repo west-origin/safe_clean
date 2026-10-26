@@ -2,6 +2,7 @@ package kr.ansimclean.api.live;
 
 import kr.ansimclean.api.booking.Booking;
 import kr.ansimclean.api.booking.BookingService;
+import kr.ansimclean.api.booking.CleaningPhotoService;
 import kr.ansimclean.api.booking.RepairPhotoService;
 import kr.ansimclean.api.common.config.AppProperties;
 import kr.ansimclean.api.common.error.ApiException;
@@ -19,7 +20,8 @@ import java.util.UUID;
 
 /**
  * 탈퇴 뒤 남는 미디어·기기 정리 (완결성 검토 — 개인정보 약관 '보유 기간: 회원 탈퇴 시' 인데 집 안 녹화본·수리 사진·바디캠 스트림 키가 남았다):
- * 고객 → 그 고객 예약의 녹화본(Storage) 삭제 + repair-photos/<customerId>/ 사진 전부 삭제(예약에 안 붙은 것 포함, RepairPhotoService.deleteAllOf). 매니저 → LiveKit Ingress 삭제(스트림 키 폐기) + manager_devices 삭제.
+ * 고객 → 그 고객 예약의 녹화본(Storage) 삭제 + repair-photos/<customerId>/ 사진 전부 삭제(예약에 안 붙은 것 포함, RepairPhotoService.deleteAllOf)
+ *   + 그 고객 예약의 청소 전·후 사진 job-photos/<bookingId>/ 전부(CleaningPhotoService.deleteAllOfBookings). 매니저 → LiveKit Ingress 삭제(스트림 키 폐기) + manager_devices 삭제.
  * 예약·정산 행(법정 보존)은 그대로. 아웃박스라 실패하면 백오프 재시도.
  * 발행: auth.AuthService 의 탈퇴 처리가 AccountMediaDeleted 이벤트를 남긴다. 이 핸들러는 탈퇴 트랜잭션이 커밋된 뒤 아웃박스에서 따로 돈다 (CODE_GUIDE.md 3-6).
  */
@@ -36,10 +38,12 @@ public class AccountMediaDeletionHandler implements OutboxHandler {
     private final JsonMapper json = JsonMapper.builder().build(); // 아웃박스에 저장된 JSON 을 이벤트 record 로 다시 읽는 도구
 
     private final RepairPhotoService repairPhotos;
+    private final CleaningPhotoService cleaningPhotos; // 청소 전·후 사진 (2026-10-23)
 
     public AccountMediaDeletionHandler(BookingService bookings, LiveSessionRepository sessions, ManagerDeviceRepository devices, LiveKitGateway livekit, SupabaseStorageClient storage, AppProperties props,
-                                       RepairPhotoService repairPhotos) {
+                                       RepairPhotoService repairPhotos, CleaningPhotoService cleaningPhotos) {
         this.repairPhotos = repairPhotos;
+        this.cleaningPhotos = cleaningPhotos;
         this.bookings = bookings;
         this.sessions = sessions;
         this.devices = devices;
@@ -67,7 +71,11 @@ public class AccountMediaDeletionHandler implements OutboxHandler {
         int recordings = 0;
         // 예약에 붙은 사진만이 아니라 예약 없이 올리고 그만둔 사진·원장 이전 사진(고객 폴더 전체)까지 (감사 M-04)
         int photos = repairPhotos.deleteAllOf(userId);
-        for (Booking b : bookings.customerBookings(userId)) {
+        List<Booking> customerBookings = bookings.customerBookings(userId);
+        // 청소 전·후 사진(집 안 사진)도 지운다. 사진은 진행 중에만 찍을 수 있어 한 번이라도 시작한(startedAt 있는) 예약만 넘긴다 —
+        // 시작도 안 한 예약마다 Storage 폴더 목록을 부르지 않으려고. Storage 실패는 던진다 → 아웃박스가 다시 부른다 (수리 사진과 같다)
+        photos += cleaningPhotos.deleteAllOfBookings(customerBookings.stream().filter(b -> b.getStartedAt() != null).map(Booking::getId).toList());
+        for (Booking b : customerBookings) {
             LiveSession s = sessions.findById(b.getId()).orElse(null); // 라이브 세션 행은 예약 id 를 키로 쓴다
             if (s != null && s.isRecordingReady()) { // 업로드가 끝난(ready) 녹화본만 지운다
                 storage.delete(props.storage().recordingsBucket(), s.getRecordingPath()); // Supabase Storage 에서 파일 삭제 (바깥 호출)

@@ -30,6 +30,10 @@ import java.util.stream.Collectors;
 @Primary
 @Transactional
 public class LiveSessionService implements RecordingLookup {
+    @Override
+    public boolean isVideoEnded(UUID bookingId) {
+        return sessions.findById(bookingId).filter(LiveSession::isEnded).isPresent();
+    }
     // 장비 상태 줄의 라벨·값. 매니저 앱 Job/Preparing·Job/InProgress·Profile/Equipment 의 장비 상태 줄에 그대로 나온다
     static final String CAMERA = "카메라";
     static final String BATTERY = "배터리";

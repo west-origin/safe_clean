@@ -11,6 +11,9 @@ import StepQuestion from '../components/StepQuestion/index.js';
 import OptionGroup from '../components/OptionGroup/index.js';
 import SelectionSummary from '../components/SelectionSummary/index.js';
 import PhotoPicker from '../components/PhotoPicker/index.js';
+import BeforeAfterSlider from '../components/BeforeAfterSlider/index.js';
+import CameraFrame from '../components/CameraFrame/index.js';
+import PhotoPairRow from '../components/PhotoPairRow/index.js';
 import InfoNote from '../components/InfoNote/index.js';
 import SelectedAddressCard from '../components/SelectedAddressCard/index.js';
 import ToggleChip from '../components/ToggleChip/index.js';
@@ -431,9 +434,24 @@ function ManagerGallery() {
           </div>
         </Row>
       </Section>
+      <Section title="CameraFrame" figma="없음 (코드에서 정함 — 청소 전·후 사진)">
+        <Row label="청소 전 촬영 (영상만)"><CameraFrame /></Row>
+        <Row label="청소 후 촬영 (청소 전 사진 반투명)"><CameraFrame ghostSrc={PHOTO_BEFORE} ghostAlt="청소 전" /></Row>
+        <Row label="찍은 사진 확인"><CameraFrame ghostSrc={PHOTO_BEFORE} previewSrc={PHOTO_AFTER} /></Row>
+      </Section>
+      <Section title="PhotoPairRow" figma="없음 (코드에서 정함 — 청소 전·후 사진)">
+        <Row label="청소 전 목록 (삭제)"><PhotoPairRow location="거실 소파 앞" description="청소 전 사진" beforeSrc={PHOTO_BEFORE} onRemove={() => {}} /></Row>
+        <Row label="청소 후 필요"><PhotoPairRow location="주방 싱크대" description="촬영 필요" tone="needed" beforeSrc={PHOTO_BEFORE} showAfter onClick={() => {}} actionLabel="청소 후 사진 찍기" /></Row>
+        <Row label="청소 후 완료"><PhotoPairRow location="욕실 세면대" description="촬영 완료 · 다시 찍기" tone="done" beforeSrc={PHOTO_BEFORE} afterSrc={PHOTO_AFTER} showAfter onClick={() => {}} /></Row>
+        <Row label="disabled"><PhotoPairRow location="현관" beforeSrc={PHOTO_BEFORE} onRemove={() => {}} disabled /></Row>
+      </Section>
     </>
   );
 }
+
+// 청소 사진 견본용 그림 (실제 사진 대신 온보딩 일러스트 두 장)
+const PHOTO_BEFORE = ASSETS.onboardingSlides[0].src;
+const PHOTO_AFTER = ASSETS.onboardingSlides[1].src;
 
 // NoticeChip 줄에서 아이콘 이름(NOTICE_ICONS 의 키)마다 붙여 보여 줄 한국어 이름표. 이 파일에서만 쓴다.
 const NOTICE_LABELS = {
@@ -972,6 +990,9 @@ function RepairGallery() {
       </Section>
       <Section title="PhotoPicker" figma="사진 첨부 1:483">
         <PhotoPicker photos={[]} helper="제품 전체와 문제가 보이는 부분을 함께 찍으면 더 정확히 안내할 수 있어요." />
+      </Section>
+      <Section title="BeforeAfterSlider" figma="없음 (코드에서 정함 — 청소 전·후 비교)">
+        <Row label="막대를 좌우로"><BeforeAfterSlider location="거실 소파 앞" beforeSrc={PHOTO_BEFORE} afterSrc={PHOTO_AFTER} /></Row>
       </Section>
       <Section title="InfoNote" figma="방문 안내 1:450 · 선택 일정 요약 1:419 · 안전 안내 1:351 · 비용 안내 1:321">
         <Row label="brand"><InfoNote glyph="ⓘ">정확한 방문을 위해 동·호수와 공동현관 정보를 확인해주세요.</InfoNote></Row>

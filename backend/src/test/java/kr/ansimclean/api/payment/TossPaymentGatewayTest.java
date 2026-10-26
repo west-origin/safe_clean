@@ -2,6 +2,7 @@ package kr.ansimclean.api.payment;
 
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -11,6 +12,14 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
 class TossPaymentGatewayTest {
+    @Test void spring_can_create_gateway_with_its_production_constructor() {
+        try (var context = new AnnotationConfigApplicationContext()) {
+            context.registerBean(CheckoutProperties.class, () -> new CheckoutProperties("test_ck_context", "test_sk_context"));
+            context.register(TossPaymentGateway.class);
+            context.refresh();
+            assertThat(context.getBean(TossPaymentGateway.class)).isNotNull();
+        }
+    }
     @Test void confirmation_uses_server_amount_and_stable_provider_idempotency_key() {
         var builder = RestClient.builder().baseUrl("https://api.tosspayments.com/v1");
         var server = MockRestServiceServer.bindTo(builder).build();

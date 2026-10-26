@@ -46,6 +46,7 @@
 		<livekit-server.version>0.16.0</livekit-server.version>
 		<firebase-admin.version>9.7.0</firebase-admin.version>
 		<archunit.version>1.5.0</archunit.version>
+		<shedlock.version>7.10.1</shedlock.version>
 		<!-- 커버리지 최소 비율 (0.70 = 70%). 아래 jacoco check 규칙이 쓴다 (그 규칙이 지금 적용되지 않는 문제는 BUNDLE 주석 참고) -->
 		<jacoco.minimum>0.70</jacoco.minimum>
 		<jacoco.version>0.8.15</jacoco.version>
@@ -55,6 +56,17 @@
 		scope 가 없으면 컴파일·실행·테스트 모두, runtime 은 컴파일에서는 빠지고 실행·테스트 때, test 는 테스트 때만 쓴다.
 	-->
 	<dependencies>
+		<!-- Cloud Run 배포/재시작 때 인스턴스가 겹쳐도 주기 작업을 동시에 실행하지 않는다. -->
+		<dependency>
+			<groupId>net.javacrumbs.shedlock</groupId>
+			<artifactId>shedlock-spring</artifactId>
+			<version>${shedlock.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.javacrumbs.shedlock</groupId>
+			<artifactId>shedlock-provider-jdbc-template</artifactId>
+			<version>${shedlock.version}</version>
+		</dependency>
 		<!-- 상태 확인 주소 /actuator/health (application.yml 에서 health 만 노출) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

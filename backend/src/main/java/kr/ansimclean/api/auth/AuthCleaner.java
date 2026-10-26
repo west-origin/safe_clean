@@ -6,6 +6,7 @@ import kr.ansimclean.api.common.web.RateLimiter;
 import kr.ansimclean.api.profile.SessionRevocationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -46,6 +47,7 @@ public class AuthCleaner {
      * 실패해도 예외를 밖으로 던지지 않고 로그만 남긴다 — 다음 날 다시 돈다. 앞 단계가 실패하면 뒤 단계도 그날은 건너뛴다.
      */
     @Scheduled(cron = "0 10 4 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "AuthCleaner", lockAtLeastFor = "PT1M")
     public void run() {
         try {
             long keys = idempotent.purgeOlderThan(clock.now().minus(IDEMPOTENCY_KEEP));

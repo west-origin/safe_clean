@@ -1,7 +1,9 @@
 package kr.ansimclean.api.common.security;
 
+import kr.ansimclean.api.catalog.AddressSearchService;
 import kr.ansimclean.api.catalog.CatalogController;
 import kr.ansimclean.api.catalog.CatalogService;
+import kr.ansimclean.api.catalog.dto.AddressSearchResponse;
 import kr.ansimclean.api.catalog.dto.CategoryResponse;
 import kr.ansimclean.api.common.config.AppProperties;
 import kr.ansimclean.api.common.config.CorsConfig;
@@ -49,6 +51,9 @@ class SecurityConfigTest {
     @MockitoBean
     CatalogService catalog;
 
+    @MockitoBean
+    AddressSearchService addresses; // GET /catalog/address (카카오 호출은 AddressSearchServiceTest 가 본다)
+
     // 토큰 해석기. 테스트마다 stubJwt 로 '이 문자열이면 이 토큰' 을 정한다 (서명 검증은 SupabaseJwtDecoderConfigTest 가 본다)
     @MockitoBean
     JwtDecoder jwtDecoder;
@@ -70,6 +75,20 @@ class SecurityConfigTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
                 .andExpect(jsonPath("$.error.message").value("찾을 수 없어요"));
+    }
+
+    // 주소 검색도 로그인 없이 열리고, 응답은 앱 searchAddress 계약 { query, results: [{ id, main, sub }] } 모양이다
+    @Test
+    void 주소_검색은_인증_없이_query_와_results_를_준다() throws Exception {
+        when(addresses.search("테헤란로 123")).thenReturn(new AddressSearchResponse("테헤란로 123",
+                List.of(new AddressSearchResponse.Result("1168010100", "서울특별시 강남구 테헤란로 123", "(역삼동)"))));
+
+        mvc.perform(get("/api/v1/catalog/address").param("q", "테헤란로 123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.query").value("테헤란로 123"))
+                .andExpect(jsonPath("$.results[0].id").value("1168010100"))
+                .andExpect(jsonPath("$.results[0].main").value("서울특별시 강남구 테헤란로 123"))
+                .andExpect(jsonPath("$.results[0].sub").value("(역삼동)"));
     }
 
     // /catalog/reasons 는 kind 쿼리 파라미터가 필수다 — 빠지면 400 VALIDATION

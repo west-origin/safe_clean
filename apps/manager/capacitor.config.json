@@ -16,7 +16,6 @@
   "plugins": {
     "PushNotifications": {
       "presentationOptions": [
-        "sound",
         "banner",
         "list",
         "alert"

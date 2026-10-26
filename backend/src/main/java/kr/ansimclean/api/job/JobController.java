@@ -105,6 +105,18 @@ public class JobController {
         return service.complete(user.id(), id, key);
     }
 
+    @PostMapping("/{id}/finish-video")
+    public JobIdResponse finishVideo(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id) {
+        return service.finishVideo(user.id(), id);
+    }
+
+    public record RoomRequest(String name) {}
+
+    @PostMapping("/{id}/rooms")
+    public JobIdResponse addRoom(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id, @RequestBody RoomRequest req) {
+        return service.addRoom(user.id(), id, req.name());
+    }
+
     /** PUT /manager/jobs/{id}/checklist/{itemId} — 체크리스트 한 줄 체크·해제(본문 { done }). 진행 중(in_progress·paused)일 때만 */
     @PutMapping("/{id}/checklist/{itemId}")
     public ChecklistResponse checklist(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id, @PathVariable UUID itemId, @Valid @RequestBody ChecklistRequest req) {

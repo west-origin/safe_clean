@@ -1,0 +1,11 @@
+# Cloud Run은 SIGTERM 뒤 10초 후 프로세스를 종료한다.
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 8s
+server:
+  shutdown: graceful
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true

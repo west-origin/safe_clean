@@ -43,7 +43,7 @@
 | `getSettings()` / `updateNotificationSetting(key, enabled)` | `GET /customer/settings` / `PUT /customer/notifications/{key}` | 아래 스키마 그대로 |
 | `getBookingCategory(c)` | `GET /catalog/categories/{c}` | 404 → `null` |
 | `getTimeSlots()` | `GET /catalog/time-slots` | `{ am, pm, unavailable, bookableDays, changeDeadlineHours }` |
-| `searchAddress(q)` | `GET /catalog/address?q=` (2자 이상일 때만) | 주소 API 연동 전에는 서버가 `results: []` → 화면은 검색어를 그대로 주소로 쓴다 |
+| `searchAddress(q)` | `GET /catalog/address?q=` (2자 이상일 때만) | `{ query, results: [{ id, main, sub }] }` — 카카오 로컬 API 주소·장소 검색 최대 10건(서버 키가 없으면 `[]`). 결과를 고르면 `main`, 안 고르면 검색어를 그대로 주소로 쓴다 |
 | `getBookingOptions(c)` / `getNoticeChips(c)` / `getConfirmCopy(c)` | `GET /catalog/categories/{c}/options` / `/notice-chips` / `/confirm-copy` | 아래 스키마 그대로. confirm-copy 의 `seriesTermMonths` = 정기청소 회차 수(서버 `series_term_months`) — 주기 화면 안내 "N개월 동안 N회" 가 쓴다(없으면 mock 기본 6) |
 | `getSavedAddress()` | `GET /customer/addresses/default` | 404 → `null` (확인 화면은 "주소를 입력해주세요") |
 | `getBookingQuote(c, draft)` **(B3 추가)** | `POST /customer/bookings/quote` | `{ perVisit: { base, options, total, label }, visits: [{ date, label }], visitsPlanned, totalAmount, totalLabel, paymentNote }`. 일정이 없으면 서버를 부르지 않고 `null` |
@@ -86,7 +86,7 @@
 |---|---|---|
 | 1 frequency | `frequency` | 'recurring' \| 'oneTime' (Figma 기본 선택 정기청소) |
 | 2 datetime | `date`, `time` | 'YYYY-MM-DD', 'HH:mm'. 주말은 선택 불가(Figma 회색) |
-| 3 step2 | `reuseAddress` | 'yes' \| 'no'. 네 → 옵션(6)으로, 아니오 → 주소 검색(4)으로 (코드에서 정함) |
+| 3 step2 | `reuseAddress` | 'yes' \| 'no'. 네 → 옵션(6)으로, 아니요 → 주소 검색(4)으로 (코드에서 정함) |
 | 4 address-search | `addressQuery` | 검색어. 결과 목록은 주소 API 연동 시 |
 | 5 address-confirm | `roadAddress`, `detailAddress` | |
 
@@ -102,7 +102,7 @@
 
 ## Settings 아래 화면 · 약관 본문 (Figma 에 없음 — 코드에서 정함)
 `getTerm(id)` · `getProfileForm()`/`updateProfile(form)` · `getAddresses()`/`addAddress()`/`removeAddress(id)` · `getPaymentMethods()`(결제 연동 전 빈 배열) · `getFaq()` · `submitInquiry({ content })` · `getNotices()`/`getNotice(id)`.
-`changeReservation(id, { date, time })` · `cancelReservation(id, { reason, wholeSeries })` 는 서버(`PUT …/schedule`, `POST …/cancel`)를 부른다. `searchAddress(query)` 는 서버 `GET /catalog/address`(§13-4 주소 API 전에는 빈 결과 — 화면이 검색어를 주소로 쓴다).
+`changeReservation(id, { date, time })` · `cancelReservation(id, { reason, wholeSeries })` 는 서버(`PUT …/schedule`, `POST …/cancel`)를 부른다. `searchAddress(query)` 는 서버 `GET /catalog/address`(카카오 로컬 API, §13-4 — 결과가 없으면 화면이 검색어를 주소로 쓴다).
 
 ## 지원·푸시 (B6, 실서버)
 | 함수 | 경로 | 응답 |
@@ -117,3 +117,15 @@
 응답은 `{done,total,percent,groups,timeline,requests}`. groups는 `{group,done,total,items:[{id,label,done}]}`, timeline은 `{id,group,label,offsetSeconds}` 배열이다.
 percent는 완료 비율을 버린 정수. 실제 파일 시작 시각·완료 이력이 없거나 녹화 전 체크면 offsetSeconds는 null이다.
 세로 라이브 5초 폴링, 다시보기는 최초·화면 복귀 조회. 가로 실시간은 부르지 않는다. 현재 완료 수와 요청사항은 과거 예약도 제공한다.
+
+## 청소 전·후 비교 사진 (2026-10-23 — Figma 에 없음, 코드에서 정함)
+`getCleaningPhotos(bookingId)` → `GET /customer/bookings/{id}/photos` (`backend/docs/api.md` '청소 전·후 사진 추가').
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| `ready` | boolean | 매니저가 청소를 완료했는가. `false` 면 `photos` 는 `[]` |
+| `photos[].id` | string | |
+| `photos[].location` | string | `'거실 소파 앞'` |
+| `photos[].beforeUrl` / `afterUrl` | string | 서명 URL(1시간). 전·후가 다 있는 위치만 온다 |
+
+ServiceLivePortrait 가 완료 전에는 10초마다 묻고, `ready` 를 받으면 멈춘 뒤 위치마다 `BeforeAfterSlider` 를 그린다. 문구는 `mock.js` `CLEANING_PHOTOS_COPY`, 예시 응답은 `CLEANING_PHOTOS`.

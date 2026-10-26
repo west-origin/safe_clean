@@ -18,11 +18,61 @@ describe('Manager/Job/InProgress 흐름', () => {
     const { __fake } = await import('../../api/http.js');
     liveClient.reset();
     __fake.live = null;
+    __fake.photoPhase = 'live';
+    __fake.liveStopFails = false;
   });
   // 앞 테스트가 끝내거나 일시정지한 작업 대신, 진행 중 작업을 새로 둔다 (아래 두 테스트가 쓴다)
   const freshActiveJob = (fake) => {
     fake.activeJob = { ...ACTIVE_JOB, startedAt: '2026-09-15T05:02:00Z', pausedSeconds: 0, checklist: ACTIVE_JOB.checklist.map((g) => ({ ...g, items: g.items.map((i) => ({ ...i })) })) };
   };
+
+  it('녹화 시작 실패를 송출 상태와 별도로 안내하고 종료 후 후 사진으로 진행한다', async () => {
+    const { __fake } = await import('../../api/http.js');
+    freshActiveJob(__fake);
+    await liveClient.start('job-1');
+    __fake.live = { ...__fake.live, recordingStatus: 'failed', recordingStartFailed: true };
+    await liveClient.refresh('job-1');
+    render(
+      <MemoryRouter initialEntries={['/job/in-progress']}>
+        <Routes>
+          <Route path="/job/in-progress" element={<JobInProgress />} />
+          <Route path="/job/photos/after" element={<p>후 사진 촬영 화면</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText(/녹화를 시작하지 못해 다시 시도하고 있어요/)).toBeInTheDocument();
+    expect(liveClient.getState().status).toBe('live');
+    fireEvent.click(screen.getByRole('button', { name: '실시간 영상 종료' }));
+    expect(await screen.findByText('후 사진 촬영 화면')).toBeInTheDocument();
+    expect(__fake.live.status).toBe('ended');
+    liveClient.reset();
+  });
+
+  it('녹화 장애 중 원격 종료가 실패하면 후 사진으로 가지 않고 재시도한다', async () => {
+    const { __fake } = await import('../../api/http.js');
+    freshActiveJob(__fake);
+    await liveClient.start('job-1');
+    __fake.live = { ...__fake.live, recordingStatus: 'failed', recordingStartFailed: true };
+    await liveClient.refresh('job-1');
+    __fake.liveStopFails = true;
+    render(
+      <MemoryRouter initialEntries={['/job/in-progress']}>
+        <Routes>
+          <Route path="/job/in-progress" element={<JobInProgress />} />
+          <Route path="/job/photos/after" element={<p>후 사진 촬영 화면</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: '실시간 영상 종료' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('실시간 영상을 종료하지 못했어요');
+    expect(screen.queryByText('후 사진 촬영 화면')).not.toBeInTheDocument();
+    expect(__fake.live.status).toBe('live');
+    __fake.liveStopFails = false;
+    fireEvent.click(screen.getByRole('button', { name: '실시간 영상 종료' }));
+    expect(await screen.findByText('후 사진 촬영 화면')).toBeInTheDocument();
+    expect(__fake.live.status).toBe('ended');
+    liveClient.reset();
+  });
 
   it('체크리스트를 켜면 진행률이 오르고, 일시정지 시트에서 사유를 골라 제출하면 라이브가 paused 로 바뀌며 /job/paused 로 간다', async () => {
     // 준비: 라이브 세션을 먼저 연다(가짜 서버는 바로 live). MemoryRouter 는 주소창 없이 경로를 흉내 내는 테스트용 라우터다.
@@ -133,14 +183,13 @@ describe('Manager/Job/InProgress 흐름', () => {
       <MemoryRouter initialEntries={['/job/in-progress']}>
         <Routes>
           <Route path="/job/in-progress" element={<JobInProgress />} />
-          <Route path="/job/complete" element={<p>완료 화면</p>} />
+          <Route path="/job/photos/after" element={<p>후 사진 화면</p>} />
         </Routes>
       </MemoryRouter>,
     );
     await screen.findAllByRole('checkbox');
-    fireEvent.click(screen.getByRole('button', { name: '청소 완료' }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '청소 완료' }));
-    await waitFor(() => expect(screen.getByText('완료 화면')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: '실시간 영상 종료' }));
+    await waitFor(() => expect(screen.getByText('후 사진 화면')).toBeInTheDocument());
     const starts = __fake.calls.filter((c) => c.path === '/live/sessions/job-1/start');
     expect(liveClient.getState().status).toBe('ended');
     expect(starts.length).toBe(0); // 완료 뒤 start 를 다시 보내지 않는다

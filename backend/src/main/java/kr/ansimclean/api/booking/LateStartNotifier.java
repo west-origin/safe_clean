@@ -5,6 +5,7 @@ import kr.ansimclean.api.common.outbox.OutboxService;
 import kr.ansimclean.api.common.time.AppClock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +45,7 @@ public class LateStartNotifier {
 
     /** 스케줄러 진입점. 트랜잭션 하나로 notifyDue 를 돌리고, 실패하면 로그만 남긴다(예외를 밖으로 던지지 않는다) */
     @Scheduled(fixedDelay = 60000)
+    @SchedulerLock(name = "LateStartNotifier", lockAtLeastFor = "PT50S")
     public void run() {
         // 자기 호출은 @Transactional 프록시를 거치지 않는다 — 트랜잭션은 여기서 연다 (StaleBookingCleaner 와 같다)
         // 한 번의 실행 전체가 한 묶음이다 — 한 건에서 예외가 나면 이번에 표시·기록한 다른 건도 되돌려지고 다음 주기(1분 뒤)에 다시 한다

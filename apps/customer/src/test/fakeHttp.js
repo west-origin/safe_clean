@@ -13,7 +13,7 @@ import { fromDateKey } from '@ansimclean/ui';
 import {
   TERMS, TERM_BODIES, HOME_SLIDES, REPAIR_HERO, RESERVATIONS, RESERVATIONS_HEADER, RESERVATION_TABS, SETTINGS_HEADER, PROFILE, SETTINGS_GROUPS,
   NOTIFICATION_SETTINGS, BOOKING_CATEGORIES, TIME_SLOTS, BOOKABLE_DAYS, CHANGE_DEADLINE_HOURS, SERIES_TERM_MONTHS, BOOKING_OPTIONS, FREE_OPTION_LIMIT, NOTICE_CHIPS, NOTES_COPY, FREQUENCY_DESCRIPTIONS,
-  CONFIRM_COPY, SAVED_ADDRESS, CLEANER_PENDING, ADDRESS_RESULTS, PROFILE_FORM, ADDRESSES, LIVE_SESSION, LIVE_CHECKLIST,
+  CONFIRM_COPY, SAVED_ADDRESS, CLEANER_PENDING, ADDRESS_RESULTS, PROFILE_FORM, ADDRESSES, LIVE_SESSION, LIVE_CHECKLIST, CLEANING_PHOTOS,
   FAQ, NOTICES,
 } from '../api/mock.js';
 
@@ -72,19 +72,17 @@ const timeKo = (time) => {
 };
 // Date → 'YYYY-MM-DD'. @ansimclean/ui 의 toDateKey 와 같은 일을 한다 (현지 날짜 기준, toISOString 의 UTC 날짜를 쓰지 않는다)
 const toKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-/** 서버 §6.8: 첫 방문일부터 매월 같은 날짜 1회씩 SERIES_MONTHS 회 (주말이면 다음 평일) — 사용자 결정 2026-09-22.
+/** 서버 §6.8: 첫 방문일부터 매월 같은 날짜 1회씩 SERIES_MONTHS 회, 주말도 선택일 유지.
  *  회차 날짜는 mock 기본값으로 만든다 (state.seriesTermMonths 는 confirm-copy 응답의 안내 값만 바꾼다) */
 const SERIES_MONTHS = SERIES_TERM_MONTHS;
 // 정기청소 회차 날짜 목록 ('YYYY-MM-DD' 배열, 첫 방문일 포함 SERIES_MONTHS 개).
-// 예: 1월 31일 시작이면 2월은 말일, 그 날이 토·일이면 다음 월요일로 민다.
+// 예: 1월 31일 시작이면 2월은 말일. 주말이어도 날짜를 이동하지 않는다.
 const visitDates = (first) => {
   const start = fromDateKey(first);
   const out = [];
   for (let i = 0; i < SERIES_MONTHS; i += 1) {
     const d = new Date(start.getFullYear(), start.getMonth() + i + 1, 0); // 그 달의 마지막 날
     d.setDate(Math.min(start.getDate(), d.getDate())); // 31일처럼 없는 날짜는 그 달 마지막 날
-    if (d.getDay() === 6) d.setDate(d.getDate() + 2); // 토 → 월
-    if (d.getDay() === 0) d.setDate(d.getDate() + 1); // 일 → 월
     out.push(toKey(d));
   }
   return out;
@@ -122,6 +120,7 @@ export function fakeHttpModule() {
     pushTokens: [], // PUT /push/token 으로 받은 본문들. DELETE /push/token 은 token 이 같은 것을 뺀다
     liveStates: {}, // 예약 id → 라이브 state. 넣어 두면 GET …/live 가 기본값 대신 이 값을 준다
     liveChecklists: {}, // 예약별 체크리스트. 테스트에서 폴링으로 바뀌는 서버 응답을 꾸민다.
+    cleaningPhotos: {}, // 예약별 청소 전·후 사진 응답 { ready, photos } — 테스트가 매니저 완료 전·후를 꾸민다
     failOnce: new Set(), // 'GET /경로' 모양의 문자열. 넣은 요청은 한 번만 NETWORK 로 실패한다 (아래 call 참고)
     holdOnce: new Map(), // 'GET /경로' → Promise. 그 요청의 응답(요청 때 만든 값)을 Promise 가 끝날 때까지 한 번 늦춘다 — 늦게 도착한 옛 응답 흉내
     // 서버 설정 값 흉내: 변경·취소 기한(cancel_deadline_hours)·정기청소 회차 수(series_term_months). 테스트가 바꿔 운영자가 설정을 바꾼 경우를 만든다
@@ -234,7 +233,7 @@ export function fakeHttpModule() {
     'GET /customer/repair': () => ({ hero: REPAIR_HERO }),
     'GET /customer/reservations': () => ({ header: RESERVATIONS_HEADER, tabs: RESERVATION_TABS, reservations: state.reservations, changeDeadlineHours: state.changeDeadlineHours }),
     'GET /customer/settings': () => ({ header: SETTINGS_HEADER, profile: PROFILE, groups: SETTINGS_GROUPS, notifications: { ...NOTIFICATION_SETTINGS } }),
-    'GET /catalog/time-slots': () => ({ ...TIME_SLOTS, unavailable: [], bookableDays: BOOKABLE_DAYS, changeDeadlineHours: state.changeDeadlineHours }), // 막힌 시간(unavailable)은 없다고 답한다
+    'GET /catalog/time-slots': () => ({ ...TIME_SLOTS, unavailable: [], bookableDays: BOOKABLE_DAYS, changeDeadlineHours: state.changeDeadlineHours, minimumLeadHours: 3 }),
     'GET /customer/addresses/default': () => {
       if (!state.hasDefaultAddress) throw notFound('default address');
       return SAVED_ADDRESS;
@@ -308,6 +307,8 @@ export function fakeHttpModule() {
     ['GET', /^\/catalog\/categories\/([^/]+)\/confirm-copy$/, ([c]) => ({ copy: CONFIRM_COPY, frequencyDescriptions: FREQUENCY_DESCRIPTIONS[c] ?? FREQUENCY_DESCRIPTIONS.home, seriesTermMonths: state.seriesTermMonths })],
     ['GET', /^\/catalog\/address\?q=(.*)$/, ([q]) => ({ query: decodeURIComponent(q), results: ADDRESS_RESULTS })], // 검색어와 상관없이 같은 결과
     ['GET', /^\/customer\/bookings\/([^/]+)\/checklist$/, ([id]) => structuredClone(state.liveChecklists[id] ?? LIVE_CHECKLIST)],
+    // 청소 전·후 사진: __fake.cleaningPhotos[id] 가 있으면 그것, 녹화본이 준비된 예약(청소 완료)은 CLEANING_PHOTOS, 나머지는 아직 완료 전
+    ['GET', /^\/customer\/bookings\/([^/]+)\/photos$/, ([id]) => structuredClone(state.cleaningPhotos[id] ?? (id === READY_BOOKING_ID || state.readyRecordings.has(id) ? CLEANING_PHOTOS : { ready: false, photos: [] }))],
     // 라이브 세션 상태. 기본값: 녹화본 준비(READY·readyRecordings)나 업로드 중(UPLOADING)이면 ended,
     // LIVE_BOOKING_ID 는 live, 나머지는 waiting. recording 은 'ready'|'pending'|'none' 만 흉내 낸다 ('failed' 는 없다)
     ['GET', /^\/customer\/bookings\/([^/]+)\/live$/, ([id]) => {

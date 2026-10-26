@@ -6,6 +6,7 @@ import kr.ansimclean.api.common.outbox.OutboxService;
 import kr.ansimclean.api.common.time.AppClock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +55,7 @@ public class StaleBookingCleaner {
 
     /** 스케줄러 진입점. 실패해도 예외를 밖으로 던지지 않고 로그만 남긴다 — 다음 날 다시 돈다 */
     @Scheduled(cron = "0 10 3 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "StaleBookingCleaner", lockAtLeastFor = "PT1M")
     public void run() {
         // run() 이 같은 클래스의 clean() 을 직접 부르면 @Transactional 프록시를 거치지 않는다(Spring 자기 호출).
         // 그래서 트랜잭션은 여기서 TransactionTemplate 으로 연다. clean() 의 @Transactional 은 지금 먹는 곳이 없다 —

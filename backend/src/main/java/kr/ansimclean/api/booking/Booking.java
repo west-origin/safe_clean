@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.UUID;
 
 /**
@@ -166,6 +167,26 @@ public class Booking {
 
     @Column(name = "started_at")
     private Instant startedAt;
+
+    /** 촬영 필수 공간의 작업별 스냅샷. 체크리스트 공간 + 현장에서 추가한 방 (V056). */
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "required_photo_rooms", columnDefinition = "text[]", nullable = false)
+    private List<String> requiredPhotoRooms = new ArrayList<>();
+
+    @Column(name = "before_photos_confirmed_at")
+    private Instant beforePhotosConfirmedAt;
+
+    /** 라이브 종료 요청 시각. 이후 재송출을 금지하고 후 사진 단계로 고정한다. */
+    @Column(name = "video_finished_at")
+    private Instant videoFinishedAt;
+
+    public List<String> getRequiredPhotoRooms() { return List.copyOf(requiredPhotoRooms); }
+    public Instant getBeforePhotosConfirmedAt() { return beforePhotosConfirmedAt; }
+    public Instant getVideoFinishedAt() { return videoFinishedAt; }
+    public String getPhotoPhase() { return videoFinishedAt != null ? "after" : beforePhotosConfirmedAt != null ? "live" : "before"; }
+    public void setRequiredPhotoRooms(List<String> rooms) { requiredPhotoRooms = new ArrayList<>(rooms); }
+    public void confirmBeforePhotos(Instant at) { if (beforePhotosConfirmedAt == null) beforePhotosConfirmedAt = at; }
+    public void finishVideo(Instant at) { if (videoFinishedAt == null) videoFinishedAt = at; }
 
     @Column(name = "ended_at")
     private Instant endedAt;

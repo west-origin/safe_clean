@@ -182,7 +182,7 @@ booking/
 - **핸들러는 멱등**(같은 이벤트가 두 번 와도 결과가 같게: 푸시는 `outbox_events.id` 를 FCM collapse key 로, LiveKit 호출은 현재 상태를 읽고 필요할 때만). 아웃박스와 별개로 **상태 기반 재조정**도 둔다(§2.5 `LiveReconciler`): 이벤트를 놓쳐도 DB 상태가 "해야 할 일" 을 말해 준다. 예: `bookings.status=done ∧ live_sessions.status≠ended` → 다시 `stop`.
 - 허용되는 의존 방향: `managerhome → booking, offer, schedule (읽기 전용)` · `offer → booking (Service)` · `job → booking, live(Service 아님, 이벤트)` · `settlement ← booking (이벤트가 아니라 같은 tx 직접 호출)` · `live → booking (읽기: 상태 확인)`. 순환 금지. ArchUnit 테스트(`ArchitectureTest`) 로 강제한다.
 
-### 2.5 스케줄러 한눈에 (각 기능 패키지에 클래스 하나씩. 전부 `Asia/Seoul`, 단일 인스턴스 전제 §13-11 — 2026-09-27 코드의 `@Scheduled` 13개와 맞춤)
+### 2.5 스케줄러 한눈에 (각 기능 패키지에 클래스 하나씩. 전부 `Asia/Seoul`, 최소/최대 인스턴스 1 + DB 잠금 §13-11 — 2026-09-27 코드의 `@Scheduled` 13개와 맞춤)
 | 클래스 | 주기 | 하는 일 |
 |---|---|---|
 | `OfferExpirer` | 30초 | `pending ∧ expires_at<now` → `expired` · 정지·미승인·탈퇴 매니저의 `pending` → `cancelled`(문제 목록 6번); 그 예약에 pending 0 이면 재매칭 1회 → 없으면 운영자 로그. 두 단계는 서로 막지 않는다 |
@@ -752,7 +752,7 @@ Storage 버킷(대시보드에서 만들고 `docs/runbook.md` 에 기록): `reco
 | `getFrequencyOptions()` | 로컬 유지 (`FREQUENCY_OPTIONS`) | | |
 | `getTimeSlots()` | `GET /catalog/time-slots?category=&date=` | — | `{ am: [...], pm: [...], unavailable: ["13:00"] }` (`date` 있으면 마감된 시각 표시 — B3 는 빈 배열, 매니저 가용성 기반은 §13-6) |
 | `getAddressReuseOptions()` | 로컬 유지 | | |
-| `searchAddress(q)` | `GET /catalog/address?q=` | — | `{ query, results: [{ id, main, sub }] }` — **주소 API(§13-4) 연동 전에는 서버가 빈 배열** |
+| `searchAddress(q)` | `GET /catalog/address?q=` | — | `{ query, results: [{ id, main, sub }] }` — 카카오 로컬 API(§13-4, `KAKAO_REST_API_KEY`) 주소 검색 + 키워드(장소) 검색, 합쳐 최대 10건. `main` = 도로명주소(없으면 지번, 시·도는 "서울"처럼 짧다 — 예약 저장 때 AddressRegion 이 정식 이름으로), `sub` = "(동, 건물명)" 또는 장소 이름. 키가 없거나 검색어가 두 글자 미만이면 빈 배열, 카카오 오류·연결 실패면 502 `UPSTREAM` |
 | `saveBookingStep()` | 로컬 유지 (초안은 sessionStorage) | | 서버 저장 없음 |
 | `getBookingOptions(c)` | `GET /catalog/categories/{c}/options` | — | `{ free: [{key,label,icon}], paid: [{key,label,price:"+3,000원",icon}], freeLimit }` |
 | `getNoticeChips(c)` | `GET /catalog/categories/{c}/notice-chips` | — | `{ chips: [{key,label,icon}], copy: NOTES_COPY }` (copy 는 `app_settings.notes_copy`) |
@@ -830,6 +830,8 @@ Storage 버킷(대시보드에서 만들고 `docs/runbook.md` 에 기록): `reco
 ## 6. 도메인 규칙 (`backend/docs/domain.md`. 구현자는 이 절을 그대로 코드로 옮긴다)
 
 ### 6.1 예약 상태기계 (`bookings.status`, `Booking` 엔티티의 메서드만 바꾼다)
+
+2026-10-22 사용자 변경: 청소 예약의 새 방문 시각은 서버 현재 시각에서 최소 3시간 이후여야 한다(정확히 3시간 허용, 당일 가능). 견적·생성·일정 변경에 동일하게 적용하며 앱은 1초마다 및 앱 복귀 시 선택 가능 여부를 계산한다. 수리는 기존 내일부터 예약 규칙을 유지하고, 운영 시간표·예약 가능 기간 및 기존 예약 변경/취소 기한은 유지한다(2026-10-26 주말도 허용). 시간표 API의 `minimumLeadHours: 3`은 청소 예약에 적용된다.
 ```
 requested ──(매칭 시작, 생성 직후)──▶ assigning ──(매니저 수락)──▶ scheduled ──(매니저 "청소 시작", 당일)──▶ in_progress ◀──resume── paused
    │                                     │                            │                                       │ pause ▲
@@ -842,14 +844,14 @@ requested ──(매칭 시작, 생성 직후)──▶ assigning ──(매니�
 
 | 전이 | 메서드 | 누가 | 조건 | 부수 효과 |
 |---|---|---|---|---|
-| (생성) → `requested` → `assigning` | `BookingService.create` | 고객 | 날짜 ≥ 내일, 평일, `time` 이 `time_slots` 안, 무료 옵션 ≤ `free_option_limit`, 모든 option/notice key 가 카탈로그에 있음 | 금액 계산(§6.4) · 정기청소면 `booking_series` 생성(§6.8) · `OfferService.dispatch(booking)` · 이력 기록 |
+| (생성) → `requested` → `assigning` | `BookingService.create` | 고객 | 청소는 방문 시각 ≥ 현재+3시간(당일 가능), 수리는 날짜 ≥ 내일, 주말도 허용, `time` 이 `time_slots` 안, 무료 옵션 ≤ `free_option_limit`, 모든 option/notice key 가 카탈로그에 있음 | 금액 계산(§6.4) · 정기청소면 `booking_series` 생성(§6.8) · `OfferService.dispatch(booking)` · 이력 기록 |
 | `assigning` → `scheduled` | `booking.assign(managerId)` | 매니저(offer accept) | 수락한 offer 가 `pending` 이고 만료 전 | 같은 round 의 다른 pending offer 전부 `cancelled` · 체크리스트 템플릿 복사 → `job_checklist_items` · `live_sessions` **upsert**(없으면 생성, 있으면 `created` 로 리셋) · 고객 푸시 "매니저가 배정됐어요" |
 | `scheduled` → `in_progress` | `booking.start()` | 매니저 | 작업 날짜가 오늘(Asia/Seoul) · 그 매니저에게 다른 `in_progress/paused` 가 없음 (부분 유니크 인덱스가 최종 방어) | `started_at=now` · 라이브 세션은 `live/start` 가 별도로 (`waiting_camera` → 바디캠이 붙으면 `live` + 고객 푸시, §8.1) |
 | `in_progress` → `paused` | `booking.pause(reason)` | 매니저 | reason 이 `catalog_reasons(kind=pause)` 안 | `job_pauses` insert (라이브 mute 는 `live/pause`, §8.1) |
 | `paused` → `in_progress` | `booking.resume()` | 매니저 | — | 마지막 `job_pauses.resumed_at=now` |
 | `in_progress`/`paused` → `done` | `booking.complete()` | 매니저 | — | `ended_at=now` · 열린 pause 닫기 · `LiveService.stop`(Egress 정지·방 삭제, §8.1) · 정산 생성(§6.5) · `manager_profiles.completed_count+1` · 고객 푸시 |
 | `requested/assigning/scheduled` → `cancelled` | `booking.cancel(reason, actor)` | 고객 | **`starts_at − now ≥ cancel_deadline_hours(24)`** (하나의 규칙. 내일 14시 예약은 오늘 14시까지) 아니면 `BOOKING_NOT_CANCELLABLE` | pending offer `cancelled` · 배정된 매니저 푸시 · `wholeSeries` 면 시리즈와 미래 예약 전부 취소 |
-| 일정 변경 (`schedule`) | `booking.reschedule(date,time)` | 고객 | `requested/assigning/scheduled` 이고 같은 규칙(`starts_at − now ≥ 24h`), 새 일정도 규칙(내일 이후·평일·슬롯) 통과 | `starts_at/ends_at` 재계산 → `scheduled` 였으면 → `assigning` 으로 되돌리며 **기존 `accepted` 오퍼를 `superseded` 로**, 남은 `pending` 은 `cancelled`, `manager_id/assigned_at` 을 비우고 체크리스트를 지우고, `dispatch_round+1` → **기존 매니저에게 새 round 의 우선 오퍼 10분**(수락하면 다시 `assign`, 거절·만료면 일반 매칭). `live_sessions` 는 **PK 가 booking_id 이므로 재생성하지 않고 `status=created` 로 리셋**(`assign` 은 항상 upsert) · `BookingRescheduled` 이벤트(기존 매니저 푸시) · 이력 기록 |
+| 일정 변경 (`schedule`) | `booking.reschedule(date,time)` | 고객 | `requested/assigning/scheduled` 이고 같은 규칙(`starts_at − now ≥ 24h`), 새 일정도 규칙(청소는 현재+3시간 이후·수리는 내일 이후·주말 허용·슬롯) 통과 | `starts_at/ends_at` 재계산 → `scheduled` 였으면 → `assigning` 으로 되돌리며 **기존 `accepted` 오퍼를 `superseded` 로**, 남은 `pending` 은 `cancelled`, `manager_id/assigned_at` 을 비우고 체크리스트를 지우고, `dispatch_round+1` → **기존 매니저에게 새 round 의 우선 오퍼 10분**(수락하면 다시 `assign`, 거절·만료면 일반 매칭). `live_sessions` 는 **PK 가 booking_id 이므로 재생성하지 않고 `status=created` 로 리셋**(`assign` 은 항상 upsert) · `BookingRescheduled` 이벤트(기존 매니저 푸시) · 이력 기록 |
 | 그 밖의 전이 | — | — | `INVALID_STATE` | |
 
 Reservations 화면 매핑(서버가 만든다): `tab` = `done`→`done`, `cancelled`→`cancelled`, 나머지 `upcoming`. `status` = `assigning/requested`→`assigning`(매니저 배정 중), `scheduled`→`scheduled`(방문 예정), `in_progress/paused`→`inProgress`, `done`, `cancelled`. `rows` = `[일정: KoreanFormat.dateTimeLong, 주소: road_address, 매니저: 매니저 이름+" 매니저" | "배정 후 알려드려요" | (취소이고 미배정) "배정 전 취소"]`. 오늘 진행 중이면 일정 값은 `"오늘 " + 오전/오후 h시`. 정기청소 예약은 `title` 뒤에 `" · 정기"` 를 붙이지 않는다(Figma 문구 유지) — 대신 `series: true` 필드를 추가로 내려 앱 취소 시트가 선택지를 보여준다.
@@ -878,7 +880,7 @@ Reservations 화면 매핑(서버가 만든다): `tab` = `done`→`done`, `cance
 `today.dateLabel = "9월 15일 (화)"`, `today.count` = 오늘 `scheduled+in_progress+paused+done` 수, `inProgress` = 활성 작업(§6.3, `title="청소 진행 중"`, `since="14:02부터 진행 · 강남구 역삼동"`), `newCalls` = pending offer 가 있으면 `{ count, expiry: 가장 이른 만료, summary: "가장 가까운 콜 · 9월 18일 오후 2:00 · 85,000원" }`, `remaining` = 오늘 남은 `scheduled` 를 시각순 `{ id, time: "16:30 - 18:30"(시작 + duration), status: "scheduled", customer: "박○○ 고객 · 해운대구 우동", service: 카테고리 라벨 }`. `availability.status` = 지금이 근무시간 안이면 "콜 수신 중" 아니면 "근무 시간 외", `detail = "오늘 09:00 - 18:00 근무 설정됨" | "오늘 휴무"`.
 
 ### 6.8 정기청소 시리즈 (`booking/BookingSeriesService`) — **매월 1회 × `series_term_months`회** (결정 2026-09-22, 그 전에는 '한 달 동안 매주')
-- 정기청소 = **첫 방문일부터 매월 같은 날짜·같은 시각에 1회씩**, `app_settings.series_term_months` 회(기본 6 = 6개월 6회). 없는 날짜(31일 등)는 그 달 마지막 날로, **주말이면 다음 평일**로 민다. `frequency=recurring` 예약 생성 시 `booking_series(active, term_start=첫 방문일, term_end=마지막 회차 날짜, weekday=첫 방문 요일 기록용, visits_planned)` 를 만들고, **그 기간의 회차 전부를 즉시 `bookings(requested, series_id)` 로 생성**한다(고객 "내 예약" 에 바로 보인다). 요금은 회차마다 개별(§6.4).
+- 정기청소 = **첫 방문일부터 매월 같은 날짜·같은 시각에 1회씩**, `app_settings.series_term_months` 회(기본 6 = 6개월 6회). 없는 날짜(31일 등)는 그 달 마지막 날로, **주말도 선택한 날짜를 유지**한다(2026-10-26 사용자 결정). `frequency=recurring` 예약 생성 시 `booking_series(active, term_start=첫 방문일, term_end=마지막 회차 날짜, weekday=첫 방문 요일 기록용, visits_planned)` 를 만들고, **그 기간의 회차 전부를 즉시 `bookings(requested, series_id)` 로 생성**한다(고객 "내 예약" 에 바로 보인다). 요금은 회차마다 개별(§6.4).
 - 매칭 시점: 첫 회차는 즉시 `dispatch`. 나머지는 `SeriesDispatcher`(§2.5, 매일 09:00 — 2026-09-28 전 03:00)가 **방문 7일 전**에 매칭하되, 직전 회차를 수행한 매니저에게 **우선 오퍼 10분** → 거절·만료 시 일반 매칭. 밤에 생긴 매칭은 §6.2 의 밤 규칙대로 아침 08:05 에(문제 목록 2번).
 - 종료: `term_end` 가 지나면 시리즈 `ended`. 자동 연장 없음. `term_end − 7일` 에 `SeriesEnding` 이벤트 → 고객 푸시 "정기청소가 곧 끝나요. 다음 달도 예약해 보세요"(연장은 새 시리즈 생성 = 같은 예약 플로우).
 - 취소: 회차 하나 = 그 예약만(기한 규칙 §6.1). `wholeSeries=true` = 시리즈 `cancelled` + 아직 시작 전인(`requested/assigning/scheduled`, 기한 안) 미래 회차 전부 취소. 기한(방문 N시간 전, N = `app_settings.cancel_deadline_hours`, 기본 24)이 지난 회차는 남고 앱 시트에 "N시간 안에 시작하는 방문은 취소할 수 없어요" 문구로 알린다(N 은 예약 목록 응답의 `changeDeadlineHours` — 고정 글자 '24시간' 이었다, 문제 목록 25번).
@@ -1106,7 +1108,7 @@ export const session = { get(), set({ accessToken, refreshToken, expiresAt, user
 ### B3 — 고객 (2일)
 - [ ] `profile/`(주소·주거·알림·프로필), `booking/`(§6.1 생성·조회·변경·취소, `PricingService`, 예약 목록 매핑), `catalog/time-slots`, `customer/home·repair·settings`, **정기청소 시리즈(§6.8, 스케줄러 포함)**, **`payment/`(구조만: `PaymentGateway`·`NoopPaymentGateway`·`PaymentMethodController` 빈 목록·`payments` 엔티티, 호출 지점 주석)**. `OfferService.dispatch` 는 B4 에서 오므로 B3 에서는 인터페이스만 두고 `assigning` 까지.
 - [ ] 앱 `customer.js` 나머지 함수 교체. `Reservations.test.jsx` 등 기존 화면 테스트는 `http` mock 으로 통과.
-- 완료 기준: `QuoteTest`(1회·정기 견적 금액·회차 날짜) · `IdempotencyIT`(같은 키 재요청 1건, 본문 다르면 422, 동시 요청 하나만 통과) · `BookingFlowIT`(생성 → 목록 upcoming/assigning → 변경 → 취소 → cancelled 탭, 기한 초과 409, 무료 옵션 3개 400, 주말 409, 같은 `Idempotency-Key` 재요청은 예약 1건, 정기청소 생성 → 매월 1회 회차 전부가 즉시 `requested` 로 생김 → `SeriesDispatcher` 실행 → 7일 안의 회차만 매칭(우선 오퍼) → 전체 취소 시 시작 전 회차 전부 취소) · `KoreanFormatTest` 전 메서드 · 브라우저: 고객 앱 예약 9화면 → 완료 → 내 예약에 보임 → 취소.
+- 완료 기준: `QuoteTest`(1회·정기 견적 금액·회차 날짜) · `IdempotencyIT`(같은 키 재요청 1건, 본문 다르면 422, 동시 요청 하나만 통과) · `BookingFlowIT`(생성 → 목록 upcoming/assigning → 변경 → 취소 → cancelled 탭, 기한 초과 409, 무료 옵션 3개 400, 주말 예약 허용, 같은 `Idempotency-Key` 재요청은 예약 1건, 정기청소 생성 → 매월 1회 회차 전부가 즉시 `requested` 로 생김 → `SeriesDispatcher` 실행 → 7일 안의 회차만 매칭(우선 오퍼) → 전체 취소 시 시작 전 회차 전부 취소) · `KoreanFormatTest` 전 메서드 · 브라우저: 고객 앱 예약 9화면 → 완료 → 내 예약에 보임 → 취소.
 - 커밋: `feat(backend): 고객 프로필·주소·설정 API (단계 B3)` / `feat(backend): 예약 생성·조회·변경·취소 + 가격 (단계 B3)` / `feat(customer): api 어댑터 실서버 연결 (단계 B3)`
 
 ### B4 — 매니저 (3일)
@@ -1127,7 +1129,7 @@ export const session = { get(), set({ accessToken, refreshToken, expiresAt, user
 - 커밋: `feat(backend): 지원 API·FCM 푸시 (단계 B6)` / `feat(customer,manager): 푸시 토큰 등록 (단계 B6)`
 
 ### B7 — 배포 (1일)
-- [ ] `ansimclean-prod` Supabase(마이그레이션은 Flyway 가 기동 시 적용), 컨테이너 이미지 `./mvnw spring-boot:build-image`(Buildpacks, Dockerfile 없음), 호스팅 = **Fly.io Tokyo 리전 1대**(§13-16) + 환경변수, `ALLOWED_ORIGINS=capacitor://localhost,https://localhost,ionic://localhost`, HTTPS, `/actuator/health` 체크, 로그(JSON) 수집. 앱 `.env.production` 의 `VITE_API_URL`, `cap:sync`, 스토어 빌드.
+- [ ] `ansimclean-prod` Supabase(마이그레이션은 Flyway 가 기동 시 적용), 컨테이너 이미지 `backend/Dockerfile`, 호스팅 = **Google Cloud Run 서울**(§13-16), `deploy/cloudrun/deploy.ps1`(CPU 상시·최소/최대 1·ShedLock·플랫폼 HTTPS) + 환경변수, `ALLOWED_ORIGINS=capacitor://localhost,https://localhost,ionic://localhost`, HTTPS, `/actuator/health` 체크, 로그(JSON) 수집. 앱 `.env.production` 의 `VITE_API_URL`, `cap:sync`, 스토어 빌드.
 - 완료 기준: prod `/actuator/health` UP · 실기기 prod 로 가입→예약→매칭→라이브 1회 · `runbook.md` 완성(배포·롤백·마이그레이션 실패 시·키 회전).
 - 커밋: `chore(backend): 프로덕션 설정·이미지 빌드·runbook (단계 B7)`
 
@@ -1185,9 +1187,9 @@ FIREBASE_SERVICE_ACCOUNT_JSON=        # base64 한 줄 (B6)
 ```
 - 앱 origin: Capacitor iOS 는 `capacitor://localhost`, Android 는 `https://localhost`(`androidScheme: https`), 웹 개발은 5174/5175.
 - DB 접속은 **Session pooler(5432)**. Transaction pooler(6543)는 JPA 의 prepared statement 와 충돌한다. 커넥션 풀 `HikariCP maximumPoolSize=10`(Supabase 무료/프로 플랜 한도 안).
-- 배포: `./mvnw -DskipTests spring-boot:build-image -Dspring-boot.build-image.imageName=ansimclean/api:<git-sha>` → 레지스트리 → Fly.io(`fly deploy`, Tokyo `nrt`, 1 머신 shared-cpu-1x 1GB, `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75`). 헬스체크 `/actuator/health`. 스케줄러(`@Scheduled`)가 있으므로 **인스턴스는 1개**(§13-11 전까지).
-- 마이그레이션: 기동 시 Flyway 자동. 실패하면 기동 실패 → 이전 이미지로 롤백(`fly releases rollback`), SQL 은 새 버전으로 수정 후 재배포. 운영 DB 는 Supabase 일일 백업 + 위험한 마이그레이션 전 수동 백업.
-- 로그: JSON 한 줄(`logback-spring.xml`), 개인정보 마스킹(§3-10), Fly 로그 → 필요 시 외부 수집. 지표는 `/actuator/metrics`(외부 노출 금지 — `management.endpoints.web.exposure.include=health`).
+- 배포: **Google Cloud Run 서울(asia-northeast3)**. `backend/Dockerfile`(Java 21, 테스트 포함 빌드) + `deploy/cloudrun/deploy.ps1`(Cloud Build 소스 배포·Secret Manager·플랫폼 HTTPS). 최소/최대 서비스 인스턴스 1, CPU 상시 할당. 주기 작업은 DB ShedLock으로 리비전 중첩을 조율한다. 상세 절차는 [Cloud Run 배포 안내](deploy/cloudrun/README.md).
+- 마이그레이션: 기동 시 Flyway 자동. 실패하면 기동 실패 → 이전 Cloud Run 리비전으로 트래픽 롤백(`gcloud run services update-traffic`, 배포 안내 참조), SQL 은 새 버전으로 수정 후 재배포. 운영 DB 는 Supabase 일일 백업 + 위험한 마이그레이션 전 수동 백업.
+- 로그: JSON 한 줄(`logback-spring.xml`), 개인정보 마스킹(§3-10), Cloud Logging → 필요 시 외부 보관. 지표는 `/actuator/metrics`(외부 노출 금지 — `management.endpoints.web.exposure.include=health`).
 - 키 회전: Supabase service_role·LiveKit secret·Solapi 키는 환경변수만 바꾸고 재배포. 바디캠 스트림 키 회전 = Ingress 재생성 + 기기 재설정(runbook 절차). JWT 서명키 회전은 Supabase 가 JWKS 로 알아서(앱 영향 없음).
 - 장애 대응 표: Supabase Auth 다운 → 로그인만 실패(`UPSTREAM`), 기존 토큰은 JWKS 캐시로 계속 검증됨 / 문자 API 다운 → 가입·인증만 실패(`UPSTREAM`), 로그인은 정상 / LiveKit 다운 → 라이브만 실패, 작업 상태는 진행 가능 / 바디캠 끊김 → `waiting_camera`, 매니저 푸시 / Egress 실패 → `recording_status=failed`, 완료 화면 "업로드 실패", 운영자 확인.
 
@@ -1200,24 +1202,24 @@ FIREBASE_SERVICE_ACCOUNT_JSON=        # base64 한 줄 (B6)
 | 1 | 소셜 로그인(카카오·구글·네이버) | (a) 지금은 전부 휴대폰 흐름 (b) Supabase OAuth(구글·카카오; 네이버는 미지원 → 별도) B8 뒤 | **결정: (a)** (2026-09-19) |
 | 2 | OTP SMS 발송사 | 국내 문자 API | **결정: 국내 문자 API** (2026-09-19). 업체 기본 **Solapi(구 CoolSMS)** — 다른 업체(알리고·NHN Cloud·NCP SENS)를 원하면 이름만 알려주면 `SmsSender` 구현체가 바뀐다. OTP 는 Spring 이 직접 생성·검증(§7.1) |
 | 3 | 가격표 (`catalog_prices`) | 카테고리 × 주기 8개 금액. Figma 에 없음 | **결정: 임시 숫자로 시작** (2026-09-19). `V002` seed: home 80,000/100,000 · office 120,000/150,000 · appliance 60,000/70,000 · move-in 150,000/180,000 (정기/1회). 운영 전 `app_settings` 가 아니라 새 마이그레이션으로 교체 |
-| 4 | 주소 검색 API | 행안부 도로명주소 API(무료, 키 발급) / 카카오 로컬 API | **행안부**, B3 뒤 별도 항목 |
+| 4 | 주소 검색 API | 행안부 도로명주소 API(무료, 키 발급) / 카카오 로컬 API | ~~행안부~~ → **카카오** (2026-10-23 사용자 결정: juso 가 Cloud Run 에서 연결 안 됨 — 해외 IP 차단 추정) |
 | 5 | 결제(PG) | 토스페이먼츠 | 2026-10-17 사용자 요청으로 구현: 회차별 일회성 카드 결제, 고객 직접 시작, 예약·매칭 유지, 예약 취소 시 잔액 환불. 기존 구조만 결정(2026-09-19)을 대체. 자동결제 제외. `backend/docs/payments.md` |
 | 6 | 시간대 마감 | (a) 매니저 가용성으로 시각 비활성 (b) 시각은 항상 열려 있고 매칭 실패 시 안내 | **(b)** — 2026-09-27 다시 확인: 끝나는 시각이 기본 근무 종료(18시)를 넘는 늦은 슬롯도 막지 않는다('매니저가 콜을 받아야 성립', 자체 점검 #16). 매칭은 **시작 시각만** 근무시간 `[start,end]` 안이면 콜을 보낸다(끝나는 시각은 넘어도 됨, 근무 불가·겹치는 작업은 작업 전체로 본다, §6.2-1) |
 | 7 | 휴대폰 번호 변경 | OTP 재인증 화면 필요 | 후속 (지금은 변경 불가) |
 | 8 | 운영자 화면 | 매니저 승인·정산 완료 처리·후보 0명 알림을 (a) Supabase 대시보드 SQL 로 (b) 간단한 관리 API + 관리자 role | **(a)**, (b) 는 별도 계획 |
 | 9 | 콜 `eta`(이동 시간) | 위치 권한 + 거리 API 필요 | 고정 문구 |
 | 10 | 앱 토큰 저장소 | localStorage / `@capacitor/preferences` / 보안 저장소 플러그인 | localStorage → B7 전 preferences (**완료 2026-09-22** — 네이티브는 Preferences, 웹은 localStorage, `session.hydrate()`) |
-| 11 | 서버 인스턴스 수 | 1대(메모리 rate limit·스케줄러) / 여러 대(Redis 필요) | **1대** |
+| 11 | 서버 인스턴스 수 | 1대(메모리 rate limit) / 여러 대(공유 rate limit 필요) | **Cloud Run 서비스 최소/최대 1**. 리비전 중첩은 ShedLock으로 주기 작업 조율. 일반 수평 확장은 공유 rate limit 도입 후 |
 | 12 | 녹화본 형식 | MP4 만 / HLS 도 | **MP4** |
 | 13 | 고객 화면의 실시간 상태(일시정지 등) | 30초 폴링 / LiveKit 데이터 채널 / Supabase Realtime | **폴링** |
 | 14 | 매니저 앱 백그라운드 송출 | 앱이 백그라운드로 가면 WebView 카메라가 멈춘다 — Foreground Service(Android)·iOS 제약 | **다시 열림 (2026-10-10, #18 변경)**. 지금은 화면 꺼짐 방지(Keep Awake)만. 백그라운드 송출은 네이티브 작업이 필요해 별도 결정 |
 | 15 | 캡처 저장 위치 | 사진첩(iOS `NSPhotoLibraryAddUsageDescription` 이미 있음) / 앱 폴더 | 사진첩 |
-| 16 | 호스팅 | Fly.io(Tokyo) / Railway / AWS(직접) | **Fly.io** |
+| 16 | 호스팅 | Fly.io(Tokyo) / Railway / AWS(직접) | **Google Cloud Run 서울(asia-northeast3)** — 2026-10-16 사용자 변경 요청, `deploy/cloudrun/README.md` |
 | 17 | 정산 계좌 원본 보관 | 저장 안 함(정산 대행) / 암호화 저장 | **저장 안 함** |
 | 18 | 촬영 장비 | 매니저 휴대폰 = 카메라 / 별도 카메라 기기(`안심캠`) | ~~결정: 별도 바디캠 (2026-09-19) → §8 을 Ingress 구조로 다시 씀~~ → **결정: 매니저 휴대폰 (2026-10-10 사용자 결정 "바디캠이 아닌 스마트폰으로")**. `app.livekit.source`(`LIVE_SOURCE`) 기본 `app`, Ingress 코드는 `ingress` 로 남김(§8.0) |
 | 19 | **바디캠 기기 사양** | 모델명·RTMP 푸시 지원·H.264/AAC·상태 API 유무 (§8.3) | **공장 답변 대기 (2026-09-19)**. B5 실기기 검증 전까지만 필요. 그 전엔 ffmpeg/OBS 로 대체(§8.1). RTMP 가 안 되면 중계 서버 항목이 추가된다 |
 | 22 | 매니저 방문 취소·미방문 | — | **결정: 점수제** (2026-09-22, `backend/docs/manager-policy.md`). 24시간 전 월 2회 무료·이후 1점 / 24~4시간 1점 / 미방문 3점 / 지각(30분 초과) 0.5점. 3점 경고·5점 7일 정지·8점 30일 정지·10점 심사. 12개월 롤링 + 무사고 3개월마다 1점 회복. 증빙은 운영자 면제(`POST /admin/penalties/{id}/waive`, X-Admin-Token — 점수와 정지 해제가 한 트랜잭션, 문제 목록 3번). 숫자는 `app_settings.manager_penalty` |
-| 21 | 정기청소 단위 | — | **결정: 매월 1회** (2026-09-22 사용자 정정. 그 전 2026-09-19 결정은 '한 달 동안 매주'였다). 첫 방문일부터 매월 같은 날짜에 1회씩 `series_term_months` 회(기본 6)를 한 번에 생성, 주말이면 다음 평일, 자동 연장 없음(종료 7일 전 안내). 회차 매칭은 방문 7일 전 (§6.8) |
+| 21 | 정기청소 단위 | — | **결정: 매월 1회** (2026-09-22 사용자 정정. 그 전 2026-09-19 결정은 '한 달 동안 매주'였다). 첫 방문일부터 매월 같은 날짜에 1회씩 `series_term_months` 회(기본 6)를 한 번에 생성, 주말도 선택일 유지(2026-10-26 변경), 자동 연장 없음(종료 7일 전 안내). 회차 매칭은 방문 7일 전 (§6.8) |
 | 22 | 회원 탈퇴 후 이력 보존 기간 | — | **결정: 5년** (2026-09-19). `DeletedAccountPurger`(§2.5) 가 5년 뒤 남은 개인정보를 파기 — 행은 지우지 않고 개인정보 칸을 비운다 (구현 2026-09-27, 사용자 결정) |
 | 26 | 앱의 회원 탈퇴 안내 문구·정기청소 활성 시 탈퇴 차단 문구 | — | 기본값 사용(DeleteAccountSheet). 디자이너 확인 |
 | 25 | **로그인 식별자** (§7.1.1) | A: Phone provider 켜기 / B: 합성 이메일 / C: Spring 자체 JWT | **결정: A** (2026-09-19). 대시보드에서 Phone provider 를 켜고 Twilio 칸에 더미 값(`ACxxx…`/`MGxxx…`)을 넣어 저장, phone confirmations 끔, 가입 끔. 확인: phone+password grant 가 `invalid_credentials`(관문 통과), `/signup`·`/otp` 는 `signup_disabled` |
@@ -1282,5 +1284,4 @@ FIREBASE_SERVICE_ACCOUNT_JSON=        # base64 한 줄 (B6)
   8. 정기청소 주문 내용: `POST /customer/bookings/quote` + 확인 화면 "요금" 행(회차 일정·회차 금액·총액), 생성 응답에 회차·금액.
   9. 취소·변경 기한을 `starts_at − now ≥ 24h` 하나로. 지역 매칭은 '시도 시군구' 전체 문자열 + `manager_profiles.sido`. B3 테스트 문구를 본문과 일치. B1 생성 명령 4.0.x. `repair_type` 컬럼 + 결정 24.
 - **2026-09-19 (1차)** — 초안 작성, 결정 1·2·3·5·18 반영.
-
 > 2026-10-17 사용자 요청: PDF 체크리스트 기능은 V053(실제 파일 녹화 시작)·V054(체크 이력), job 패키지의 고객 API로 추가한다. 기존 V051·V052는 보존한다. 확정된 추가 계약과 규칙은 `backend/docs/api.md`·`backend/docs/domain.md`의 고객 체크리스트 절을 따른다.

@@ -90,10 +90,11 @@ public class FcmPushSender implements PushSender {
                 .putAllData(data)
                 // 안드로이드: 아직 기기에 전달되지 않은 메시지는 같은 collapseKey 의 새 메시지로 바뀐다(꺼져 있던 기기에 한 번만). HIGH = 바로 전달하는 우선순위
                 .setAndroidConfig(AndroidConfig.builder().setCollapseKey(collapseKey).setPriority(AndroidConfig.Priority.HIGH)
-                        .setNotification(AndroidNotification.builder().setTag(collapseKey).build()) // 같은 이벤트의 재전송이 트레이에 두 번 쌓이지 않게 (기기가 켜져 있어도)
+                        .setNotification(AndroidNotification.builder().setTag(collapseKey)
+                                .setChannelId("ansimclean_silent_v1").setDefaultSound(false).build())
                         .build())
-                // iOS: apns-collapse-id 가 같은 알림은 하나로 바뀌어 보인다. sound default = 기본 알림음
-                .setApnsConfig(ApnsConfig.builder().putHeader("apns-collapse-id", collapseKey).setAps(Aps.builder().setSound("default").build()).build())
+                // 두 앱 모두 무음 알림. iOS도 sound를 보내지 않는다.
+                .setApnsConfig(ApnsConfig.builder().putHeader("apns-collapse-id", collapseKey).setAps(Aps.builder().build()).build())
                 .build();
         try {
             messaging.send(message);

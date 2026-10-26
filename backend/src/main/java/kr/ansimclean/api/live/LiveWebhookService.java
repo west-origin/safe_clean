@@ -201,7 +201,7 @@ public class LiveWebhookService {
         if (e.egress() == null || e.egress().roomName() == null) return;
         sessions.lockByRoomName(e.egress().roomName()).ifPresent(s -> {
             // 녹화를 아직 모를 때만 — ready/failed 뒤에 늦게 온 started/updated 가 상태를 되돌리지 않게
-            if (LiveSession.REC_NONE.equals(s.getRecordingStatus()) && s.getEgressId() == null && !e.egress().isFinished()) s.recordingStarted(e.egress().egressId());
+            if ((LiveSession.REC_NONE.equals(s.getRecordingStatus()) || s.isRecordingStartFailed()) && s.getEgressId() == null && !e.egress().isFinished()) s.recordingStarted(e.egress().egressId());
             if (e.egress().egressId() != null && e.egress().egressId().equals(s.getEgressId())) s.noteRecordingStart(e.egress().startedAt(), true);
         });
     }

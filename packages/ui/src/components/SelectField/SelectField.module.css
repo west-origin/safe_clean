@@ -26,8 +26,18 @@
 }
 
 /* 누르고 있는 동안 배경을 바꾼다 (:active) */
-.field:active {
+.field:active:not(:disabled) {
   background: var(--color-surface-pressed);
+}
+
+.field:disabled {
+  cursor: not-allowed;
+  background: var(--color-surface-subtle);
+}
+
+.field:disabled .text,
+.field:disabled .icon {
+  color: var(--color-text-disabled);
 }
 
 /* 키보드로 이동했을 때만 보이는 포커스 테두리 */

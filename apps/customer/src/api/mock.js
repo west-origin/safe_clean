@@ -66,7 +66,7 @@ export const CONFIRM_EMPTY_COPY = { options: '선택한 옵션이 없어요', no
  * 달력 아래 안내 — 왜 어떤 날이 회색인지 (서버 규칙 §6.1 과 같은 말, 코드에서 정함 — 사용성 검토 2026-09-22).
  * 청소 예약(BookingDateTime)·수리 예약(RepairDateTime) 날짜 화면이 쓴다
  */
-export const BOOKING_DATE_NOTE = '내일부터 예약할 수 있어요. 주말은 예약할 수 없어요.';
+export const BOOKING_DATE_NOTE = '내일부터 예약할 수 있어요.';
 /**
  * 고른 방문이 변경·취소 기한(방문 N시간 전) 안일 때 — 내일 오전 방문은 예약하는 순간부터 바꾸거나 취소할 수 없는데 예약 전에 알 길이 없었다.
  * 잠긴 예약 카드의 문구도 "24시간 전까지 할 수 있어요" 라 아직 되는 것처럼 읽혔다 (코드에서 정함, 직접 사용 점검 U2)
@@ -85,11 +85,11 @@ export const CHANGE_LOCK_COPY = {
  */
 export const CHANGE_DEADLINE_HOURS = 24;
 
-/** 주소 검색 (코드에서 정함 — 주소 API(§13-4)가 아직 없다. 가짜 '검색 결과 예시' 그림을 보여 주던 것을 사실대로, 사용성 검토 2026-09-22) */
+/** 주소 검색 안내 (코드에서 정함 — 사용성 검토 2026-09-22. 검색은 카카오 로컬 API, §13-4 · 2026-10-23) */
 export const ADDRESS_SEARCH_COPY = {
   // 시·도가 없으면 서버가 받지 않는다(매칭 지역을 못 읽는다) — 예시도 시·도부터 (직접 사용 점검 U1, 코드에서 정함)
   guide: '시·도부터 입력해주세요. 예: 서울 강남구 강남대로 396',
-  noResults: '지금은 주소 검색이 연결되어 있지 않아요. 시·도부터 적은 주소 그대로 진행할 수 있어요.',
+  noResults: '검색 결과가 없어요. 시·도부터 적은 주소 그대로 진행할 수 있어요.',
 };
 
 /** 주소 입력 화면의 개인정보 안내 (Auth/ProfileAddress (84:202) › PrivacyNote) — ProfileAddress.jsx 가 쓴다 */
@@ -191,7 +191,7 @@ export const BOOKABLE_DAYS = 60;
 /** Booking/Step2 › RadioOption 문구 (기본 선택: 네 — Figma Selected) */
 export const ADDRESS_REUSE_OPTIONS = [ // api/customer.js getAddressReuseOptions 가 그대로 돌려준다
   { key: 'yes', label: '네' },
-  { key: 'no', label: '아니오' },
+  { key: 'no', label: '아니요' },  // Figma 는 "아니오" — 맞춤법대로 "아니요" (사용자 지시 2026-10-23)
 ];
 
 /** Booking/Options — 카테고리별 무료 옵션(택2) 3 + 유료 옵션 2. 문구·가격·순서 Figma 그대로. icon 은 ui ASSETS.bookingOptionIcons[category] 의 index */
@@ -275,7 +275,7 @@ export const SERIES_TERM_MONTHS = 6;
  * 정기청소가 무엇을 약속하는지 (코드에서 정함 — 배너는 '원하는 주기' 를 말하는데 실제로는 매주 한 달이었다, 사용성 검토 2026-09-22).
  * months = 서버가 준 회차 수(seriesTermMonths). 개월 수와 회차 수가 같다(매월 1회). 6 이면 '6개월 동안 6회'
  */
-export const RECURRING_TERM_NOTE = (months) => `정기청소는 매월 같은 날짜·같은 시간에 한 번씩, ${months}개월 동안 ${months}회 방문해요. 방문일이 주말이면 다음 평일로 옮겨요. 회차마다 따로 변경·취소할 수 있어요.`;
+export const RECURRING_TERM_NOTE = (months) => `정기청소는 매월 같은 날짜·같은 시간에 한 번씩, ${months}개월 동안 ${months}회 방문해요. 주말에도 선택한 날짜를 유지해요. 회차마다 따로 변경·취소할 수 있어요.`;
 
 /** Booking/Confirm 문구 */
 export const CONFIRM_COPY = { title: '예약내용을\n확인해주세요', description: '아래 내용으로 예약을 진행할게요.\n다시 한번 확인해주세요.' };
@@ -335,6 +335,25 @@ export const LIVE_CHECKLIST_COPY = {
   requestsNote: '청소 진행률과 별도로 완료 상태를 표시합니다.',
 };
 
+/**
+ * 청소 전·후 비교 사진 (2026-10-23 사용자 요청 — Figma 에 없어 코드에서 정함). GET /customer/bookings/{id}/photos 모양.
+ * ready = 매니저가 청소를 완료했다. 완료 전에는 ready=false·빈 목록이고, 완료 뒤에는 전·후가 다 있는 위치만 온다
+ */
+export const CLEANING_PHOTOS = {
+  ready: true,
+  photos: [
+    { id: 'photo-1', location: '거실 소파 앞', beforeUrl: 'https://example.com/photos/photo-1-before.jpg', afterUrl: 'https://example.com/photos/photo-1-after.jpg' },
+    { id: 'photo-2', location: '주방 싱크대', beforeUrl: 'https://example.com/photos/photo-2-before.jpg', afterUrl: 'https://example.com/photos/photo-2-after.jpg' },
+  ],
+};
+/** 녹화본 화면의 청소 전·후 비교 묶음 문구 (코드에서 정함) */
+export const CLEANING_PHOTOS_COPY = {
+  title: '청소 전·후 비교',
+  hint: '가운데 막대를 좌우로 밀어 청소 전과 후를 비교해보세요.',
+  before: '청소 전',
+  after: '청소 후',
+};
+
 /** 약관 본문 (Figma 에 화면 없음 — 코드에서 정함). 실제 문안은 법무 검토 후 실서버에서 내려받는다 */
 export const TERM_BODIES = {
   service: { title: '서비스 이용약관', body: '제1조 (목적)\n이 약관은 안심클린이 제공하는 청소 서비스의 이용 조건과 절차, 회사와 이용자의 권리·의무를 정합니다.\n\n제2조 (서비스의 내용)\n회사는 이용자가 예약한 일시에 청소 매니저를 배정하고, 청소 과정을 실시간 영상으로 제공합니다.\n\n※ 최종 문안은 법무 검토 후 반영됩니다.' },
@@ -344,7 +363,7 @@ export const TERM_BODIES = {
   ux: { title: '서비스 개선을 위한 사용자 경험 수집 동의', body: '앱 사용 패턴을 익명으로 수집해 서비스 개선에 활용합니다. 개인을 식별하는 정보는 포함되지 않습니다.' },
 };
 
-/** Booking/AddressSearch › MapPreview 이미지에 그려진 결과 4건 (mock). test/fakeHttp.js 의 GET /catalog/address 가짜 응답만 쓴다 — 실서버는 주소 API(§13-4) 연동 전이라 빈 목록을 준다 */
+/** Booking/AddressSearch › MapPreview 이미지에 그려진 결과 4건 (mock). test/fakeHttp.js 의 GET /catalog/address 가짜 응답만 쓴다 — 실서버는 카카오 로컬 API 결과를 준다 */
 export const ADDRESS_RESULTS = [
   { id: 'addr-1', main: '서울특별시 강남구 테헤란로 123', sub: '(역삼동, ABC빌딩)' },
   { id: 'addr-2', main: '서울특별시 강남구 테헤란로 123-1', sub: '(역삼동)' },

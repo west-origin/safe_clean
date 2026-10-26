@@ -18,12 +18,23 @@ function renderScreen() {
       <Routes>
         <Route path="/reservations" element={<Reservations />} />
         <Route path="/service/live" element={<p>라이브 화면</p>} />
+        <Route path="/service/photos" element={<p>사진 비교 화면</p>} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
 describe('Reservations 흐름', () => {
+  it('녹화가 없는 완료 예약에도 사진 비교 진입점이 있다', async () => {
+    const { __fake } = await import('../../api/http.js');
+    __fake.reservations.push({ id: 'done-no-video', tab: 'done', category: 'home', title: '사진 확인용 청소', status: 'done', recordingReady: false, rows: [] });
+    renderScreen();
+    fireEvent.click(await screen.findByRole('tab', { name: '완료' }));
+    const card = screen.getByRole('article', { name: '사진 확인용 청소' });
+    expect(within(card).queryByRole('button', { name: '녹화 영상 보기' })).toBeNull();
+    fireEvent.click(within(card.parentElement).getByRole('button', { name: '청소 전·후 사진 보기' }));
+    expect(await screen.findByText('사진 비교 화면')).toBeInTheDocument();
+  });
   it('예약 취소는 확인 시트를 거쳐 취소 탭으로 옮기고, 진행 중 예약은 실시간 영상 보기로 간다', async () => {
     renderScreen();
     expect(await screen.findByRole('tab', { name: /예정/ })).toBeInTheDocument();

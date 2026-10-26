@@ -19,7 +19,7 @@ function renderConfirm() {
       <Routes>
         <Route path="/booking/:category/confirm" element={<BookingConfirm />} />
         <Route path="/booking/:category/complete" element={<p>완료 화면</p>} />
-        <Route path="/booking/:category/address-search" element={<p>주소 검색 화면</p>} />
+        <Route path="/booking/:category/step2" element={<p>주소 입력 화면</p>} />
         <Route path="/booking/:category/options" element={<BookingOptions />} />
         <Route path="/booking/:category/notes" element={<p>요청사항 화면</p>} />
       </Routes>
@@ -43,14 +43,14 @@ describe('Booking/Confirm 검증', () => {
 
   // 일정은 있고 reuseAddress 'no' 인데 새 주소가 없는 초안 → 기존 주소(SAVED_ADDRESS)가 보이지 않고,
   // 주소 "수정하기" 가 주소 검색 화면으로 가는지 본다
-  it('"아니오(새 주소)" 를 골랐는데 주소가 없으면 기존 주소를 쓰지 않고 완료를 막는다', async () => {
+  it('"아니요(새 주소)" 를 골랐는데 주소가 없으면 기존 주소를 쓰지 않고 완료를 막는다', async () => {
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ date: '2026-12-01', time: '10:00', reuseAddress: 'no' }));
     renderConfirm();
     expect(await screen.findByText('주소를 입력해주세요')).toBeInTheDocument();
     expect(screen.queryByText('부산광역시 중앙대로 2127-23')).toBeNull();
     expect(screen.getByRole('button', { name: '완료' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: '주소 수정하기' }));
-    expect(await screen.findByText('주소 검색 화면')).toBeInTheDocument();
+    expect(await screen.findByText('주소 입력 화면')).toBeInTheDocument();
   });
 
   // 정기청소 + 유료 옵션(pet)이 든 초안 → 요금·회차 날짜를 확인하고 "완료" 를 누른다.
@@ -61,7 +61,7 @@ describe('Booking/Confirm 검증', () => {
     renderConfirm();
     expect(await screen.findByText('1회 83,000원 · 6회 총 498,000원')).toBeInTheDocument(); // 80,000 + 반려동물 배변 청소 3,000
     expect(screen.queryByText('수리 종류')).toBeNull();
-    expect(screen.getByText('2027년 1월 4일 (월)')).toBeInTheDocument(); // 1월 2일(토) → 다음 평일 (사용자 결정 2026-09-22)
+    expect(screen.getByText('2027년 1월 2일 (토)')).toBeInTheDocument(); // 주말도 선택일 유지
     expect(screen.getByText('결제는 청소 완료 후 진행돼요')).toBeInTheDocument();
     const done = screen.getByRole('button', { name: '완료' });
     expect(done).toBeEnabled();
@@ -102,7 +102,7 @@ describe('Booking/Confirm 검증', () => {
   it('"완료" 가 실패하면 실패 문구를 화면의 .error 모양(위 여백·가운데 정렬)으로 보인다', async () => {
     const { __fake } = await import('../../api/http.js');
     __fake.failOnce.add('POST /customer/bookings');
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ frequency: 'oneTime', date: '2026-11-02', time: '10:00', reuseAddress: 'no', roadAddress: '서울 강남구 테헤란로 1' }));
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ frequency: 'oneTime', date: '2026-11-02', time: '10:00', reuseAddress: 'no', roadAddress: '서울 강남구 테헤란로 1', detailAddress: '3층' }));
     renderConfirm();
     const done = await screen.findByRole('button', { name: '완료' });
     await waitFor(() => expect(done).toBeEnabled()); // 견적을 받은 뒤에야 켜진다
@@ -110,5 +110,10 @@ describe('Booking/Confirm 검증', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('네트워크 연결을 확인해주세요');
     expect(alert).toHaveClass(styles.error);
+  });
+  it('이전 초안에 새 주소의 상세주소가 없으면 최종 완료도 막는다', async () => {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ frequency: 'oneTime', date: '2026-11-02', time: '10:00', reuseAddress: 'no', roadAddress: '서울 강남구 테헤란로 1', detailAddress: '   ' }));
+    renderConfirm();
+    expect(await screen.findByRole('button', { name: '완료' })).toBeDisabled();
   });
 });

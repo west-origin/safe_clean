@@ -34,6 +34,9 @@ let state = {
   cameraOnline: false,
   /** 바디캠이 대기 방에 송출 중이라 이 방으로 못 옮김 → "바디캠을 껐다가 다시 켜주세요" */
   cameraBusy: false,
+  /** 녹화는 카메라 송출과 별도로 서버 상태를 표시한다. */
+  recordingStatus: 'none',
+  recordingStartFailed: false,
   /** 서버가 '매니저가 영상을 멈추고 아직 재개하지 않음' 으로 안다 (video_held). 작업이 진행 중인데 true 면 진행 화면이 '작업 상태를 바꾸지 못했어요' 시트를 다시 띄운다 */
   held: false,
   /** @type {HTMLVideoElement|null} 프리뷰 <video> */
@@ -70,9 +73,16 @@ let videoSource = null; // 영상 입력 (sources/index.js 가 만든다). 처�
 let stopEndedWatch = null; // 입력의 onEnded 구독 해제 함수
 let cameraStarting = null; // 카메라를 켜는 중인 Promise — prepare 와 start 가 겹쳐도 카메라를 두 번 열지 않게
 let cameraWanted = false; // 화면이 카메라를 원한다(prepare~stop/reset/releaseCamera) — 카메라가 저절로 꺼졌을 때 다시 켤지 정한다
+let photoMode = false; // 전/후 사진은 라이브 세션을 열지 않고 휴대폰 카메라만 사용한다.
 let publisher = null; // publishRoom 이 돌려준 송출 연결 { disconnect, replaceTrack, unmute }. 없으면 null
 let publishInfo = null; // { url, token } — start 응답의 송출 접속 정보. 끊기면 폴링 때 이것으로 다시 붙는다
 let publishConnecting = false; // 송출 연결 시도 중 — 폴링이 겹쳐도 두 번 붙지 않게
+
+// ── 청소 전·후 사진 (capturePhoto) ──
+/** 사진 비율 가로:세로 = 3:4 — ui 의 CameraFrame·BeforeAfterSlider 와 같다 (바꾸면 셋 다) */
+const PHOTO_ASPECT = 3 / 4;
+/** 저장 사진의 긴 변 최대 픽셀 (고객 앱 수리 사진 축소 image.js 와 같은 값) */
+const PHOTO_MAX_EDGE = 1600;
 
 /** 상태 일부를 바꾸고(새 객체) 구독자를 깨운다 */
 function set(patch) {
@@ -271,7 +281,7 @@ export const liveClient = {
   attachVideo(videoEl) {
     set({ videoEl });
     if (!videoEl) return;
-    if (state.source === 'app') showLocalPreview(); // 휴대폰 송출: 내 카메라 트랙을 그대로 보인다
+    if (photoMode || state.source === 'app') showLocalPreview(); // 사진 촬영 또는 휴대폰 송출 미리보기
     else if (videoTrack) videoTrack.attach(videoEl); // 바디캠 프리뷰 트랙이 먼저 와 있었으면 바로 붙인다
   },
 
@@ -281,6 +291,7 @@ export const liveClient = {
    * '카메라 다시 연결' 도 이것을 다시 부른다. 바디캠 모드면 아무것도 하지 않는다
    */
   async prepare(jobId) {
+    photoMode = false;
     let source = state.source;
     if (!source) {
       try {
@@ -307,6 +318,7 @@ export const liveClient = {
    * 같은 작업으로 다시 불러도 세션은 하나다. 서버 오류는 던지지 않고 status='error' + error 로 남긴다(작업은 이미 시작됐으므로 화면은 진행한다)
    */
   async start(jobId) {
+    photoMode = false;
     // 같은 작업의 세션이 이미 살아 있으면(연결 대기·송출·일시정지) 다시 열지 않는다. idle·error·ended 면 새로 시작한다
     if (state.jobId === jobId && ['connecting', 'live', 'paused'].includes(state.status)) return;
     // 옛 폴링·프리뷰를 정리하고 새 세션 번호(seq)를 받는다
@@ -315,7 +327,7 @@ export const liveClient = {
     await disconnectPublisher(); // 옛 송출 연결만 끊는다 — 카메라(미리보기)는 그대로 이어 쓴다
     const mySeq = ++seq;
     const startedAt = state.jobId === jobId && state.startedAt ? state.startedAt : null; // 같은 작업의 재시도만 시작 시각을 잇는다 (검수 4차: 앞 작업의 시각이 다음 작업으로 넘어갔다)
-    set({ status: 'connecting', jobId, error: null, cameraBusy: false, cameraOnline: false, startedAt });
+    set({ status: 'connecting', jobId, error: null, cameraBusy: false, cameraOnline: false, startedAt, recordingStatus: 'none', recordingStartFailed: false });
     try {
       const res = await startLiveSession(jobId);
       if (mySeq !== seq) return; // 그 사이 stop/reset 됐다
@@ -326,6 +338,7 @@ export const liveClient = {
         set({ source: 'app' });
         await connectPublisher(mySeq);
       } else {
+        stopCamera();
         await connectPreview(mySeq);
       }
       if (mySeq !== seq) return;
@@ -352,7 +365,7 @@ export const liveClient = {
       if (mySeq !== seq || myPoll !== pollSeq) return; // stop 뒤·pause/resume 전에 나간 응답은 버린다
       if (res.preview) preview = res.preview; // start 응답에만 있다 — 새 프리뷰 접속 정보로 바꾼다
       if (res.publish) publishInfo = res.publish;
-      set({ status: toStatus(res.status), cameraOnline: res.cameraOnline, cameraBusy: Boolean(res.cameraBusy), held: Boolean(res.held) });
+      set({ status: toStatus(res.status), cameraOnline: res.cameraOnline, cameraBusy: Boolean(res.cameraBusy), held: Boolean(res.held), recordingStatus: res.recordingStatus ?? 'none', recordingStartFailed: Boolean(res.recordingStartFailed) });
       if (res.status === 'ended') stopPolling();
       else if (publishInfo) connectPublisher(mySeq); // 송출이 끊겼으면 다시 붙는다 (기다리지 않는다 — 폴링 주기를 막지 않게)
       else if (!room) connectPreview(mySeq);
@@ -415,15 +428,56 @@ export const liveClient = {
     }
   },
 
+  /**
+   * 청소 전·후 사진 한 장 (2026-10-23, 코드에서 정함): 지금 미리보기 <video>(attachVideo 로 등록된 것)의 한 장면을 JPEG 파일로 만든다.
+   * 휴대폰 송출 중인 카메라를 그대로 쓴다 — 카메라를 한 번 더 열면 Android 에서 '사용 중' 으로 실패한다.
+   * 화면의 CameraFrame(3:4, cover)이 보여 주는 모양 그대로 가운데를 3:4 로 잘라 저장한다 — 청소 전 사진을 겹쳐 맞춘 각도가 저장본과 같고,
+   * 고객 앱 BeforeAfterSlider(3:4)에서도 같은 자리가 겹친다. 긴 변은 PHOTO_MAX_EDGE 로 줄인다(업로드 5MB 한도·느린 망).
+   * 영상이 아직 한 장면도 없으면(카메라 연결 전) Error('photo: notReady') 를 던진다 — 화면이 '카메라가 준비되지 않았어요' 문구로 바꾼다
+   * @returns {Promise<File>} image/jpeg
+   */
+  async preparePhoto() {
+    photoMode = true;
+    cameraWanted = true;
+    await startCamera();
+    showLocalPreview();
+  },
+
+  releasePhoto() {
+    photoMode = false;
+    if (!publisher) stopCamera();
+  },
+
+  async capturePhoto() {
+    const video = state.videoEl;
+    const width = video?.videoWidth ?? 0;
+    const height = video?.videoHeight ?? 0;
+    if (!width || !height || typeof document === 'undefined') throw new Error('photo: notReady');
+    // 가운데 3:4 영역 (가로가 넓으면 양옆을, 세로가 길면 위아래를 잘라 낸다)
+    const cropWidth = Math.min(width, height * PHOTO_ASPECT);
+    const cropHeight = Math.min(height, width / PHOTO_ASPECT);
+    const scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(cropWidth, cropHeight)); // 작은 영상은 키우지 않는다
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(cropWidth * scale);
+    canvas.height = Math.round(cropHeight * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('photo: notReady');
+    ctx.drawImage(video, (width - cropWidth) / 2, (height - cropHeight) / 2, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+    if (!blob) throw new Error('photo: notReady');
+    return new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+  },
+
   /** 로그아웃·탈퇴: 서버는 부르지 않고 폴링·프리뷰·상태를 비운다 (토큰 없는 폴링이 계속 나가지 않게) */
   reset() {
+    photoMode = false;
     seq++;
     pollSeq++;
     stopPolling();
     disconnectPreview();
     disconnectPublisher();
     stopCamera();
-    set({ status: 'idle', jobId: null, startedAt: null, cameraOnline: false, cameraBusy: false, held: false, error: null, source: null, reconnecting: false });
+    set({ status: 'idle', jobId: null, startedAt: null, cameraOnline: false, cameraBusy: false, held: false, error: null, source: null, reconnecting: false, recordingStatus: 'none', recordingStartFailed: false });
   },
 };
 

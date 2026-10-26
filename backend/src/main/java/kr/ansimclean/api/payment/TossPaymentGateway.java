@@ -2,6 +2,7 @@ package kr.ansimclean.api.payment;
 
 import java.time.Duration;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -16,6 +17,7 @@ public class TossPaymentGateway {
                          long totalAmount, long balanceAmount) {}
     private final RestClient client;
 
+    @Autowired // RestClient를 받는 테스트 생성자와 구분해 실제 기동 시 사용할 생성자를 지정한다.
     public TossPaymentGateway(CheckoutProperties properties) {
         var http = java.net.http.HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
         var factory = new JdkClientHttpRequestFactory(http);

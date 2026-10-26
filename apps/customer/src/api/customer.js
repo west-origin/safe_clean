@@ -315,7 +315,7 @@ export async function getAddressReuseOptions() {
   return ADDRESS_REUSE_OPTIONS;
 }
 
-/** Booking/AddressSearch — 주소 검색. 주소 API(§13-4) 연동 전에는 서버가 빈 목록을 준다 → 화면은 검색어를 그대로 주소로 쓴다 */
+/** Booking/AddressSearch — 주소 검색 → { query, results: [{ id, main, sub }] }. 서버가 카카오 로컬 API(§13-4)로 찾는다. 결과가 없으면 화면은 검색어를 그대로 주소로 쓴다 */
 export async function searchAddress(query) {
   const q = (query ?? '').trim();
   if (q.length < 2) return { query: q, results: [] }; // 두 글자 미만이면 서버를 부르지 않는다
@@ -399,7 +399,7 @@ export async function createBooking(category, draft) {
     notices: draft.notices ?? [],
     request: draft.request ?? '',
     // 수리 종류(repairType)는 보내지 않는다 — 수리는 수리 예약 플로우의 createRepairBooking 이 따로 만든다 (서버에서는 비어 있음 = 청소)
-    // Step2 에서 '기존 주소 사용' 에 아니오(no)를 골랐으면 true — 서버가 새로 입력한 주소를 주소 목록에 남긴다 (BookingService)
+    // Step2 에서 '기존 주소 사용' 에 아니요(no)를 골랐으면 true — 서버가 새로 입력한 주소를 주소 목록에 남긴다 (BookingService)
     saveAddress: draft.reuseAddress === 'no',
   };
   // submitKey 가 없으면 이번 호출에만 쓰는 새 키 — 화면이 다시 부르면 키가 달라 두 번 예약될 수 있다 (BookingConfirm 은 submitKey 를 초안에 둔다)
@@ -438,6 +438,14 @@ export async function getLiveChecklist(bookingId) {
     throw new ApiError(404, 'NOT_FOUND', '진행 중인 청소가 없어요');
   }
   return http.get(`/customer/bookings/${encodeURIComponent(bookingId)}/checklist`);
+}
+
+/**
+ * 청소 전·후 비교 사진 (2026-10-23, backend/docs/api.md '청소 전·후 사진 추가') → { ready, photos: [{ id, location, beforeUrl, afterUrl }] }.
+ * ready = 매니저가 청소를 완료했다. 완료 전에는 { ready: false, photos: [] }. 사진 주소는 1시간짜리 서명 URL
+ */
+export async function getCleaningPhotos(bookingId) {
+  return http.get(`/customer/bookings/${encodeURIComponent(bookingId)}/photos`);
 }
 
 /** 시청 토큰 { url, token, roomName }. 진행 중이 아니면 ApiError(LIVE_NOT_AVAILABLE) — liveClient 가 상태만 보여준다 */

@@ -116,9 +116,10 @@ class LiveControllerTest {
         mvc.perform(post("/api/v1/live/sessions/" + id + "/start").header("Authorization", "Bearer m"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.preview").isEmpty())
                 .andExpect(jsonPath("$.publish.url").value("wss://lk")).andExpect(jsonPath("$.publish.token").value("pub"));
-        when(live.status(manager, id)).thenReturn(new LiveStatusResponse("live", true, false, false, 1, null, false, "app"));
+        when(live.status(manager, id)).thenReturn(new LiveStatusResponse("live", true, false, false, 1, null, false, "app", "failed", true));
         mvc.perform(get("/api/v1/live/sessions/" + id).header("Authorization", "Bearer m"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.source").value("app")).andExpect(jsonPath("$.cameraOnline").value(true));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.source").value("app")).andExpect(jsonPath("$.cameraOnline").value(true))
+                .andExpect(jsonPath("$.recordingStatus").value("failed")).andExpect(jsonPath("$.recordingStartFailed").value(true));
     }
 
     // 가짜 AdminAuth 는 헤더가 없을 때(require(null))만 401 을 던진다 → 헤더 없이 401, 헤더가 있으면 200 과 전체 스트림 키.

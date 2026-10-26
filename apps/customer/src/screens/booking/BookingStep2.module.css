@@ -4,11 +4,23 @@
 /* PageBody: 상 72 / 하 52 */
 .body {
   padding: 72px 0 52px; /* Figma 원본값 */
+  gap: var(--spacing-4xl); /* 내용이 길어져도 마지막 섹션과 다음 버튼 사이 최소 24px */
 }
 
-/* ContentStack: 간격 79 */
+/* 주소 선택 → 입력 → 옵션 선택 사이 간격 */
 .stack {
-  gap: 79px; /* Figma 원본값 */
+  gap: var(--spacing-4xl);
+}
+
+.addressSection,
+.addressForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4xl);
+}
+
+.newAddress {
+  gap: var(--spacing-4xl);
 }
 
 /* 기존 주소 한 줄 (코드에서 정함 — 사용성 검토 2026-09-22) */

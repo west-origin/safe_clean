@@ -38,6 +38,8 @@ describe('Booking/Frequency', () => {
       </MemoryRouter>,
     );
     expect(await screen.findByText(/3개월 동안 3회 방문해요/)).toBeInTheDocument();
+    expect(screen.getByText(/주말에도 선택한 날짜를 유지해요/)).toBeInTheDocument();
+    expect(screen.queryByText(/주말이면 다음 평일로/)).toBeNull();
     expect(screen.queryByText(/6개월 동안 6회/)).toBeNull();
     __fake.seriesTermMonths = 6; // 이 파일은 가짜 서버 상태를 이어 쓰므로 되돌린다
   });

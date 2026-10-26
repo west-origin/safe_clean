@@ -2,6 +2,7 @@ package kr.ansimclean.api.offer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +28,7 @@ public class MatchingRetry {
     // 같은 예약이 계속 실패하면 다음 시각에도 전부 함께 되돌려지므로 '밤에 미룬 매칭 보내기 실패'·'자동 재매칭 실패' 로그를 확인한다.
     // 미룬 매칭을 먼저 보낸다 — 그 뒤 바로 실패한 예약도 같은 실행의 자동 재매칭이 본다(새 후보가 없으면 아무것도 안 한다)
     @Scheduled(cron = "0 5 8-20 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "MatchingRetry", lockAtLeastFor = "PT1M")
     public void run() {
         try {
             int held = offers.releaseHeldDispatches(); // held = 밤에 미뤄 둔 매칭을 이번에 보낸 예약 수

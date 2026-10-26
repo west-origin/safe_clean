@@ -1,0 +1,12 @@
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.photo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin: 0;
+}

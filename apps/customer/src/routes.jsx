@@ -38,6 +38,7 @@ const routes = [
       { path: '/home', lazy: page(() => import('./screens/home/Home.jsx')) }, // C3/C4 Home/Realtime · Home/Standard-A (캐러셀)
       { path: '/repair', lazy: page(() => import('./screens/repair/Repair.jsx')) }, // C4 Repair
       { path: '/reservations', lazy: page(() => import('./screens/reservations/Reservations.jsx')) }, // C4 Reservations
+      { path: '/service/photos', lazy: page(() => import('./screens/service/ServicePhotos.jsx')) }, // 녹화 유무와 별개로 완료 예약 사진 비교
       { path: '/payments/checkout', lazy: page(() => import('./screens/payment/Checkout.jsx')) }, // 코드에서 정함: 회차별 PG 결제
       { path: '/settings', lazy: page(() => import('./screens/settings/Settings.jsx')) }, // C4 Settings
       // Settings 아래 화면 (Figma 없음 — 코드에서 정함)

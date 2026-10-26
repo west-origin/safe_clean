@@ -103,7 +103,14 @@ export function fakeHttpModule() {
     live: null,
     livePauseFails: false,
     startFails: false, // true 면 라이브 시작이 409 INVALID_STATE (바디캠 미등록 문구)
+    /** 청소 전·후 사진 [{ id, location, beforeUrl, afterUrl }] — __fake.jobPhotos = [...] 로 미리 채운다 */
+    jobPhotos: [],
+    photoPhase: 'live', // 기존 진행 중 작업 fixture. 새 작업은 start에서 before로 바뀐다.
+    requiredRooms: ['거실', '주방', '욕실'],
   };
+  // 올린 사진 파일의 주소: 브라우저(VITE_API_MOCK=1)에서는 찍은 사진을 그대로 보이게 blob: 주소, 테스트(jsdom)에는 없어 예시 주소
+  const photoUrl = (file, name) => globalThis.URL?.createObjectURL?.(file) ?? `https://example.com/photos/${name}.jpg`;
+  const photoOf = (id) => state.jobPhotos.find((p) => p.id === id) ?? (() => { throw notFound(id); })();
   // 404 NOT_FOUND 오류를 만든다 (what = 찾지 못한 것, 문구에 붙는다)
   const notFound = (what) => new ApiError(404, 'NOT_FOUND', `찾을 수 없어요: ${what}`);
   // 지금 목록에 있는 콜을 id 로 찾는다. 없으면(이미 수락·거절돼 빠졌으면) 404
@@ -268,6 +275,7 @@ export function fakeHttpModule() {
     ['GET', /^\/manager\/jobs\/([^/]+)$/, ([id]) => (state.jobError ? (() => { throw new ApiError(state.jobError.status, state.jobError.code, state.jobError.message); })() : id === UNSTARTABLE_JOB_ID ? { ...JOB_DETAIL, id, today: false, startLabel: '9월 16일 (수) 10:00 시작', scope: [] } : { ...JOB_DETAIL, id, ...state.jobDetail })],
     ['POST', /^\/manager\/jobs\/([^/]+)\/start$/, ([id]) => {
       if (id === UNSTARTABLE_JOB_ID) throw new ApiError(409, 'INVALID_STATE', '작업 당일에만 시작할 수 있어요');
+      state.photoPhase = 'before';
       return { jobId: id, startedAt: '2026-09-15T05:02:00Z' };
     }],
     // 작업 일시정지(② 단계). ① 은 라이브 영상 차단(POST /live/sessions/:id/pause)이다.
@@ -289,6 +297,36 @@ export function fakeHttpModule() {
     ['PUT', /^\/manager\/jobs\/([^/]+)\/checklist\/([^/]+)$/, ([jobId, itemId], b) => {
       state.activeJob?.checklist.forEach((g) => g.items.forEach((i) => { if (i.id === itemId) i.done = Boolean(b.done); }));
       return { jobId, itemId, done: Boolean(b.done) };
+    }],
+    // 청소 전·후 사진 (본문은 FormData — location·file). 서버의 진행 중 작업·10곳 검사는 흉내 내지 않는다
+    ['GET', /^\/manager\/jobs\/([^/]+)\/photos$/, () => ({ photos: state.jobPhotos.map((p) => ({ ...p })), max: 10, phase: state.photoPhase, requiredRooms: [...state.requiredRooms] })],
+    ['POST', /^\/manager\/jobs\/([^/]+)\/photos\/confirm-before$/, () => {
+      if (state.requiredRooms.some((room) => !state.jobPhotos.some((p) => p.location === room))) throw new ApiError(400, 'VALIDATION', '모든 공간의 청소 전 사진을 찍어주세요');
+      state.photoPhase = 'live'; return { ok: true };
+    }],
+    ['POST', /^\/manager\/jobs\/([^/]+)\/finish-video$/, ([id]) => { state.photoPhase = 'after'; return { jobId: id }; }],
+    ['POST', /^\/manager\/jobs\/([^/]+)\/rooms$/, ([id], b) => {
+      if (!state.requiredRooms.includes(b.name)) {
+        state.requiredRooms.push(b.name);
+        state.activeJob.checklist.push({ group: b.name, items: [{ id: `room-${state.requiredRooms.length}`, label: '청소 완료', done: false }] });
+      }
+      return { jobId: id };
+    }],
+    ['POST', /^\/manager\/jobs\/([^/]+)\/photos$/, (_, b) => {
+      const n = state.jobPhotos.length + 1;
+      const photo = { id: `photo-${n}`, location: b.get('location'), beforeUrl: photoUrl(b.get('file'), `before-${n}`), afterUrl: null };
+      state.jobPhotos.push(photo);
+      return { ...photo };
+    }],
+    ['PUT', /^\/manager\/jobs\/([^/]+)\/photos\/([^/]+)\/after$/, ([, photoId], b) => {
+      const photo = photoOf(photoId);
+      photo.afterUrl = photoUrl(b.get('file'), `after-${photoId}`);
+      return { ...photo };
+    }],
+    ['DELETE', /^\/manager\/jobs\/([^/]+)\/photos\/([^/]+)$/, ([, photoId]) => {
+      photoOf(photoId);
+      state.jobPhotos = state.jobPhotos.filter((p) => p.id !== photoId);
+      return null;
     }],
     ['GET', /^\/manager\/settlements\/([^/]+)$/, ([id]) => ({ ...SETTLEMENT_DETAIL, id })],
     ['GET', /^\/manager\/schedule\?/, () => ({ items: state.scheduleItems ?? SCHEDULE.items, week: SCHEDULE_WEEK })], // 기간 조회도 기간과 상관없이 같은 일정
@@ -324,6 +362,7 @@ export function fakeHttpModule() {
       return { status: 'live', muted: false };
     }],
     ['POST', /^\/live\/sessions\/([^/]+)\/stop$/, () => {
+      if (state.liveStopFails) throw new ApiError(502, 'UPSTREAM', '실시간 영상을 종료하지 못했어요. 다시 시도해주세요');
       state.live = { ...state.live, status: 'ended' };
       return { ok: true };
     }],

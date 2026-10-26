@@ -13,4 +13,6 @@ public interface RecordingLookup {
     /** 녹화본이 준비된 예약 id 들 */
     // bookingIds 중 녹화본이 준비된 것만 골라 돌려준다. 여러 건을 한 번에 물어 예약 목록에서 예약마다 따로 조회하지 않는다
     Set<UUID> readyBookingIds(Collection<UUID> bookingIds);
+    /** 후 사진은 실제 라이브 세션 종료가 확인된 뒤에만 업로드한다. */
+    default boolean isVideoEnded(UUID bookingId) { return false; }
 }

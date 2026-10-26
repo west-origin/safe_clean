@@ -24,9 +24,11 @@ import java.util.List;
 @RequestMapping(SecurityConfig.API + "/catalog")
 public class CatalogController {
     private final CatalogService service;
+    private final AddressSearchService addresses; // 주소 검색만 카카오 로컬 API 를 부른다 (나머지는 DB 카탈로그)
 
-    public CatalogController(CatalogService service) {
+    public CatalogController(CatalogService service, AddressSearchService addresses) {
         this.service = service;
+        this.addresses = addresses;
     }
 
     /**
@@ -79,6 +81,6 @@ public class CatalogController {
     /** GET /catalog/address?q=… → 주소 검색 결과. 고객 앱 searchAddress (검색어가 두 글자 이상일 때만 부른다) */
     @GetMapping("/address")
     public AddressSearchResponse address(@RequestParam(required = false) String q) {
-        return service.searchAddress(q);
+        return addresses.search(q);
     }
 }

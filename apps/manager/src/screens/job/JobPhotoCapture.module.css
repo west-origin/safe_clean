@@ -1,0 +1,12 @@
+/* 청소 전·후 사진 촬영 화면 레이아웃 (JobPhotoCapture.jsx, 코드에서 정함) */
+
+/* 머리: (청소 후) 위치 이름 → 안내 */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.secondary {
+  color: var(--color-text-secondary);
+}

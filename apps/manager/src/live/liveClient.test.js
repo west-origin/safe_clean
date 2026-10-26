@@ -9,6 +9,19 @@ import { liveClient } from './liveClient.js';
 vi.mock('../api/http.js', async () => (await import('../test/fakeHttp.js')).fakeHttpModule());
 
 describe('manager liveClient (서버 세션)', () => {
+  it('녹화 시작 실패와 재시도 복구를 폴링하고 다음 작업에 실패를 넘기지 않는다', async () => {
+    const { __fake } = await import('../api/http.js');
+    liveClient.reset();
+    await liveClient.start('job-recording-failed');
+    __fake.live = { ...__fake.live, recordingStatus: 'failed', recordingStartFailed: true };
+    await liveClient.refresh('job-recording-failed');
+    expect(liveClient.getState()).toMatchObject({ status: 'live', recordingStatus: 'failed', recordingStartFailed: true });
+    __fake.live = { ...__fake.live, recordingStatus: 'recording', recordingStartFailed: false };
+    await liveClient.refresh('job-recording-failed');
+    expect(liveClient.getState()).toMatchObject({ recordingStatus: 'recording', recordingStartFailed: false });
+    liveClient.reset();
+    expect(liveClient.getState()).toMatchObject({ recordingStatus: 'none', recordingStartFailed: false });
+  });
   it('start 는 서버 세션을 열고 상태를 받으며, pause/resume 은 서버 확인 뒤 상태를 바꾸고, stop 은 세션을 닫는다', async () => {
     // __fake = 가짜 서버의 상태와 호출 기록 (calls 에 보낸 요청이 쌓인다). 가짜 start 는 바로 status=live 를 준다
     const { __fake } = await import('../api/http.js');

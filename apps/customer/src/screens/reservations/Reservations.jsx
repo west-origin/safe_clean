@@ -121,6 +121,9 @@ export default function Reservations() {
               recordingReady={r.recordingReady}
               onReplay={() => navigate(`/service/live?booking=${r.id}&replay=1`)}
             />
+            {r.status === 'done' && (
+              <Button variant="secondary" onClick={() => navigate(`/service/photos?booking=${encodeURIComponent(r.id)}`)}>청소 전·후 사진 보기</Button>
+            )}
             <Button
               variant="secondary"
               chevron={false}

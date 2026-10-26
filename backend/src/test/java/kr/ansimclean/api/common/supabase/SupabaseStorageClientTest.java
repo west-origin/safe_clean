@@ -29,6 +29,25 @@ class SupabaseStorageClientTest {
     SupabaseStorageClient client = new SupabaseStorageClient(new AppProperties(new AppProperties.Cors(List.of()), new AppProperties.Supabase("https://sb.example", "srk", "secret", "s"),
             null, null, null), builder);
 
+    @Test
+    void 사진_서명은_폴더_구분자를_인코딩하지_않는다() {
+        server.expect(requestTo("https://sb.example/storage/v1/object/sign/job-photos/booking-id/photo-before.jpg"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"signedURL\":\"/object/sign/job-photos/booking-id/photo-before.jpg?token=t\"}", MediaType.APPLICATION_JSON));
+        assertThat(client.signedUrl("job-photos", "booking-id/photo-before.jpg", 3600))
+                .isEqualTo("https://sb.example/storage/v1/object/sign/job-photos/booking-id/photo-before.jpg?token=t");
+        server.verify();
+    }
+
+    @Test
+    void 사진_이름의_공백과_특수문자는_각_경로_조각에서_인코딩한다() {
+        server.expect(requestTo("https://sb.example/storage/v1/object/sign/job-photos/booking-id/before%20photo%231.jpg"))
+                .andRespond(withSuccess("{\"signedURL\":\"/object/sign/job-photos/booking-id/before%20photo%231.jpg?token=t\"}", MediaType.APPLICATION_JSON));
+        assertThat(client.signedUrl("job-photos", "booking-id/before photo#1.jpg", 3600))
+                .endsWith("/booking-id/before%20photo%231.jpg?token=t");
+        server.verify();
+    }
+
     // POST /object/sign/<버킷>/<경로> 에 service-role 키를 싣는다. Supabase 가 돌려준 상대 경로(signedURL) 앞에
     // '<주소>/storage/v1' 을 붙여 앱이 바로 열 수 있는 전체 주소로 만든다
     @Test

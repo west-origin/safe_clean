@@ -30,7 +30,7 @@ import kr.ansimclean.api.common.web.RateLimiter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -122,7 +122,7 @@ public class BookingService implements ManagerWorkLookup {
         catalog.requireCategory(req.category());
         LocalDate date = parseDate(req.date());
         LocalTime time = parseTime(req.time());
-        requireBookableSchedule(date, time);
+        requireBookableSchedule(req.category(), date, time, clock.today());
         List<CatalogOption> options = catalog.requireOptions(req.category(), distinct(req.freeOptions()), distinct(req.paidOptions()));
         PriceQuote q = pricing.quote(req.category(), req.frequency(), options);
         List<LocalDate> dates = "recurring".equals(req.frequency()) ? seriesDates(date) : List.of(date); // 정기청소면 회차 날짜 전부, 1회면 그날 하나
@@ -166,7 +166,7 @@ public class BookingService implements ManagerWorkLookup {
         if ("repair".equals(req.category()) && !"oneTime".equals(req.frequency())) throw ApiException.validation("수리 예약은 1회만 가능해요"); // api.md: 수리는 oneTime 만 — 정기 회차·0원 시리즈가 생기지 않게 (검수 3차)
         LocalDate date = parseDate(req.date());
         LocalTime time = parseTime(req.time());
-        requireBookableSchedule(date, time);
+        requireBookableSchedule(req.category(), date, time, clock.today());
         List<String> freeOptions = distinct(req.freeOptions()); // 같은 key 두 번 → 한 번 (검증·가격·저장 전부 같은 목록)
         List<String> paidOptions = distinct(req.paidOptions());
         List<CatalogOption> options = catalog.requireOptions(req.category(), freeOptions, paidOptions);
@@ -327,7 +327,7 @@ public class BookingService implements ManagerWorkLookup {
         LocalDate date = parseDate(req.date());
         LocalTime time = parseTime(req.time());
         LocalDate current = b.getServiceDate();
-        requireBookableSchedule(date, time, current.isAfter(clock.today()) ? current : clock.today()); // 예약 가능 기간은 지금 방문일(이미 지났으면 오늘)부터 센다
+        requireBookableSchedule(b.getCategoryKey(), date, time, current.isAfter(clock.today()) ? current : clock.today()); // 예약 가능 기간은 지금 방문일(이미 지났으면 오늘)부터 센다
         if (date.equals(b.getServiceDate()) && time.equals(b.getServiceTime())) return toReservation(b); // 같은 일정이면 매니저를 풀지 않는다
         if (b.getSeriesId() != null) {
             BookingSeries s = seriesRepo.findById(b.getSeriesId()).orElseThrow();
@@ -575,30 +575,27 @@ public class BookingService implements ManagerWorkLookup {
 
     // ── 규칙 ──
 
-    /** §6.1 생성 조건: 내일 이후 · booking_horizon_days 안 · 평일 · time_slots 안. 아니면 SLOT_UNAVAILABLE */
-    void requireBookableSchedule(LocalDate date, LocalTime time) {
-        requireBookableSchedule(date, time, clock.today());
-    }
-
     /**
      * @param horizonFrom 예약 가능 기간(booking_horizon_days)을 세기 시작하는 날. 새 예약은 오늘,
      *   일정 변경은 오늘과 지금 방문일 중 늦은 날 — 오늘 기준으로만 세면 60일 뒤의 정기청소 회차(2~6회)는
      *   '예약 변경' 버튼이 있어도 고를 날짜가 하나도 없고 서버도 거부했다 (전체 점검 G3)
      */
-    void requireBookableSchedule(LocalDate date, LocalTime time, LocalDate horizonFrom) {
-        if (!date.isAfter(clock.today())) throw new ApiException(ErrorCode.SLOT_UNAVAILABLE, "내일부터 예약할 수 있어요");
+    void requireBookableSchedule(String category, LocalDate date, LocalTime time, LocalDate horizonFrom) {
+        if ("repair".equals(category)) {
+            if (!date.isAfter(clock.today())) throw new ApiException(ErrorCode.SLOT_UNAVAILABLE, "내일부터 예약할 수 있어요");
+        } else if (AppClock.toInstant(date, time).isBefore(clock.now().plus(Duration.ofHours(CatalogService.MIN_BOOKING_LEAD_HOURS)))) {
+            throw new ApiException(ErrorCode.SLOT_UNAVAILABLE, "현재 시간에서 최소 3시간 이후부터 예약할 수 있어요");
+        }
         int horizon = catalog.bookableDays();
         if (date.isAfter(horizonFrom.plusDays(horizon))) {
             throw new ApiException(ErrorCode.SLOT_UNAVAILABLE, horizonFrom.equals(clock.today())
                     ? "오늘부터 " + horizon + "일 안의 날짜만 예약할 수 있어요" // 전체 재점검 B1
                     : "지금 방문일(" + KoreanFormat.dateShort(horizonFrom) + ")부터 " + horizon + "일 안의 날짜로만 바꿀 수 있어요");
         }
-        DayOfWeek dow = date.getDayOfWeek();
-        if (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY) throw new ApiException(ErrorCode.SLOT_UNAVAILABLE, "주말은 예약할 수 없어요");
         if (!catalog.isTimeSlot(KoreanFormat.hhmm(time))) throw new ApiException(ErrorCode.SLOT_UNAVAILABLE, "선택할 수 없는 시간이에요");
     }
 
-    /** 정기청소 회차 날짜 (§6.8: 첫 방문일부터 매월 같은 날짜 1회씩 series_term_months 회. 주말이면 다음 평일) */
+    /** 정기청소 회차 날짜: 첫 방문일부터 매월 같은 날짜, 주말도 유지한다. */
     List<LocalDate> seriesDates(LocalDate first) {
         return BookingSeries.monthlyDates(first, settings.integer(SETTING_SERIES_TERM_MONTHS)); // 매월 1회 × termMonths (사용자 결정 2026-09-22)
     }

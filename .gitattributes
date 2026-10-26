@@ -1,0 +1,4 @@
+# Mac/Linux에서 실행하는 스크립트는 LF를 유지한다.
+**/gradlew text eol=lf
+backend/mvnw text eol=lf
+deploy/**/*.sh text eol=lf

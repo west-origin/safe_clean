@@ -74,6 +74,8 @@ class LiveServiceTest {
         room = "booking-" + booking.getId();
         device = LiveTestSupport.device();
         when(bookings.requireManagerBooking(MANAGER, booking.getId())).thenReturn(booking);
+        booking.confirmBeforePhotos(NOW);
+        when(bookings.lockManagerBooking(MANAGER, booking.getId())).thenReturn(booking);
         when(bookings.lockManagerBooking(MANAGER, booking.getId())).thenReturn(booking); // resume 은 예약을 잠그고 읽는다
         when(bookings.requireCustomerBooking(CUSTOMER, booking.getId())).thenReturn(booking);
         when(bookings.find(booking.getId())).thenReturn(Optional.of(booking));
@@ -93,6 +95,72 @@ class LiveServiceTest {
         when(sessions.findById(booking.getId())).thenReturn(Optional.of(s));
         when(sessions.lockById(booking.getId())).thenReturn(Optional.of(s));
         return s;
+    }
+
+    @Test
+    void 녹화_시작_실패는_송출과_분리해_노출하고_재시도_성공하면_복구한다() {
+        LiveSession s = liveSession();
+        when(livekit.startRecording(room, booking.getId() + ".mp4"))
+                .thenThrow(new ApiException(ErrorCode.UPSTREAM, "egress minutes exceeded"))
+                .thenReturn(new LiveKitGateway.EgressInfo("eg-retry", room, "active", null, 0, null));
+
+        service.ensureRecording(s);
+        assertThat(s.getStatus()).isEqualTo(LiveSession.LIVE);
+        assertThat(s.getRecordingStatus()).isEqualTo(LiveSession.REC_FAILED);
+        assertThat(s.isRecordingPending()).isFalse();
+        var failed = service.status(MANAGER, booking.getId());
+        assertThat(failed.cameraOnline()).isTrue();
+        assertThat(failed.recordingStatus()).isEqualTo("failed");
+        assertThat(failed.recordingStartFailed()).isTrue();
+
+        service.ensureRecording(s);
+        assertThat(s.getEgressId()).isEqualTo("eg-retry");
+        assertThat(s.getRecordingStatus()).isEqualTo(LiveSession.REC_RECORDING);
+        assertThat(service.status(MANAGER, booking.getId()).recordingStartFailed()).isFalse();
+    }
+
+    @Test
+    void 기존_녹화의_실패나_종료된_세션은_새_녹화를_시작하지_않는다() {
+        LiveSession s = liveSession();
+        s.recordingStarted("eg-failed");
+        s.recordingFailed();
+        service.ensureRecording(s);
+        s.recordingDeleted();
+        s.recordingFailed();
+        s.end(NOW);
+        service.ensureRecording(s);
+        verify(livekit, never()).startRecording(anyString(), anyString());
+    }
+
+    @Test
+    void 재조정기의_방_종료도_실패하면_ended로_기록하지_않는다() {
+        LiveSession s = liveSession();
+        s.recordingFailed();
+        org.mockito.Mockito.doThrow(new ApiException(ErrorCode.UPSTREAM, "delete failed"))
+                .doNothing().when(livekit).deleteRoom(room);
+        service.stopSession(s, null);
+        assertThat(s.isEnded()).isFalse();
+        service.stopSession(s, null);
+        assertThat(s.isEnded()).isTrue();
+    }
+
+    @Test
+    void 녹화_시작_실패도_원격_방을_종료하고_실패하면_종료_확정을_보류한다() {
+        LiveSession s = liveSession();
+        s.recordingFailed();
+        booking.start(NOW, TODAY);
+        booking.finishVideo(NOW);
+        org.mockito.Mockito.doThrow(new ApiException(ErrorCode.UPSTREAM, "delete failed"))
+                .doNothing().when(livekit).deleteRoom(room);
+
+        assertThatThrownBy(() -> service.stop(MANAGER, booking.getId())).isInstanceOf(ApiException.class);
+        assertThat(s.getStatus()).isEqualTo(LiveSession.LIVE);
+        assertThat(s.getEndedAt()).isNull();
+
+        service.stop(MANAGER, booking.getId());
+        assertThat(s.getStatus()).isEqualTo(LiveSession.ENDED);
+        assertThat(s.getRecordingStatus()).isEqualTo(LiveSession.REC_FAILED);
+        verify(livekit, never()).stopEgress(anyString());
     }
 
     // 앞: 세션 행이 없을 때 start → 방 생성(두 시간 값 21600초 = 6시간), 바디캠 Ingress 를 이 방으로, 카메라 대기 상태,
@@ -134,6 +202,8 @@ class LiveServiceTest {
     void 오늘_작업이_아니거나_기기가_없으면_INVALID_STATE() {
         Booking tomorrow = TestBookings.scheduled(CUSTOMER, MANAGER, TODAY.plusDays(1), LocalTime.of(10, 0));
         when(bookings.requireManagerBooking(MANAGER, tomorrow.getId())).thenReturn(tomorrow);
+        tomorrow.confirmBeforePhotos(NOW);
+        when(bookings.lockManagerBooking(MANAGER, tomorrow.getId())).thenReturn(tomorrow);
         // assertThatThrownBy(람다) = 람다가 예외를 던져야 통과. extracting("code") = 그 예외 객체의 code 필드 값을 꺼내 비교한다
         assertThatThrownBy(() -> service.start(MANAGER, tomorrow.getId())).isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.INVALID_STATE);
         when(devices.findById(MANAGER)).thenReturn(Optional.empty());
@@ -147,6 +217,8 @@ class LiveServiceTest {
         Booking yesterday = TestBookings.scheduled(CUSTOMER, MANAGER, TODAY.minusDays(1), LocalTime.of(22, 0));
         yesterday.start(NOW.minusSeconds(3 * 3600), TODAY.minusDays(1));
         when(bookings.requireManagerBooking(MANAGER, yesterday.getId())).thenReturn(yesterday);
+        yesterday.confirmBeforePhotos(NOW);
+        when(bookings.lockManagerBooking(MANAGER, yesterday.getId())).thenReturn(yesterday);
         LiveSession s = LiveSession.create(yesterday.getId());
         s.startWaiting("ing-1", NOW);
         s.cameraAttached("T1", false, NOW);
@@ -809,4 +881,17 @@ class LiveServiceTest {
         service.start(MANAGER, booking.getId());
         verify(livekit, never()).setIngressEnabled("ing-1", true);
     }
+
+    @Test
+    void 전_사진_미확인이나_영상_종료_후에는_송출할_수_없다() {
+        Booking fresh = TestBookings.inProgress(CUSTOMER, MANAGER, TODAY, LocalTime.of(10,0), NOW);
+        when(bookings.lockManagerBooking(MANAGER, fresh.getId())).thenReturn(fresh);
+        assertThatThrownBy(() -> service.start(MANAGER, fresh.getId())).isInstanceOf(ApiException.class);
+        booking.finishVideo(NOW);
+        assertThatThrownBy(() -> service.start(MANAGER, booking.getId())).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service.resume(MANAGER, booking.getId())).isInstanceOf(ApiException.class);
+        assertThat(LiveService.state(booking, null)).isEqualTo("ended");
+        verify(livekit, org.mockito.Mockito.never()).createRoom(anyString(), anyInt(), anyInt());
+    }
+
 }

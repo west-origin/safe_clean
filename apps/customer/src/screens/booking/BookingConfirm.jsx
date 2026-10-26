@@ -23,7 +23,7 @@ export default function BookingConfirm() {
   const { category } = useParams();
   const back = useReturnTo(); // 여기서는 '수정하기' 주소(그 단계 + ?returnTo=이 화면)를 만드는 withReturn 만 쓴다
   const [draft, update, clear] = useBookingDraft(category);
-  const useNewAddress = draft.reuseAddress === 'no'; // Step2 에서 '기존 주소 사용' 에 아니오를 골랐다
+  const useNewAddress = draft.reuseAddress === 'no'; // Step2 에서 '기존 주소 사용' 에 아니요를 골랐다
   // 화면에 필요한 목록·문구를 한꺼번에 받는다. 하나라도 실패하면 오류 화면 (기존 주소가 없는 404 만은 null 로 받아 화면을 연다)
   const { data: info, error, reload } = useAsync(
     () =>
@@ -42,11 +42,11 @@ export default function BookingConfirm() {
   // (다시 받는 조건은 아래 deps 의 카테고리·주기·날짜·시간·옵션뿐이다. 옵션 배열은 문자열 하나로 합쳐 비교한다)
   const optionKeys = [...(draft.freeOptions ?? []), ...(draft.paidOptions ?? [])].join(',');
   const quoteQ = useAsync(() => getBookingQuote(category, draft), [category, draft.frequency, draft.date, draft.time, optionKeys]);
-  // 주소: "아니오" 면 새 주소만, "네" 면 기존 주소만. 둘 다 없으면 null → 완료 불가 (info 가 오기 전에는 null)
+  // 주소: "아니요" 면 새 주소만, "네" 면 기존 주소만. 둘 다 없으면 null → 완료 불가 (info 가 오기 전에는 null)
   const address = useNewAddress ? (draft.roadAddress ? { roadAddress: draft.roadAddress, detailAddress: draft.detailAddress } : null) : (info?.savedAddress ?? null);
   const hasSchedule = Boolean(draft.date && draft.time);
   const quote = hasSchedule ? quoteQ.data : null;
-  const canComplete = Boolean(address && hasSchedule && quote);
+  const canComplete = Boolean(address?.roadAddress?.trim() && (!useNewAddress || address.detailAddress?.trim()) && hasSchedule && quote);
   // "완료": 예약 생성. 멱등 키(submitKey)를 초안에 먼저 저장해 두어, 실패 뒤 다시 눌러도 같은 키가 가고 예약이 두 번 생기지 않는다.
   // 초안 내용을 바꾸면 useBookingDraft 가 submitKey 를 지워 다음 "완료" 때 새 키를 만든다 (bookingDraft.js).
   // 주소는 위에서 고른 address(새 주소 또는 기존 주소)로 초안 값을 덮어 보낸다
@@ -89,7 +89,7 @@ export default function BookingConfirm() {
               title="주소"
               value={address ? address.roadAddress : '주소를 입력해주세요'}
               subValue={address ? address.detailAddress : undefined}
-              onEdit={() => go(useNewAddress ? 'address-search' : 'step2')}
+              onEdit={() => go('step2')}
             />
             <SummaryItem icon={ASSETS.confirmIcons.schedule} title="방문 일정" value={hasSchedule ? formatDate(draft.date) : '날짜와 시간을 선택해주세요'} subValue={hasSchedule ? formatTimeKo(draft.time) : undefined} onEdit={() => go('datetime')} />
             <SummaryItem icon={ASSETS.confirmIcons.frequency} title="서비스 주기" value={info.frequencies.find((f) => f.key === frequency)?.label} subValue={info.frequencyDescriptions[frequency]} onEdit={() => go('frequency')} />

@@ -3,13 +3,16 @@
 // 영상은 useLiveSession 의 videoRef 로만 연결. 전체 화면 → /service/live/landscape, 종료 → /reservations (PROGRESS.md 판단 항목)
 // (B5, 결정 §13-23) 바디캠은 영상만 보내므로 소리 설정 시트는 없고 음소거·설정 버튼은 비활성. ?replay=1 이면 녹화본 재생. 상태 문구(카메라 대기·중단·종료)는 서버가 준다
 // 들어오는 길 예: 내 예약 카드의 영상 보기(?booking=…)·녹화 영상 보기(&replay=1), 라이브 푸시 탭(pushClient.js).
+// (2026-10-23, 코드에서 정함) 매니저가 청소를 완료하면(서버 ready) 위치별 청소 전·후 비교 사진(BeforeAfterSlider)을 보인다 — 완료 전에는 10초마다 묻는다
+import { useState } from 'react';
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ScreenLayout, IconButton, LiveBackIcon, SettingsIcon, FullscreenIcon, ManagerIdentity, RealtimePill, VideoSurface, LiveBadge, ViewerChip, CleaningStatusCard, LiveLabeledControl, LiveCircleControl, LiveProgress, ReassuranceBanner, ScreenError, ScreenLoading, ASSETS, cx, Card, usePolling, ChecklistProgressCard, ChecklistRequests, ErrorState } from '@ansimclean/ui';
 import { useLiveSession } from '../../live/useLiveSession.js';
-import { LIVE_ERROR_COPY, LIVE_CHECKLIST_COPY } from '../../api/mock.js';
-import { getLiveChecklist } from '../../api/customer.js';
+import { LIVE_ERROR_COPY, LIVE_CHECKLIST_COPY, CLEANING_PHOTOS_COPY } from '../../api/mock.js';
+import { getLiveChecklist, getCleaningPhotos } from '../../api/customer.js';
 import { buildChapters, chapterTitleAt } from './timeline.js';
 import styles from './ServiceLivePortrait.module.css';
+import CleaningPhotoGallery from './CleaningPhotoGallery.jsx';
 
 /**
  * 라이브·녹화본 세로 시청 화면. 주소의 ?booking=예약 id 와 ?replay=1(녹화본) 을 읽어 useLiveSession 에 넘긴다.
@@ -26,6 +29,11 @@ export default function ServiceLivePortrait() {
   const readReplay = replay || (session != null && mode === 'replay');
   // PDF 카드만 최신 화면에 추가한다. 숨겨진 화면에서는 usePolling이 간격 조회를 멈춘다.
   const { data: checklist, error: checklistError, reload: retryChecklist } = usePolling(() => bookingId ? getLiveChecklist(bookingId) : Promise.resolve(null), [bookingId, readReplay], { interval: readReplay ? 0 : 5000 });
+  // 청소 전·후 비교 사진: 매니저가 완료하기 전(ready=false)에는 10초마다 다시 묻고, 완료(ready)를 한 번 받으면 멈춘다 —
+  // 받을 때마다 서명 URL 이 바뀌어 사진을 다시 내려받지 않게. 실패는 조용히 넘긴다(다음 조회·화면 복귀가 메운다)
+  const [photosReady, setPhotosReady] = useState(false);
+  const { data: photos, error: photosError, reload: retryPhotos } = usePolling(() => (bookingId ? getCleaningPhotos(bookingId) : Promise.resolve(null)), [bookingId], { interval: photosReady ? 0 : 10_000 });
+  if (photos?.ready && !photosReady) setPhotosReady(true); // 렌더 중 상태 맞추기 (React 문서의 '이전 값에 따라 상태 조정' 방식)
   const chapters = mode === 'replay' ? buildChapters(checklist?.timeline, session?.playback.totalSeconds ?? 0) : [];
   const chapterTitle = chapterTitleAt(chapters, session?.playback.ratio ?? 0);
   const isLive = mode === 'live' && status === 'live'; // 실시간 모드이면서 지금 영상이 나오는 중일 때만 LIVE 배지·실시간 표시
@@ -102,6 +110,15 @@ export default function ServiceLivePortrait() {
           {mode === 'replay' && checklist && (
             <div className={styles.checklist}><Card padding="sm" gap="sm"><ChecklistRequests copy={LIVE_CHECKLIST_COPY} requests={checklist.requests} /></Card></div>
           )}
+          {/* 청소 전·후 비교 (코드에서 정함): 매니저가 완료한 뒤에만, 전·후를 다 찍은 위치마다 막대를 미는 비교 사진 한 장 */}
+          {photos?.ready && photos.photos.length > 0 && (
+            <section className={styles.photos} aria-labelledby="cleaning-photos-title">
+              <h2 id="cleaning-photos-title" className="text-title-card">{CLEANING_PHOTOS_COPY.title}</h2>
+              <p className={cx('text-body-s', styles.hint)}>{CLEANING_PHOTOS_COPY.hint}</p>
+              <CleaningPhotoGallery photos={photos.photos} onRetry={retryPhotos} />
+            </section>
+          )}
+          {photosError && <div className={styles.photos}><ErrorState error={photosError} onRetry={retryPhotos} /></div>}
           <div className={styles.controls}>
             <LiveLabeledControl type="capture" onClick={capture} />
             <LiveLabeledControl type="exit" onClick={exit} />

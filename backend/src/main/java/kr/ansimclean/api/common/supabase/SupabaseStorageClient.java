@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.JsonNode;
 
 import java.util.Map;
@@ -62,7 +63,12 @@ public class SupabaseStorageClient {
     /** 만료가 있는 다운로드 URL */
     public String signedUrl(String bucket, String path, int expiresInSeconds) {
         try {
-            JsonNode body = client.post().uri("/object/sign/{bucket}/{path}", bucket, path)
+            // 폴더 구분자까지 하나의 변수로 넘기면 '/'가 '%2F'가 된다. Storage는 이 경로로
+            // URL을 발급하지만 이미지 GET에서 InvalidSignature가 발생하므로 각 경로 조각만 인코딩한다.
+            var signingUri = UriComponentsBuilder.fromUriString(base)
+                    .pathSegment("object", "sign", bucket)
+                    .pathSegment(path.split("/", -1)).build().encode().toUri();
+            JsonNode body = client.post().uri(signingUri)
                     .header("Authorization", "Bearer " + serviceRoleKey).header("apikey", serviceRoleKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("expiresIn", expiresInSeconds))

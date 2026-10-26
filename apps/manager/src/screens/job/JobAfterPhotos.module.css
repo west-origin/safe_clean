@@ -1,0 +1,11 @@
+/* 청소 후 사진 화면 레이아웃 (JobAfterPhotos.jsx, 코드에서 정함) */
+
+.secondary {
+  color: var(--color-text-secondary);
+}
+
+/* 하단 '2곳이 남았어요' — 할 일이라 경고색, 버튼 위 가운데 */
+.remaining {
+  color: var(--color-status-warning);
+  text-align: center;
+}

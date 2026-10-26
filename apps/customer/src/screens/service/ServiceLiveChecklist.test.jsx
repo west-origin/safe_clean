@@ -41,7 +41,7 @@ describe('고객 실시간 체크리스트와 다시보기', () => {
     Object.defineProperty(video, 'duration', { value: 630, configurable: true });
     video.currentTime = 319;
     await act(async () => { video.dispatchEvent(new Event('timeupdate')); });
-    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', '5:19 / 10:30 · 주방 · 싱크대');
+    expect(screen.getByRole('slider', { name: '재생 위치' })).toHaveAttribute('aria-valuetext', '5:19 / 10:30 · 주방 · 싱크대');
     const count = () => __fake.calls.filter((c) => c.path.endsWith('/checklist')).length;
     const before = count();
     await advance(10000);

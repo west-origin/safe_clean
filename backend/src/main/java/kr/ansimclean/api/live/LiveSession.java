@@ -324,6 +324,11 @@ public class LiveSession {
         recordingStatus = REC_FAILED;
     }
 
+    /** Egress가 발급되기 전의 시작 실패. 종료된 녹화 실패와 달리 재조정기가 다시 시도할 수 있다. */
+    public boolean isRecordingStartFailed() {
+        return REC_FAILED.equals(recordingStatus) && egressId == null;
+    }
+
     /** 보존 기간 뒤 삭제 */
     // 탈퇴 정리(AccountMediaDeletionHandler, LiveService.discardRecordingOfDeletedCustomer)도 이걸 쓴다. Storage 파일은 호출한 쪽이 먼저 지운다
     public void recordingDeleted() {

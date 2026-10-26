@@ -2,6 +2,7 @@ package kr.ansimclean.api.booking;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +24,7 @@ public class RepairPhotoCleaner {
     /** 정리 한 번. 실패해도 예외를 밖으로 던지지 않고 로그만 남긴다 — 다음 날 다시 돈다 */
     // 한 장의 삭제 실패는 deleteUnattached 안에서 경고 로그로 끝나고 남은 장은 계속 지운다. 여기서 잡는 것은 후보 목록을 읽지 못한 경우 등 정리 전체의 실패다
     @Scheduled(cron = "0 40 3 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "RepairPhotoCleaner", lockAtLeastFor = "PT1M")
     public void run() {
         try {
             int n = photos.deleteUnattached();

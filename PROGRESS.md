@@ -1,5 +1,92 @@
 # PROGRESS
 
+## Mac 빌드 인계 (2026-10-26 사용자 요청)
+- [x] 현재 앱·공용 UI·백엔드·마이그레이션·배포 소스를 커밋 대상으로 정리. 임시 파일·검증 결과물·로컬 IDE 설정·관계없는 설치 실행 파일은 제외.
+- [x] 두 앱에 공개 개발 API 주소를 담은 `.env.staging` 추가. Node.js 최소 요구 사항을 Capacitor 8에 맞게 22로 정리하고 Mac 실행 스크립트의 LF를 보장.
+- [x] `docs/mac-build.md`에 iOS/Android 개발 빌드와 서명 설정 절차 기록. iOS 실제 빌드는 Mac에서 확인 필요.
+- [x] 인계 전 프론트엔드 162개 파일의 테스트 469개, ESLint, 토큰 검사 및 두 앱의 개발 웹 빌드 통과.
+
+## 주말 예약·정기청소 날짜 유지 (2026-10-26 사용자 요청)
+- [x] 고객 청소·수리 예약의 주말 날짜 선택 및 서버 견적·생성·일정 변경 허용. 청소 최소 3시간, 수리 당일 제한, 예약 가능 기간·시간표·변경/취소 기한은 유지.
+- [x] 신규 정기청소는 첫 방문일부터 매월 같은 날짜를 유지하며 주말→월요일 이동 제거. 해당 날짜가 없는 달만 기존처럼 말일 사용. 고객 주기 안내와 확인 화면의 회차 날짜, 개발 mock도 같은 규칙 적용.
+- [x] 기존 저장 예약·DB는 변경하지 않음. 일정 변경은 기존 고객 선택 경로를 사용. 개인별 매니저 휴무·근무시간과 신규 매니저 기본 휴무 설정은 변경하지 않음.
+- [x] 매니저 앱은 기존 토·일 근무시간 편집·주말 일정 조회로 대응 가능하여 실행 코드는 유지. 주말 근무 설정 저장, 서버 토·일 매칭 허용 및 근무불가 존중 회귀 테스트 통과.
+- [x] 관련 프론트 14파일/71개, 서버 BookingServiceTest·QuoteTest·AvailabilityServiceTest 57개 통과. 변경 JS 린트·토큰 검사 통과. BookingFlowIT 기대값은 새 정책에 맞춰 수정했으며 Docker 환경 부재로 실행하지 않음.
+- [x] 후속 요청으로 고객·매니저 개발 서버용 APK 재빌드 완료(2026-10-26). 공유 Capacitor 출력 경합을 피하려 순차 빌드. Android assembleDebug·서명·패키지 ID·개발 API 포함/운영 API 미포함 확인. 고객 APK의 주말 선택·정기청소 날짜 유지 안내 포함 확인. `artifacts/android/2026-10-26-two-apps/`에 두 APK·ZIP·설치안내·SHA256/검증 기록 저장.
+- [ ] 에뮬레이터 설치·Cloud Run 배포는 이번 APK 빌드 요청 범위에서 수행하지 않음. 서버의 주말 예약 정책은 별도 배포 필요.
+
+## 기존 주소 선택 화면 통합 (2026-10-25 사용자 요청)
+- [x] Step2 '아니요' 선택 바로 아래에 주소 검색과 도로명/상세주소 입력을 통합(BookingNewAddress). 별도 주소 검색/확인 화면을 거치지 않는다. 도로명·상세주소 모두 공백이 아닌 값이어야 다음/옵션 선택 가능. 검색어 또는 도로명 변경 시 이전 상세주소를 무효화한다. 네 상태에서 저장 주소가 없으면 진행을 막는다.
+- [x] 예약 확인의 주소 수정도 Step2로 돌아오며, 이전 초안의 새 주소에 상세주소가 빠져 있어도 최종 완료를 막는다. 수리용 별도 주소 검색/확인 경로는 유지한다.
+- [x] 섹션 간격 및 내용↔다음 버튼 사이 최소 24px 보장. 공유 SelectField에 disabled 지원 추가해 옵션 화면을 통한 우회도 차단.
+- [x] 전체 프론트 161파일/455개, 예약/주소 관련 37개, lint·check:tokens 통과. 모바일 393px에서 검색 선택 후 상세주소 미입력 시 비활성/입력 후 활성 확인. 360/430px에서 가로 넘침 없음·버튼 간격 24px 실측. 캡처/기록 `artifacts/step2-validation/`.
+- [x] 고객 앱 개발 빌드/Capacitor 동기화·Android assembleDebug 성공. 두 에뮬레이터에 고객 APK 업데이트 및 SHA256 일치 확인. 5554 고객 앱 실행·프로세스/시작 오류 없음 확인(초기 am start 대기는 timeout이었으나 실제 실행 확인됨). 서버/DB 변경 없음.
+
+## 개발 주소 검색 복구 (2026-10-24)
+- [x] 원인: 최근 기능/무음 배포에서 이전 Secret Manager 버전 3을 명시해 KAKAO_REST_API_KEY가 누락됐다. 기존 정상 설정은 버전 5. 키 미설정 시 주소 API가 오류 대신 빈 목록을 돌려 앱에서 결과가 보이지 않았다.
+- [x] 개발 서버 설정을 버전 5로 복구(`ansimclean-api-test-00010-plw`, 앱/이미지 변경 없음). 도로명 검색 결과 정상 확인. 운영 환경 변경 없음.
+- [x] deploy-development.ps1에 실제 선택한 시크릿의 개발 DB 및 카카오 키 존재 검사 추가. 이후 키 없는 과거 설정 버전 배포를 차단한다. 비밀값은 출력/저장하지 않음.
+
+## 두 앱 전체 효과음 제거 (2026-10-24 추가 요청)
+- [x] Android: 고객·매니저 모든 화면 자식 View의 터치 효과음을 끄고 onResume에서도 적용. 새 무음 채널 `ansimclean_silent_v1`(IMPORTANCE_LOW, sound=null)을 생성하고 FCM 기본 채널로 지정. 기존 소리 채널을 재사용하지 않음.
+- [x] 서버: Android 메시지에 무음 채널과 default_sound=false 지정, iOS APNs sound=default 제거. 실제 전송 JSON을 검사하는 회귀 테스트 추가. FcmPushSenderTest 3개·PushServiceTest 4개 통과.
+- [x] 두 앱 개발 빌드·Capacitor 동기화·Android assembleDebug 통과.
+- [x] 개발 서버 `ansimclean-api-test-00009-9f6` 배포 및 health 확인 후 manual/1 유지. 두 에뮬레이터 각각 고객·매니저 APK 설치/해시 일치, 앱 실행 후 양쪽 앱 채널 모두 sound=null·importance=2 확인. 산출물 `artifacts/android/2026-10-24-silent/`. 운영 환경은 변경하지 않음.
+
+## 영상 구간 라벨·필수 사진·효과음 (2026-10-24 사용자 요청)
+- [x] V056: recording_segments 및 테이블/전체 컬럼 DB 코멘트, 체크 이벤트 연결, 원본 경계 시각, 실제 녹화 기준 ms, 출처/검토 상태/무효 처리. 늦은 웹훅·최종 길이에 따른 시간 보정 트리거, RLS/클라이언트 권한 회수. V057: 기존 라이브 작업의 필수 전 사진 누락 보완.
+- [x] 체크 완료 시 원본 이력+구간 같은 트랜잭션 저장, 동일 요청 멱등, 해제 시 라벨 무효화. 체크 기반 추정이므로 검토 대기로 저장. 방 이동 자동 감지는 아님.
+- [x] 매니저: 체크리스트 공간별 전 사진 필수 → 라이브 → 영상 종료 → 모든 위치 후 사진 필수 → 완료. 현장 공간 추가 시 체크리스트 항목도 추가. 재진입/직접 URL/API 우회 차단, 영상 종료 실패 재시도. 후 촬영은 송출 없이 카메라만 사용하며 기존 50% 가이드 유지.
+- [x] 고객: 기존 완료 후 전/후 비교 노출 조건 유지. 두 앱 Android 터치 효과음 및 포그라운드 알림 sound 옵션 제거.
+- [x] 검증: 프론트 전체 161파일/444개 + 사진 전용 카메라 추가 검사 포함 관련 16개 통과, 서버 전체 610개 통과. 원본 Flyway SQL 55개 적용 및 구간 트리거/코멘트/RLS 검증 통과. lint·check:tokens·두 앱 개발 빌드/Capacitor 동기화·Android assembleDebug 통과.
+- [x] 개발 배포: Cloud Run `ansimclean-api-test-00008-q9z`, 개발 DB에 V055/V056/V057 적용 확인, `recording_segments` 및 신규 예약 컬럼의 코멘트 누락 0개·RLS·클라이언트 권한 회수 확인. 개발 비공개 Storage `job-photos` 생성. 서버 manual/1·health UP 상태로 테스트용 유지. 운영 서버/DB는 변경하지 않음.
+- [x] Android: 두 에뮬레이터에 고객/매니저 최신 APK를 `install -r`로 업데이트(앱 데이터 보존), 설치본 SHA256 일치. 5554 고객·5556 매니저 실행 및 시작 크래시 없음 확인. APK/검증/안내 `artifacts/android/2026-10-24-media/`. 상세 규칙/API/라벨 한계: backend/docs/recording-labels.md.
+- [ ] 실제 현장 카메라의 화질·같은 각도 정합과 LiveKit 전체 송출/최종 파일의 전후 비교는 사용자 확인 필요. 체크 기반 공간 라벨은 검토 대기이며 방 이동 감지 결과가 아님.
+
+## 청소 전·후 사진 (2026-10-23 사용자 요청 — Figma 에 없어 코드에서 정함)
+- [x] 서버: V055 `cleaning_photos`(RLS·클라이언트 권한 회수), 비공개 버킷 `job-photos`, 매니저 GET/POST/PUT after/DELETE `/manager/jobs/{id}/photos`, 고객 GET `/customer/bookings/{id}/photos`(완료 뒤에만 ready, 전·후가 다 있는 위치만). 위치 1~20자·10곳·5MB·내용 판정·시간당 120장. Storage 는 트랜잭션 밖. 탈퇴 시 삭제(AccountMediaDeletionHandler), 완료 후 `recording_retention_days`(90일) 지나면 매일 04:20 삭제(ShedLock). 문서 `backend/docs/api.md`·`runbook.md`.
+- [x] ui: `BeforeAfterSlider`(3:4, 막대 끌기 + 키보드 range), `CameraFrame`(카메라 영상 + 청소 전 사진 50% 겹침 + 찍은 사진 확인), `PhotoPairRow`. 갤러리·테스트 추가.
+- [x] 매니저: `liveClient.capturePhoto()` — 송출 중인 카메라 영상 장면을 가운데 3:4 JPEG(긴 변 1600)로 (카메라를 다시 열지 않는다). 진행 화면 '청소 전 사진' 묶음(목록·삭제·찍기), `/job/photo`(촬영 → 다시 찍기/저장), `/job/photos/after`(청소 완료 직전 — 다 찍어야 '청소 완료', 진행 화면 확인 시트로 복귀). 청소 후 사진이 빠졌으면 '청소 완료' 가 이 화면으로 간다.
+- [x] 고객: 시청 화면(ServiceLivePortrait)에 '청소 전·후 비교' — 완료 전 10초 폴링, ready 받으면 멈추고 위치별 슬라이더.
+- [x] 검증: 프론트 161파일/443개, 백엔드 602개(실패 0, ArchitectureTest·SchedulingConfigTest 포함), check:tokens·lint·두 앱 build 통과. 갤러리 393px 에서 슬라이더·카메라 틀·사진 줄 확인.
+- [ ] `CleaningPhotoIT` 는 Docker 가 없어 컴파일만(IT 미실행). Supabase 에 `job-photos` 버킷 생성(runbook SQL)·운영 배포·실기기 촬영 확인은 하지 않음. 커밋 안 함(작업 트리에 이전 미커밋 변경이 섞여 있음).
+- 판단 항목: 화면 문구 전부(`PHOTO_COPY`·`CLEANING_PHOTOS_COPY`), 3:4 비율, 겹침 투명도 50%, 위치 10곳·20자, 청소 후 사진을 다 찍어야 완료 진행(서버는 강제하지 않음), 사진 보존 기간 = 녹화본과 같은 90일.
+
+## 두 앱 APK 재빌드 (2026-10-22 사용자 요청)
+- [x] 고객·매니저 최신 staging 웹 빌드 및 Android 자산 동기화, Gradle assembleDebug 완료. 공유 Capacitor 출력 경합으로 매니저 첫 빌드는 실패했으나 고객 빌드 종료 후 단독 재빌드 성공.
+- [x] 두 APK 서명·패키지 ID, 개발 API 포함·운영 API 미포함 확인. 고객 APK의 당일 예약·최소 3시간 코드 포함 확인.
+- [x] `artifacts/android/2026-10-22-two-apps/`에 두 APK, ZIP, 설치 안내, 패키지/서명 기록, 파일 크기·SHA256을 포함한 verification.json 저장.
+
+## 청소 예약 최소 3시간 (2026-10-22 사용자 요청)
+- [x] 청소 예약 날짜·시간 화면에서 서울 기준 현재 시각 + 3시간부터 선택 허용. 정확히 3시간은 허용하며 당일 가능한 시간이 없으면 오늘 날짜도 비활성화. 1초 갱신·앱 복귀 갱신·클릭 직전 재검사로 기존 선택 만료 반영.
+- [x] 서버 견적·예약 생성·일정 변경에서 동일한 3시간 조건 재검증. 시간표 API에 `minimumLeadHours: 3` 추가. 수리의 내일부터 예약 규칙, 주말·운영 시간표·예약 가능 기간·변경/취소 기한 유지.
+- [x] 청소·수리 예약 화면과 공용 날짜/시간 컴포넌트 회귀 테스트 42개, 서버 예약·카탈로그 단위 테스트 41개 통과. 고객 앱 빌드, 변경 JS 린트·토큰 검사 통과.
+- [x] 후속 확인: Android Studio 고객 앱이 10/19 웹 자산을 사용 중이어서 오늘을 막던 이전 화면이 실행됐다. 10/22 최신 개발 빌드 → `cap sync android` → Gradle `assembleDebug` 성공, 고객 에뮬레이터 `emulator-5554`에 `adb install -r` 업데이트 및 앱 재실행 완료. 매니저 에뮬레이터는 유지.
+- [x] 초안 없는 4종 청소 예약에서 오늘 날짜 직접 클릭·3시간 미만 비활성·이후 시간 선택 테스트 추가, 날짜 화면 테스트 7개 통과. APK 안 `minimumLeadHours`·`allowToday`·실시간 갱신 코드 포함 확인. 결과 APK는 `artifacts/android/2026-10-22/`.
+- [x] 연결 중인 개발 Cloud Run도 동일 코드로 배포 완료: 리비전 `ansimclean-api-test-00004-ksj`, 기존 Secret Manager 버전 3 유지. Cloud Build `7486e123-18ed-42f3-8d27-4db48d978bd6` 빌드·서버 테스트 통과, 개발 API health `UP`, 시간표 `minimumLeadHours=3` 확인. 운영 서버는 유지.
+
+## 운영 고객 자료 삭제 (2026-10-21 사용자 요청, 완료)
+- [x] 운영 Supabase `qztjikulkicryvmgfuaw`만 대상으로 고객 4명·Auth 계정/세션, 연결 예약 41건·정기예약 5건, 주소·고객 부가정보·관련 이력·Storage 파일 4개 삭제.
+- [x] 삭제 전 로컬 비공개 백업 및 실행 결과를 Git 제외 경로 `.env.production-customer-cleanup-20261021/`에 저장. 운영 프로젝트 고정 검사와 트랜잭션 검증 적용.
+- [x] 삭제 후 고객·주소·주거정보·예약·정기예약·결제수단·Storage 객체 0건 확인. 매니저 프로필/Auth 3명, 서비스 분류 5건·가격표 10건 보존 확인. 개발 서버·개발 DB 변경 없음.
+
+## 개발 서버 ON·고객/매니저 APK (2026-10-19 사용자 요청)
+- [x] 개발 Cloud Run을 수동 1대로 켜고 health UP 확인. 사용자 테스트를 위해 ON 유지(이전 OFF 검증 이후 상태 변경).
+- [x] cap:sync:development로 최신 두 앱의 개발 빌드를 네이티브 프로젝트에 반영. Java 21·Android SDK 36·Gradle 8.14.3 기존 캐시로 고객/매니저 assembleDebug 성공.
+- [x] artifacts/android/2026-10-19에 두 APK·설치안내·패키지/서명 검증·SHA256 포함 verification.json 저장. APK 안 새 개발 API 포함·운영 API 미포함, 확인한 서버 비밀값 일치 0건. 기기 설치/실기기 실행은 수행하지 않음.
+
+## 개발·운영 서버 분리 (2026-10-19 사용자 요청, 진행 중)
+- [x] Supabase 스킬·공식 리전 변경/요금 문서 확인. 현재 Free 조직, 새 프로젝트 견적 월 $0.
+- [x] 도쿄 DB 69개 테이블·파일 3개 백업 후 사용자 최종 승인으로 도쿄 프로젝트 삭제. 서울 원본 DB 70개 테이블·파일 4개 별도 백업.
+- [x] 서울 safe_clean_test(`xedkwtdkpxejlqpbdstb`) 생성. V051 시점 스키마·Flyway 49건·회원 7명·예약 41건 복원 및 시퀀스 조정. 인증 세션·기기 푸시 토큰·세션 폐기 목록·스케줄 잠금 제외.
+- [x] 개발 Storage 비공개 버킷 3개·파일 4개 복원 및 SHA256 일치. 새 service_role 키를 개발 환경 파일에만 저장. 개발·운영 환경 파일 초안 분리, 운영 초안 테스트 결제 키 제거.
+- [x] 새 개발 DB 비밀번호 반영 후 Session pooler TLS 인증 확인. 사용자 승인으로 개발 전용 S3 키 발급, 서명 인증 HTTP 200. Phone 로그인 켬·Email 로그인 끔·직접 가입 끔 설정/API 확인. JWT 공개키 확인.
+- [x] 개발 Cloud Run `ansimclean-api-test`·전용 실행 계정·전용 Secret Manager 구성. 운영에 적용 불가능한 Start/Stop/Status 및 기본 OFF 배포 스크립트 추가. 실제 Start→health UP·카탈로그200·미로그인401→Stop 후 manual/0·HTTP503 검증 완료. 최종 상태 OFF. 리비전 00002-tzr, 시크릿2, 빌드 eb69c8ff-18db-4932-98fe-5f55014c46a8.
+- [x] 첫 기동에서 발견한 TossPaymentGateway 생성자 주입 오류 수정(@Autowired) 및 컨텍스트 회귀 검사 추가. 로컬 4개 통과(기본 샌드박스 JDK loopback 제한은 승인 실행으로 해결), Cloud Build 558개 통과.
+- [x] 두 앱 개발 모드 API를 새 개발 서버로 분리. build:development·cap:sync:development 명령 추가. 두 개발 빌드 성공 및 새 API 포함/운영 API 미포함 확인. lint·check:tokens 통과.
+- [x] 로컬 backend/.env도 새 개발 DB/Auth/Storage로 전환(원본 설정 비공개 백업). 기존 deploy/cloudrun/.env의 테스트 결제 키 제거. 운영 원격 시크릿/리비전은 보존.
+- [ ] LiveKit·Firebase/FCM·SMS 공급자 분리, 앱 설치본 전환·실동작 검증은 미완료. 운영 고객 자료는 2026-10-21 삭제 완료(매니저·참조 데이터 보존). 상세: backend/docs/environment-separation.md.
+
 ## C7-2 체크리스트 실시간·이력·다시보기 구간 (2026-10-17 사용자 요청)
 - [x] PDF를 현재 코드에 대조. 기존 결제·Cloud Run·토큰·네이티브 변경은 보존하고 V053·V054를 추가.
 - [x] 예약 잠금으로 체크·완료를 직렬화, 같은 상태 재요청 무시, 체크/해제 이력과 당시 문구·매니저 저장. 같은 시각 순서는 event_order로 확정하고 고객 조회는 REPEATABLE_READ 스냅샷 사용.
@@ -15,6 +102,7 @@
 세션을 시작할 때 이 파일을 먼저 읽는다. 완료된 항목은 다시 만들지 않는다.
 
 ## 결제 연동 (2026-10-17 사용자 요청)
+- [x] 2026-10-19: 사용자 로그인 상점의 API 개별 연동 테스트 키를 `backend/.env`와 `deploy/cloudrun/.env`에 연결. 두 파일의 동일 키 쌍·중복 없음·Git 제외 확인. 토스 공식 API에 임의 주문번호를 읽기 전용 조회해 HTTP 404 / NOT_FOUND_PAYMENT로 시크릿 인증 통과 확인(청구 없음). 키 값은 기록하지 않음. 로컬 서버 미실행, Secret Manager 업로드·Cloud Run 배포·실제 테스트 승인/환불은 미실행.
 - [x] 기존 payment 구조 확인 후 회차별 토스 일회성 카드 결제로 확장. 예약·매칭 흐름은 유지하고 고객이 별도 결제. 자동결제는 제외.
 - [x] Flyway V052: payments 상태·환불액·재조정 시각·중복 방지 인덱스, payment_refunds 및 RLS/클라이언트 권한 차단.
 - [x] 결제 준비·조회·승인 API, PG 조회 기반 웹훅, 아웃박스 승인/환불, 상태 재조정 스케줄러 추가.
@@ -24,9 +112,31 @@
 - [x] 로컬 PostgreSQL WASM(PGlite 0.5.10)으로 원본 Flyway SQL 50개 전체 실행. 중복 결제/환불·금액 범위·RLS/권한·실제 재조정/탈퇴 가드 SQL 통과. `scripts/verify-payment-schema.mjs`와 운영 안내 `backend/docs/payments.md` 추가.
 - [ ] Docker 기반 CheckoutIT는 컴파일 완료·Docker 없어 IT 미실행. 실PG 승인·환불, Capacitor 외부 결제앱 복귀, 별도 로컬 서버 health 검증 미실행.
 - [ ] 원격 DB 임시 스키마 검증은 자동 승인 심사가 공유 환경 DDL 위험으로 거부. 실행되지 않았고 로컬 PostgreSQL 검증으로 대체.
-- [ ] 운영 적용/실결제: PG 계약·키가 없어 미실행. 운영 서버/DB에는 아직 적용하지 않음.
+- [ ] 운영 적용/실결제: 라이브 계약·키 및 배포 미완료. 테스트 키는 2026-10-19 로컬 서버/배포용 환경 파일에 연결했으며 운영 서버/DB에는 아직 적용하지 않음.
 
 계획 전체는 `PLAN.md`.
+
+## Cloud Run 배포 준비 (2026-10-16 사용자 변경 요청)
+- [x] Supabase 서울 DB 복원: `ckvanmhgepdlxvfhdxes` → `qztjikulkicryvmgfuaw`. 앱 40테이블/658행, Auth 사용자 7명 포함 156행. 총 66테이블 행 수·체크섬 일치, 구조·RLS 일치, FK 60개 위반 0건. Flyway 이력 48건과 시퀀스 보존. 결과: `backend/docs/supabase-migration-20261016.md`.
+- [x] 서울 Storage 복원: repair-photos 비공개 버킷·파일 3개 이전, 대상 재다운로드 SHA256 일치. 새 service_role 키와 Auth 관리 API·REST profiles 7행 접근 확인.
+- [x] 서울 서버 환경 전환: 수정된 Session pooler로 실제 DB 접속 검증 후 backend/.env의 DB·Supabase URL/키·JWKS·Storage endpoint/리전을 서울로 전환. 기존 환경파일 백업. 전환된 파일로 재접속 및 공식 CA 인증서 검증 성공.
+- [x] 서울 Auth 설정: 사용자 승인한 기존 방식(Twilio 더미, Spring 문자 인증) 적용. Phone 활성화·직접 신규 가입 차단·Supabase 추가 전화번호 확인 끄기 저장 후 API에서 phone=true, disable_signup=true, phone_autoconfirm=true 확인.
+- [x] Lightsail 구성을 Google Cloud Run 서울(asia-northeast3)로 교체. 기존 Compose·Caddy 파일 제거. `deploy/cloudrun/deploy.ps1`·`runtime.yaml`·운영 `.env.example`·새 프로젝트/결제/IAM/시크릿/배포/롤백 안내 추가.
+- [x] `backend/.gcloudignore`로 빌드 소스 업로드 제한. PORT 지원·cloudrun 프로필(8초 종료·생존 검사) 추가. 플랫폼 HTTPS, 서비스 최소/최대 1, CPU 상시 할당, Secret Manager 숫자 버전 파일 마운트.
+- [x] 모든 주기 작업 13개에 ShedLock 7.10.1 적용. DB 시계·잠금 갱신·최소 보유 시간으로 리비전 중첩을 조율. Flyway V051 잠금 표·클라이언트 권한 차단. Outbox 즉시 실행은 기존 행 잠금 유지.
+- [x] 검증: 발견한 `C:/Users/mrkiw/.jdks/jbr-21.0.11`로 `mvnw -DskipITs verify` 성공, 525개 테스트 통과. 스케줄러 3스레드 자동 구성과 잠금 적용 누락 회귀 검사 포함. Postgres 잠금 경쟁 IT는 컴파일 완료·Docker 없어 미실행. 배포 스크립트 DryRun·PowerShell 문법·YAML 검사 통과.
+- [x] GCP 대상 프로젝트 확인: SafeClean / safeclean-511807 / 649043347047. `deploy/cloudrun/project.json` 기록. 배포용 `.env`에 확인된 기존 값을 복사하고 운영 모드로 준비(비밀값 git 제외). 비밀 없는 소스 ZIP·Cloud Shell용 deploy.sh 준비. Cloud Shell 로그인 승인까지 완료.
+- [x] 배포 환경 연결 확인: Solapi HMAC 인증 HTTP 200·활성 발신번호 1개·SMS_SENDER 일치, 서울 Supabase S3 서명 인증 HTTP 200. recordings·profile-images·repair-photos 비공개 버킷 준비. 비밀값은 출력하지 않음.
+- [x] 공식 Google CLI 589.0.0 설치·공식 SHA256 검증. SDK OAuth 권한 확대는 최초 자동 심사 차단 후 사용자가 명시 승인하여 로그인 완료. 대상 프로젝트 safeclean-511807 확인. 인증 코드 임시 파일 삭제.
+- [x] 결제 연결 완료: SafeClean → 01D409-BEEE68-795A6F(shinsangwoon582 계정), billingEnabled=true. 사용자 승인으로 mrkiwonseo에 결제 계정 사용자 역할 부여. Google 콘솔·CLI IAM 오류는 공식 REST API로 해결.
+- [x] 실제 서울 Cloud Run 배포 완료: ansimclean-api-00001-zkw, 트래픽 100%, Cloud Build 187702cf-930a-4851-99bc-15a6ffe3db47 SUCCESS. 전용 builder·runtime 계정, Secret Manager ansimclean-api-env 버전 1. API 주소 https://ansimclean-api-rbtzr3o4cq-du.a.run.app/api/v1.
+- [x] 외부 검증: health UP, health·liveness·카탈로그 200, 비로그인 auth/me·actuator/env 401. 서울 DB V051 자동 적용(Flyway 이력 49건), 사용자 7명·예약 41건 보존. 스케줄러 잠금 기록 확인. 초기 ERROR 로그 없음.
+- [x] 고객·매니저 apps/*/.env.production에 Cloud Run API 주소 적용, mock=0, 두 앱 프로덕션 빌드 성공 및 번들 내 주소 확인. 기존 Android/iOS 작업 파일은 보존.
+- [x] 앱 접속 검사: Android https://localhost·iOS capacitor://localhost CORS 200 및 정확한 출처 응답, 외부 출처 403, 서명 없는 LiveKit 웹훅 401.
+- [x] LiveKit 웹훅 연결 완료(2026-10-17): 기존 p_6df4ofn7fr6(safe_clean) 프로젝트 URL·서명 키의 서버 설정 일치 확인. safe_clean 웹훅의 임시 trycloudflare 주소를 Cloud Run /api/v1/live/webhooks/livekit으로 교체, 서명 키 보존. 대시보드 room_started 테스트 발송 및 Cloud Run POST HTTP 204 확인. 서명 없는 요청은 401.
+- [ ] 남은 실서비스 검증: 실기기 가입·로그인·예약·라이브·녹화·푸시, 프록시 IP 속도 제한·리비전 교체 중 잠금 검증은 미실행. 설치된 앱에 새 프로덕션 빌드를 반영해야 한다.
+- [x] Android 설치 테스트 APK 2개 제작(2026-10-17): artifacts/android/2026-10-17/ansimclean-customer-test.apk·ansimclean-manager-test.apk. 최신 웹 빌드 → Capacitor Android sync → Gradle assembleDebug 성공. APK 서명·앱 ID·최소 API 24·내장 Cloud Run 주소·서버 비밀값 미포함·Firebase 프로젝트 일치 확인. 두 앱은 한 기기에 함께 설치 가능. 실제 기기 실행은 사용자 테스트 대기.
+- [x] APK 제작 검증: 테스트 385개/146파일·lint·check:tokens 통과. 테스트의 Windows 임시 파일 권한 문제는 작업 폴더 TEMP와 승인된 실행으로 해결. 로컬 Google SDK·이전 작업용 .env.* 폴더가 lint에 포함되던 것을 산출물 제외 규칙으로 수정. APK 폴더는 Git 제외.
 
 ## 단계 0 — 부트스트랩
 - [x] git 초기화, .gitignore, README
@@ -829,3 +939,14 @@ Figma 매니저 페이지(22화면)에 로그인·가입 화면이 없어 사용
 - [x] R13: Android 플러그인의 unregister 가 FCM 토큰 삭제를 기다리지 않아, 로그아웃 직후 다시 로그인하면 곧 무효가 될 옛 토큰이 등록돼 새 사용자가 앱을 다시 켤 때까지 푸시를 못 받았다. 두 앱 pushClient 가 마지막으로 푼 토큰을 기억해 같은 값이 오면 등록하지 않고 5초 뒤 register() 를 한 번 더 부른다(두 번째 답은 받아들임, iOS 는 그대로 — 한계는 주석, 네이티브 수정 없음) (합친 38건 검토 R13).
 - [x] R16: 매칭 실패 표시 없이 취소된 수리 예약의 완료 화면을 다시 열면 '배정 중' 과 배정 안내가 보였다. 예약 응답(BookingResponse)에 cancelled 를 더하고(api.md → 서버 → 앱·가짜 서버, 마이그레이션 없음), 완료 화면은 매칭 실패·취소면 서버 매니저 칸('배정 전 취소')을 보이고 🔔 안내와 머리글 뒷문장을 같은 조건으로 숨긴다(서비스·컨트롤러 테스트, BookingFlowIT 는 IT 미실행) (합친 38건 검토 R16). 코드에서 정한 문구: "취소된 예약도 매칭 실패와 같이 수리 완료 화면 머리글은 Figma 설명의 첫 문장만('방문 일정과 주소를 확인해 주세요.'), 기사 배정 행은 서버 cleaner('배정 전 취소' — 기존 BookingMapper 문구), 🔔 안내 숨김"
 - 남은 한계(코드로 막지 못한 것): ① 앱을 켜자마자 저장된 세션이 401 로 끊기고 그 처리가 푸시 모듈의 세션 구독보다 먼저 끝나면 기기 등록 해제를 놓칠 수 있다(세션 모듈 구조 변경이 필요해 보류) ② Android 푸시 플러그인은 토큰 삭제 완료를 기다리지 않아, 재로그인 때 5초 뒤 한 번 더 받는 우회만 했다(네이티브 수정 금지) ③ 새로 쓰거나 고친 통합 테스트(MatchingIT·PenaltyWaiveIT·SupportIT·BookingFlowIT·LiveSessionIT·IdempotencyIT)는 Docker 가 없어 **실행하지 못했다** — CI 나 Docker 가 있는 컴퓨터에서 `./mvnw verify` 로 확인해야 한다.
+
+## 예약 주소 단계 수정 (2026-10-23, 사용자 요청)
+- [x] "기존 주소를 사용할까요?" 선택지 "아니오" → "아니요" (`mock.js` ADDRESS_REUSE_OPTIONS, Step2 안내 문구·테스트). **Figma 문구와 다름** — 사용자 지시로 맞춤법을 따름(CLAUDE.md §2-10 예외)
+- [x] 주소 검색 실제 연동(§13-4): 서버 `AddressSearchService` 가 행안부 도로명주소 검색 API(business.juso.go.kr)를 불러 최대 10건(`main` = roadAddrPart1, `sub` = "(동, 건물명)" 또는 지번). 키 `JUSO_API_KEY`(비우면 빈 결과 = 직접 입력만), juso 오류 코드는 빈 결과, 호출 실패는 502 UPSTREAM. 검색어의 특수문자·SQL 예약어는 지우고 보낸다. 검색어는 로그에 남기지 않는다. 앱은 입력이 300ms 멈추면 검색하고 검색 중에는 '결과 없음' 을 띄우지 않는다. 테스트: `AddressSearchServiceTest`(MockRestServiceServer)·`SecurityConfigTest`(슬라이스)·`BookingAddressSearch.test.jsx`. IT 미실행(Docker 없음) — `CatalogIT` 에 주소 경로는 없다(외부 API라 단위·슬라이스로 대신)
+- 판단(코드에서 정함): '결과 없음' 문구 "검색 결과가 없어요. 시·도부터 적은 주소 그대로 진행할 수 있어요." (예전 "주소 검색이 연결되어 있지 않아요" 대체) / 검색 지연 300ms / 결과 10건
+- 남은 일: 운영 `.env` 에 `JUSO_API_KEY` 발급·입력(검색API 승인키, 운영용은 도메인·IP 등록 필요할 수 있음). 가입 주소(ProfileAddress)·주소 관리(Addresses)는 아직 직접 입력
+- [x] 운영 적용 시도(2026-10-23): 운영 실제 소스(리비전 00001 빌드 소스 = `a0d4f18` + 스케줄러 잠금 V051)에 주소 변경만 얹어 리비전 `ansimclean-api-00002-6jh` 배포, 시크릿 `ansimclean-api-env` v2 = v1 + `JUSO_API_KEY`. **Cloud Run 에서 business.juso.go.kr 연결 실패(ResourceAccessException, 요청 60초 정지)** → 트래픽을 00001 로 되돌림(주소 검색은 예전처럼 빈 결과). 같은 키로 로컬(국내 IP)에서는 정상. 시간 제한이 공용 설정으로 걸리지 않던 것 → `AddressSearchService` 에 연결 3초·응답 5초 직접 설정(로컬 확인)
+- 남은 일: Cloud Run → juso 연결 경로 결정(고정 국내 IP 경유 / 카카오 로컬 API 등) 후 재배포
+- [x] 개발 Cloud Run 시험(2026-10-23): `ansimclean-api-test-00005-g94`(시크릿 `ansimclean-test-env` v4, 작업 트리 backend 그대로) — juso 호출이 3초 연결 제한에 걸려 502 UPSTREAM(ResourceAccessException). **Cloud Run(개발·운영) → juso 연결 불가 확정**, 시간 제한 수정은 동작(3초에 실패 응답). 시험 뒤 개발 서버 OFF
+- [x] 주소 검색을 카카오 로컬 API 로 교체(2026-10-23, 사용자 결정 — juso 는 Cloud Run 에서 연결 불가): `AddressSearchService` 가 주소 검색(search/address) + 키워드(장소) 검색(search/keyword)을 불러 합쳐 최대 10건(주소 결과 먼저, 같은 주소 중복 제거). 지명·도로 이름만인 결과(REGION·ROAD)는 번지가 없어 뺀다. 키 `KAKAO_REST_API_KEY`(`JUSO_API_KEY` 는 env 파일에서 지움). 앱 변경 없음. 카카오 주소의 짧은 시·도("서울")는 기존 AddressRegion 이 정식 이름으로 저장. **카카오 REST 키 받기 전이라 실제 호출은 미확인**
+- [x] 카카오 주소 검색 운영 반영(2026-10-23): 로컬·개발(`ansimclean-api-test-00006-nhm`, 시크릿 v5) 확인 뒤 운영 리비전 `ansimclean-api-00003-5ls` 100% (운영 소스 00001 + 주소 변경만, 시크릿 `ansimclean-api-env` v3 = v1 + `KAKAO_REST_API_KEY`). 운영에서 "서울 강남구 테헤란로 123"·"래미안퍼스티지"·부산 주소 검색 확인, health UP. 되돌리기: `update-traffic --to-revisions=ansimclean-api-00001-zkw=100`

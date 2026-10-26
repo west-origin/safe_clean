@@ -9,6 +9,7 @@ import kr.ansimclean.api.common.outbox.OutboxService;
 import kr.ansimclean.api.common.time.AppClock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -68,6 +69,7 @@ public class LiveReconciler {
      * 스케줄러 입구: 앞 실행이 끝나고 60초 뒤마다 reconcile 을 부른다 (CODE_GUIDE.md 3-9). 예외는 여기서 잡아 로그만 남긴다
      */
     @Scheduled(fixedDelay = 60000)
+    @SchedulerLock(name = "LiveReconciler", lockAtLeastFor = "PT50S")
     public void run() {
         try {
             reconcile();
@@ -192,7 +194,7 @@ public class LiveReconciler {
         if (b == null) return;
         ManagerDevice device = b.getManagerId() == null ? null : devices.findById(b.getManagerId()).orElse(null);
         // 작업이 완료·취소됐는데 세션이 아직 열려 있다 — 녹화 정지·방 삭제·바디캠 반납을 여기서 한다 (stopSession, live/stop 과 같은 처리)
-        if (b.getStatus() == BookingStatus.DONE || b.getStatus() == BookingStatus.CANCELLED) {
+        if (b.getStatus() == BookingStatus.DONE || b.getStatus() == BookingStatus.CANCELLED || b.getVideoFinishedAt() != null) {
             live.stopSession(s, device);
             return;
         }

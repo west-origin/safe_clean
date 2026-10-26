@@ -113,6 +113,10 @@ export { default as StepQuestion } from './components/StepQuestion/index.js';
 export { default as OptionGroup } from './components/OptionGroup/index.js';
 export { default as SelectionSummary } from './components/SelectionSummary/index.js';
 export { default as PhotoPicker } from './components/PhotoPicker/index.js';
+// 청소 전·후 사진 (코드에서 정함, 2026-10-23)
+export { default as BeforeAfterSlider } from './components/BeforeAfterSlider/index.js';
+export { default as CameraFrame } from './components/CameraFrame/index.js';
+export { default as PhotoPairRow } from './components/PhotoPairRow/index.js';
 export { default as InfoNote } from './components/InfoNote/index.js';
 export { default as SelectedAddressCard } from './components/SelectedAddressCard/index.js';
 export { default as ToggleChip } from './components/ToggleChip/index.js';

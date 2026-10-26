@@ -1,0 +1,4 @@
+SPRING_PROFILES_ACTIVE: prod,cloudrun
+SPRING_CONFIG_IMPORT: file:/secrets/backend.env[.properties]
+CLIENT_IP_HEADER: X-Forwarded-For
+JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError

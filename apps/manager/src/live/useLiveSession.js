@@ -11,6 +11,7 @@ import { liveClient } from './liveClient.js';
  *   jobId: string|null,
  *   startedAt: number|null,
  *   cameraOnline: boolean, cameraBusy: boolean, held: boolean,   held = 서버가 '매니저가 영상을 멈춘 채' 로 안다 (재개할 때까지 영상을 막아 둔다)
+ *   recordingStatus: 'none'|'recording'|'uploading'|'ready'|'failed', recordingStartFailed: boolean,
  *     cameraBusy = 바디캠을 껐다가 다시 켜야 한다 (바디캠 모드 §8.1)
  *   source: 'app'|'ingress'|null,   영상 출처 (app = 휴대폰 카메라 송출, §8.0)
  *   camera: 'off'|'starting'|'ready'|'error',   휴대폰 카메라 상태 (app 모드)
@@ -23,11 +24,12 @@ import { liveClient } from './liveClient.js';
  *   start: (jobId: string) => Promise<void>,
  *   pause: (jobId?: string) => Promise<void>, resume: (jobId?: string) => Promise<void>,   실패하면 reject — 화면은 그때 이동하지 않는다. jobId 는 재진입(앱 재실행) 대비
  *   stop: (jobId?: string) => Promise<void>,
+ *   capturePhoto: () => Promise<File>,   미리보기 영상의 지금 장면을 3:4 JPEG 로 (청소 전·후 사진). 영상이 아직 없으면 reject
  * }}
  */
 export function useLiveSession() {
   // useSyncExternalStore = React 밖의 저장소(liveClient)를 구독하고, 상태가 바뀌면 이 훅을 쓰는 화면을 다시 그린다
-  const { status, jobId, startedAt, cameraOnline, cameraBusy, held, source, camera, cameraError, reconnecting, error } = useSyncExternalStore(liveClient.subscribe, liveClient.getState);
+  const { status, jobId, startedAt, cameraOnline, cameraBusy, recordingStatus, recordingStartFailed, held, source, camera, cameraError, reconnecting, error } = useSyncExternalStore(liveClient.subscribe, liveClient.getState);
   // 함수들은 liveClient 의 것을 그대로 넘긴다. videoRef 는 <VideoSurface ref={videoRef}> 처럼 ref 로 쓴다
   return {
     status,
@@ -35,6 +37,8 @@ export function useLiveSession() {
     startedAt,
     cameraOnline,
     cameraBusy,
+    recordingStatus,
+    recordingStartFailed,
     held,
     source,
     camera,
@@ -48,5 +52,8 @@ export function useLiveSession() {
     pause: liveClient.pause,
     resume: liveClient.resume,
     stop: liveClient.stop,
+    capturePhoto: liveClient.capturePhoto,
+    preparePhoto: liveClient.preparePhoto,
+    releasePhoto: liveClient.releasePhoto,
   };
 }

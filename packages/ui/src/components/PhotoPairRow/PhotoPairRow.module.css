@@ -1,0 +1,114 @@
+/* PhotoPairRow.jsx 스타일 (코드에서 정함). 구조: .row > .main(사진 · 글 · 사진) + .remove */
+
+/* 한 줄: 왼쪽 본문이 남는 폭을 다 쓰고, 삭제 버튼은 오른쪽 끝. 위아래 여백은 목록 카드(Card padding="list" divided)의 줄 간격 */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-md) 0;
+}
+
+/* 본문: 사진 · 글 · (사진)을 가로로. 버튼일 때도 같은 모양 */
+.main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--spacing-lg);
+  min-width: 0;
+  min-height: var(--touch-target);
+  padding: 0;
+  text-align: left;
+}
+
+/* 버튼으로 그릴 때 기본 모양 지우기 */
+.button {
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button:active {
+  opacity: 0.7;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* 사진 칸: 3:4 작은 사진 (촬영 틀과 같은 비율) */
+.thumb {
+  flex-shrink: 0;
+  width: 48px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--color-surface-subtle);
+}
+
+/* 청소 후 사진이 아직 없을 때의 빈 칸: 점선 테두리 + 가운데 글자 */
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--color-border-default);
+  color: var(--color-text-secondary);
+}
+
+/* 위치 이름 + 설명을 세로로. 길면 말줄임 */
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+  min-width: 0;
+}
+
+.location {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.description {
+  color: var(--color-text-secondary);
+}
+
+.done {
+  color: var(--color-status-success);
+}
+
+.needed {
+  color: var(--color-status-warning);
+}
+
+/* 삭제: 글자 버튼. 시각 크기는 작아도 터치 영역은 44px */
+.remove {
+  flex-shrink: 0;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  margin: 0;
+  padding: 0 var(--spacing-sm);
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.remove:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.button:disabled,
+.remove:disabled {
+  color: var(--color-text-disabled);
+  cursor: default;
+}

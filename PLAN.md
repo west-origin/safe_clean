@@ -1,5 +1,7 @@
 # 안심클린 앱 제작 계획 (2026-09-18 승인됨)
 
+2026-10-24: 사용자 요청으로 영상 공간 구간(recording_segments, DB 코멘트 포함), 체크 완료 시 자동 기록, 전 사진→라이브→종료→후 사진→완료 필수 단계를 구현한다. 방 목록은 체크리스트 스냅샷과 현장 추가 공간이며, 체크 구간은 검토 전 추정 라벨이다. 두 앱의 Android 효과음을 끄고 개발 서버 배포 및 Android Studio 확인용 동기화/빌드를 수행한다. 새 앱/서버 런타임 패키지는 추가하지 않는다. 사양: backend/docs/recording-labels.md.
+
 2026-10-17: 사용자 요청으로 PDF의 C7-2 체크리스트 실시간·체크 이력·다시보기 구간을 구현한다. 기존 결제/배포 변경을 보존하며 V053·V054를 추가한다. 고객 API는 job 패키지에 두고 기존 job → live 방향을 유지한다. PDF의 구버전 프레임 중 카드만 채택하고 최신 라이브 화면에 추가한다. 구현 보완·호환성·검증 기록은 PROGRESS.md의 동일 절에 남긴다.
 
 2026-10-17: 사용자 결제 구현 요청. 토스 일회성 카드 결제를 방문 회차별로 고객이 시작하도록 추가한다. 예약·매칭 흐름은 유지하며 자동결제·카드 저장은 제외한다. 새 화면 `/payments/checkout`과 예약 완료·내 예약의 결제 진입, Flyway V052 및 복구/환불을 구현한다. 앱 런타임 패키지는 추가하지 않으며, Docker 없는 SQL 검증만 격리된 `artifacts/payment-validation`의 PGlite 0.5.10을 사용한다. 사양은 `backend/docs/payments.md`.
@@ -10,6 +12,9 @@ Figma: `oByA7xoimyX0pPaS7aJpuo` (Page 1 = 고객용, `청소매니저 앱` = 매
 
 > 승인된 결정: JavaScript(JSX) · CSS Modules · React 웹 + Capacitor(iOS/Android) · LiveKit(실시간 송출 + 서버 녹화). 단계마다 보고 후 다음 단계로 간다.
 > 진행 상태는 `PROGRESS.md`에 항목 단위로 기록한다 (아직 없음 = 처음 시작).
+
+2026-10-16: 사용자 요청으로 API 호스팅을 Google Cloud Run 서울로 변경.
+리비전 교체 중 주기 작업의 중복 실행을 방지하려고 ShedLock(Spring/JDBC, 7.10.1)을 추가한다.
 
 ---
 

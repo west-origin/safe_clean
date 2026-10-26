@@ -1,0 +1,46 @@
+/* CameraFrame.jsx 스타일 (코드에서 정함). 구조: .frame > <video> + (겹친 사진 | 찍은 사진) + children */
+
+/* 틀: 3:4 비율(고객 앱 BeforeAfterSlider·liveClient.capturePhoto 와 같다), 둥근 모서리, 영상 전에는 검정 */
+.frame {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-md);
+  background: var(--raw-video-bg);
+}
+
+/* 영상·사진 공통: 틀을 꽉 채운다. cover 라 찍어 저장한 사진(같은 비율로 잘림)과 같은 모습이다 */
+.layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 청소 전 사진을 반만 비치게 겹친다 — 아래 영상과 함께 보여 각도를 맞출 수 있다. 터치는 아래로 통과 */
+.ghost {
+  z-index: 1;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Android WebView의 영상 합성 레이어 위에도 전 사진이 올라오도록 순서를 명시한다. */
+.video {
+  z-index: 0;
+}
+
+.preview {
+  z-index: 2;
+}
+
+.referenceOnly {
+  opacity: 1;
+}
+
+/* 찍은 사진을 확인하는 동안 영상은 숨긴다 (요소는 남겨 카메라 연결을 유지) */
+.hidden {
+  visibility: hidden;
+}

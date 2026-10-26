@@ -14,13 +14,14 @@ import styles from './SelectField.module.css';
  * @param {string} [props.value] 선택된 값 문구. 없으면 placeholder 표시
  * @param {'calendar'|'chevron'} [props.icon='chevron'] 우측 아이콘 (DateTimeField / OptionSelectField)
  * @param {() => void} [props.onClick]
+ * @param {boolean} [props.disabled] 선행 입력이 완료되기 전 이동 차단
  * @param {string} [props.className]
  */
-export default function SelectField({ placeholder, value, icon = 'chevron', onClick, className }) {
+export default function SelectField({ placeholder, value, icon = 'chevron', onClick, disabled = false, className }) {
   // styles[icon]: icon 이 'calendar' 면 .calendar(오른쪽 패딩 38)가 붙는다. 'chevron' 클래스는 CSS 에 없어 아무것도 안 붙는다.
   // 글자가 길면 한 줄에서 말줄임(…)으로 자른다 (.text).
   return (
-    <button type="button" className={cx(styles.field, styles[icon], className)} onClick={onClick}>
+    <button type="button" className={cx(styles.field, styles[icon], className)} onClick={onClick} disabled={disabled}>
       <span className={cx('text-heading-s', styles.text, value ? styles.value : styles.placeholder)}>{value || placeholder}</span>
       {icon === 'calendar' ? <CalendarIcon className={styles.icon} /> : <ChevronRightTinyIcon className={styles.icon} />}
     </button>

@@ -14,6 +14,12 @@ import static org.mockito.Mockito.when;
 // 확인 문구 응답(confirmCopy)의 정기청소 회차 수.
 // 레포지토리·설정은 Mockito 목이고, 이 테스트가 쓰지 않는 레포지토리는 생성자를 채우려고 빈 목으로 넣는다.
 class CatalogServiceTest {
+    @Test
+    void 시간표는_청소_최소_예약_간격을_앱에_알린다() {
+        when(settings.node(CatalogService.SETTING_TIME_SLOTS)).thenReturn(new tools.jackson.databind.ObjectMapper().readTree("{\"am\":[\"09:00\"],\"pm\":[\"18:00\"]}"));
+        assertThat(service.timeSlots(null, null).minimumLeadHours()).isEqualTo(3);
+    }
+
     ServiceCategoryRepository categories = mock(ServiceCategoryRepository.class);
     CatalogOptionRepository options = mock(CatalogOptionRepository.class);
     CatalogFrequencyCopyRepository frequencyCopy = mock(CatalogFrequencyCopyRepository.class);

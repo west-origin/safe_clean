@@ -1,14 +1,10 @@
-// Figma: Manager/Job/InProgress (2140:2622) + Manager/Job/PauseSheet (2141:2624) + Manager/Job/CompleteConfirm (2141:2686) — 둘 다 바텀시트
-// 프로토타입: 촬영 일시정지 → PauseSheet → Job/Paused · 청소 완료 → CompleteConfirm → (계속 청소하기: 닫기 / 청소 완료: Job/Complete)
-// (B5, §9.2-8) 상단 카드의 촬영 상태 문구는 라이브 세션(useLiveSession) 에서: 카메라 연결 대기 중 / 실시간 촬영 중 / 일시정지, 바디캠이 대기 방에 붙어 있으면 "껐다가 다시 켜주세요". 아래 작은 프리뷰(VideoSurface)는 바디캠 영상
-// 일시정지 순서(코드에서 정함): ① 영상 차단(live.pause, 실패하면 여기서 멈추고 시트에 문구) → ② 작업 상태 변경(pauseJob) → ③ 화면 이동. 영상이 계속 나가는데 "일시정지" 화면이 뜨는 일이 없게 한다
-// 재진입: 앱을 다시 열어 라이브 세션 상태가 비어 있으면 서버가 준 작업 id 로 live.start 를 다시 부른다(서버 세션은 하나라 같은 세션에 붙는다)
-// 매니저 앱 /job/in-progress 화면. 들어오는 곳 예: JobPreparing 의 '청소 시작', JobPaused 의 '촬영 다시 시작'.
-// 진행 중 작업(getActiveJob → GET /manager/jobs/active)을 받아 경과 시간·촬영 상태·고객 요청·체크리스트를 그린다.
+// 실시간 청소 진행 화면. 서버 photo phase가 live일 때만 입장/송출한다.
+// 체크 완료는 서버에 저장하고, 하단 종료 버튼은 종료 의도 저장 → 라이브 종료 → 필수 후 사진 순서다.
+// 일시정지는 기존 영상 차단 → 작업 상태 변경 순서와 실패 복구를 유지한다.
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ScreenLayout, Card, Button, StatusBadge, CameraStatusItem, ChecklistItem, ProgressBar, Sheet, VideoSurface, cx, useAsync, useAction, ScreenError, ScreenLoading, ActionError, useElapsed } from '@ansimclean/ui';
-import { getActiveJob, setChecklistItem, getPauseReasons, pauseJob, completeJob } from '../../api/manager.js';
+import { getActiveJob, setChecklistItem, getPauseReasons, pauseJob, getJobPhotos, finishJobVideo } from '../../api/manager.js';
 import { LIVE_STATE_COPY } from '../../api/mock.js';
 import { useLiveSession } from '../../live/useLiveSession.js';
 import ReasonList from '../call/ReasonList.jsx';
@@ -23,30 +19,33 @@ const HELD_NOTICE = { message: '' };
 export default function JobInProgress() {
   const navigate = useNavigate();
   // 훅 결과를 풀어 쓴다: 객체째 두면 videoRef 때문에 lint(react-hooks/refs)가 다른 필드 읽기까지 ref 접근으로 본다
-  const { status: liveStatus, jobId: liveJobId, cameraBusy, reconnecting, held: liveHeld, error: liveError, videoRef, start: liveStart, pause: livePause, resume: liveResume, stop: liveStop } = useLiveSession();
+  const { status: liveStatus, jobId: liveJobId, cameraBusy, recordingStatus, recordingStartFailed, reconnecting, held: liveHeld, error: liveError, videoRef, start: liveStart, pause: livePause, resume: liveResume, stop: liveStop } = useLiveSession();
   const { data: job, error, reload, refresh, setData: setJob } = useAsync(() => getActiveJob(), []);
   const jobId = job?.id;
   const elapsed = useElapsed(job?.startedAt, job?.pausedSeconds, job?.elapsed, job?.status === 'paused'); // 라이브가 아니라 작업 상태로 — 영상만 막히고 작업 일시정지가 실패하면 시계가 화면을 연 시점으로 되돌아가 멈췄다 (자체 점검 #43)
+  const { data: photoList, error: photoError, reload: reloadPhotos } = useAsync(() => (jobId ? getJobPhotos(jobId) : Promise.resolve(null)), [jobId]);
+  const phase = photoList?.phase;
+  useEffect(() => {
+    if (phase === 'before') navigate('/job/photos/before', { replace: true });
+    if (phase === 'after') navigate('/job/photos/after', { replace: true });
+  }, [phase, navigate]);
   // 라이브 세션을 서버의 진행 중 작업에 맞춘다
   useEffect(() => {
     // 재진입(앱 재실행·새로고침): 세션이 비어 있거나(idle) 다른 작업이면 서버의 작업 id 로 다시 붙인다.
     // ended 는 이 화면에서 청소를 완료한 직후라 다시 붙지 않는다(끝난 작업에 start 를 보내면 409). error 는 liveClient 가 스스로 재시도한다
     // (단 서버가 409·404 로 거절한 start 는 liveClient 도 다시 보내지 않아 error 로 남는다)
-    if (jobId && (liveJobId !== jobId || liveStatus === 'idle')) liveStart(jobId);
-  }, [jobId, liveJobId, liveStatus, liveStart]);
+    if (jobId && phase === 'live' && (liveJobId !== jobId || liveStatus === 'idle')) liveStart(jobId);
+  }, [jobId, phase, liveJobId, liveStatus, liveStart]);
   useEffect(() => {
     if (job?.status === 'paused') navigate('/job/paused', { replace: true }); // 작업이 이미 일시정지 — 진행 중 화면에 머물면 재개할 길이 없다
   }, [job?.status, navigate]);
   const [reason, setReason] = useState(null); // 사유 목록은 시트 안 ReasonList 가 열릴 때 받는다 — 진행 중 화면이 카탈로그 조회에 가려지지 않게 (검증 검토)
   // 시트 두 개의 열림: 일시정지 사유 시트 / 청소 완료 확인 시트
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  // 청소 완료: ① 작업 완료(completeJob, 멱등 키) → ② 라이브 세션 종료 → 완료 화면. ① 이 실패하면 확인 시트에 문구가 남는다
-  const complete = useAction(async () => {
-    await completeJob(job.id); // 작업 상태가 먼저 done — 서버는 진행 중 세션의 stop 을 거절한다(다시 start 해도 녹화가 이어지지 않으므로)
-    await liveStop(job.id).catch(() => {}); // 녹화 정지·방 닫기. 실패해도 서버 재조정기가 1분 안에 같은 일을 한다
-    setConfirmOpen(false);
-    navigate('/job/complete');
+  const finishVideo = useAction(async () => {
+    await finishJobVideo(job.id);
+    await liveStop(job.id);
+    navigate('/job/photos/after', { replace: true });
   });
 
   const [videoBlocked, setVideoBlocked] = useState(false); // ① 성공 뒤 ② 실패 — 영상은 이미 막혀 있다(안전한 쪽). 문구가 반대로 나가지 않게
@@ -87,11 +86,6 @@ export default function JobInProgress() {
     setVideoBlocked(false);
     pauseTried.current = false;
   };
-  // 완료 확인 시트 닫기 ('계속 청소하기'·ESC·배경 탭). 다시 열 때 이전 실패 문구가 남지 않게 지운다
-  const closeConfirm = () => {
-    setConfirmOpen(false);
-    complete.reset();
-  };
   // 체크리스트: 서버가 진실. 실패하면 문구로 알리고 값은 그대로 (§10 useAction)
   const toggle = useAction(async (itemId, done) => {
     await setChecklistItem(job.id, itemId, done);
@@ -108,6 +102,8 @@ export default function JobInProgress() {
   };
   if (error) return <ScreenError error={error} onRetry={reloadAll} onBack={() => navigate(-1)} />;
   if (!job) return <ScreenLoading />;
+  if (photoError) return <ScreenError error={photoError} onRetry={reloadPhotos} />;
+  if (!photoList || phase !== 'live') return <ScreenLoading />;
 
   // 라이브 문구: 바디캠을 껐다 켜야 하면(cameraBusy) 그 안내, 휴대폰 송출이 잠깐 끊겨 다시 붙는 중이면(reconnecting) 그 안내, 아니면 상태별 문구. 문구 표에 없는 상태는 '카메라 연결 대기 중'
   const liveText = cameraBusy ? LIVE_STATE_COPY.cameraBusy : reconnecting ? LIVE_STATE_COPY.reconnecting : (LIVE_STATE_COPY[liveStatus] ?? LIVE_STATE_COPY.connecting);
@@ -117,11 +113,6 @@ export default function JobInProgress() {
   // 진행률: 모든 그룹의 항목을 한 줄로 펼쳐 완료 수를 센다
   const allItems = job.checklist.flatMap((g) => g.items);
   const doneCount = allItems.filter((i) => i.done).length;
-  // CompleteConfirm 경고: 미완료 항목을 "그룹 · 항목 / …" 로 (Figma 문구 형식)
-  const remaining = job.checklist.flatMap((g) => g.items.filter((i) => !i.done).map((i) => `${g.group} · ${i.label}`));
-
-
-
   return (
     <ScreenLayout
       gap="ml"
@@ -130,7 +121,7 @@ export default function JobInProgress() {
           <Button variant="secondary" onClick={() => setSheetOpen(true)}>
             촬영 일시정지
           </Button>
-          <Button onClick={() => setConfirmOpen(true)}>청소 완료</Button>
+          <ActionError error={finishVideo.error} /><Button loading={finishVideo.loading} onClick={finishVideo.run}>실시간 영상 종료</Button>
         </>
       }
     >
@@ -142,6 +133,11 @@ export default function JobInProgress() {
         </div>
         <p className="text-heading-xl">{elapsed}</p>
         <p className={cx('text-body-s', styles.secondary)}>{since}</p>
+        {recordingStatus === 'failed' && (
+          <p role="status" className={cx('text-body-s', styles.warning)}>
+            {recordingStartFailed ? '녹화를 시작하지 못해 다시 시도하고 있어요.' : '영상 녹화에 문제가 생겼어요.'} 영상 종료 후 사진 촬영은 계속할 수 있어요.
+          </p>
+        )}
         {/* liveClient 가 남긴 라이브 오류. role="status" 는 스크린리더가 하던 말을 끊지 않고 읽어 준다 */}
         {liveError && (
           <p role="status" className={cx('text-body-s', styles.warning)}>
@@ -204,24 +200,6 @@ export default function JobInProgress() {
         </Button>
       </Sheet>
 
-      {/* 완료 확인 시트: 남은 체크 항목이 있으면 경고 카드로 보여 주지만 완료를 막지는 않는다 */}
-      <Sheet open={confirmOpen} onClose={closeConfirm} title="청소를 완료하시겠어요?">
-        {remaining.length > 0 && (
-          <Card tone="warningMuted" padding="xs" gap="xs">
-            <p className={cx('text-title-small', styles.warning)}>아직 완료하지 않은 항목이 {remaining.length}개 있습니다.</p>
-            <p className={cx('text-body-s', styles.secondary)}>{remaining.join(' / ')}</p>
-          </Card>
-        )}
-        <ActionError error={complete.error} message="완료 처리하지 못했어요. 다시 시도해주세요." />
-        <div className={styles.actions}>
-          <Button variant="secondary" onClick={closeConfirm}>
-            계속 청소하기
-          </Button>
-          <Button loading={complete.loading} onClick={complete.run}>
-            청소 완료
-          </Button>
-        </div>
-      </Sheet>
     </ScreenLayout>
   );
 }

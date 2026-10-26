@@ -45,6 +45,20 @@ describe('manager liveClient (휴대폰 송출)', () => {
     expect(getUserMedia).toHaveBeenCalledTimes(1);
   });
 
+  it('전/후 사진 카메라는 세션 API나 송출 없이 켜지고 촬영 화면을 떠나면 꺼진다', async () => {
+    const { __fake } = await import('../api/http.js');
+    __fake.calls.length = 0;
+    await liveClient.preparePhoto();
+    expect(liveClient.getState().camera).toBe('ready');
+    expect(liveClient.getState().status).toBe('idle');
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(__fake.calls).toEqual([]);
+    expect(connector.publishRoom).not.toHaveBeenCalled();
+    liveClient.releasePhoto();
+    expect(track.stop).toHaveBeenCalled();
+    expect(liveClient.getState().camera).toBe('off');
+  });
+
   it('카메라 권한을 거부하면 camera=error · cameraError=denied 로 남기고 던지지 않는다', async () => {
     getUserMedia.mockRejectedValueOnce(Object.assign(new Error('no'), { name: 'NotAllowedError' }));
     await liveClient.prepare('job-d');

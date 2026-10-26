@@ -33,6 +33,19 @@ import static org.mockito.Mockito.when;
 // 확인하는 것: 매칭 가능 판정(시작 시각 기준), 반복 근무 불가 펼치기, 근무 상태 문구, 근무시간·근무 불가 저장 검증,
 // 이미 맡은 작업과 겹치는 휴무·근무 불가 거절(CONFLICT 문구), 남의 근무 불가 삭제 404, 탈퇴와 겹친 쓰기 거절
 class AvailabilityServiceTest {
+    @Test
+    void 주말_근무를_설정하면_토일_예약을_매칭하고_근무불가는_존중한다() {
+        LocalDate saturday = LocalDate.of(2026, 9, 19);
+        LocalDate sunday = saturday.plusDays(1);
+        assertThat(service.isAvailable(M, saturday, LocalTime.of(10, 0), LocalTime.of(13, 0))).isFalse();
+        service.updateHours(M, List.of(new HoursRequest(5, "09:00", "18:00", false), new HoursRequest(6, "09:00", "18:00", false)));
+        assertThat(service.isAvailable(M, saturday, LocalTime.of(10, 0), LocalTime.of(13, 0))).isTrue();
+        assertThat(service.isAvailable(M, sunday, LocalTime.of(10, 0), LocalTime.of(13, 0))).isTrue();
+        when(unavailable.findByManagerIdOrderByDate(M)).thenReturn(List.of(ManagerUnavailable.create(M, saturday, true, null, null, "none", null, NOW)));
+        assertThat(service.isAvailable(M, saturday, LocalTime.of(10, 0), LocalTime.of(13, 0))).isFalse();
+        assertThat(service.isAvailable(M, sunday, LocalTime.of(10, 0), LocalTime.of(13, 0))).isTrue();
+    }
+
     static final Instant NOW = Instant.parse("2026-09-15T05:00:00Z"); // 화 14:00
     static final AppClock CLOCK = new AppClock(Clock.fixed(NOW, AppClock.ZONE));
     static final UUID M = UUID.randomUUID(); // 테스트 매니저 id

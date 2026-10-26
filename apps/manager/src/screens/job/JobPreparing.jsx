@@ -25,7 +25,7 @@ export default function JobPreparing() {
   const { data: items, error, reload, setData } = useAsync(() => getEquipmentStatus(), []);
   // 현장에서 장비가 죽으면 '영업일 1일 안에 답변' 뿐이라 그날 일이 통째로 날아갔다 → 바로 전화 (사용성 검토 2026-09-22)
   const { data: supportPhone } = useAsync(() => getSupportPhone(), []);
-  const { source, camera, cameraError, jobId: liveJobId, status: liveStatus, videoRef, prepare, releaseCamera, start: startLive } = useLiveSession();
+  const { source, camera, cameraError, jobId: liveJobId, status: liveStatus, videoRef, prepare, releaseCamera } = useLiveSession();
   // 들어오면 영상 출처를 묻고, 휴대폰 송출이면 카메라를 켠다. 청소를 시작하지 않고 떠나면 카메라를 끈다 (시작했으면 releaseCamera 가 그대로 둔다)
   useEffect(() => {
     prepare(id);
@@ -41,8 +41,7 @@ export default function JobPreparing() {
   // ② live.start 는 서버 오류를 던지지 않고 liveClient 상태(error)로 남기므로, ① 이 됐으면 진행 화면으로 간다
   const start = useAction(async () => {
     await startJob(id); // ① 작업 상태 (scheduled → in_progress)
-    await startLive(id); // ② 라이브 세션 + 송출(휴대폰) 또는 미리보기(바디캠). 서버 오류는 던지지 않는다 — 순간 장애면 liveClient 가 10초 뒤 다시 시도
-    navigate('/job/in-progress');
+    navigate('/job/photos/before'); // 전 사진을 모두 저장한 뒤에만 송출을 시작한다.
   });
 
   // 뒤로 가기는 방문 기록과 상관없이 이 작업의 업무 상세로 간다. 오류·로딩 화면도 같은 상단 바를 쓴다

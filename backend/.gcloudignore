@@ -1,0 +1,8 @@
+# Cloud Build에는 이미지 빌드에 필요한 소스만 전송한다.
+**
+!Dockerfile
+!.dockerignore
+!.gcloudignore
+!pom.xml
+!src/
+!src/**

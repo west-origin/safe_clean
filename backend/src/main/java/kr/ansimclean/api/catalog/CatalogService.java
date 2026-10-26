@@ -1,6 +1,5 @@
 package kr.ansimclean.api.catalog;
 
-import kr.ansimclean.api.catalog.dto.AddressSearchResponse;
 import kr.ansimclean.api.catalog.dto.CategoryResponse;
 import kr.ansimclean.api.catalog.dto.ConfirmCopyResponse;
 import kr.ansimclean.api.catalog.dto.NoticeChipsResponse;
@@ -27,6 +26,7 @@ import java.util.Set;
 @Service
 @Transactional(readOnly = true)
 public class CatalogService {
+    public static final int MIN_BOOKING_LEAD_HOURS = 3;
     // app_settings 의 키 이름들 (값은 DB 에 있고 코드에는 이름만 둔다)
     public static final String SETTING_FREE_OPTION_LIMIT = "free_option_limit";
     public static final String SETTING_TIME_SLOTS = "time_slots";
@@ -124,7 +124,7 @@ public class CatalogService {
     public TimeSlotsResponse timeSlots(String category, LocalDate date) {
         if (category != null) requireCategory(category); // 보냈을 때만 검사 — 모르는 카테고리면 404
         JsonNode slots = settings.node(SETTING_TIME_SLOTS);
-        return new TimeSlotsResponse(strings(slots.get("am")), strings(slots.get("pm")), List.of(), bookableDays(), cancelDeadlineHours());
+        return new TimeSlotsResponse(strings(slots.get("am")), strings(slots.get("pm")), List.of(), bookableDays(), cancelDeadlineHours(), MIN_BOOKING_LEAD_HOURS);
     }
 
     public static final String SETTING_BOOKING_HORIZON_DAYS = "booking_horizon_days";
@@ -226,13 +226,6 @@ public class CatalogService {
     public String shortLabel(String category) {
         JsonNode node = settings.node("category_short_labels").get(category); // 그 카테고리 칸이 없으면 null
         return node == null ? requireCategory(category).getLabel() : node.asString();
-    }
-
-    /** 주소 검색 API 연동 전(§13-4): 빈 결과. 연동 시 여기만 바뀐다 */
-    // 결과가 비어도 고객 앱 주소 검색 화면(BookingAddressSearch)은 "다음" 버튼으로 입력한 검색어를 그대로 주소로 넘긴다
-    public AddressSearchResponse searchAddress(String query) {
-        String q = query == null ? "" : query.trim();
-        return new AddressSearchResponse(q, List.of());
     }
 
     /** JSON 배열 → 문자열 목록. 배열이 없으면(null) 빈 목록 — time_slots 의 am·pm 을 읽을 때 쓴다 */

@@ -5,15 +5,16 @@
 //   예약 변경(?edit=예약 id): 내 예약 카드의 '예약 변경' 에서 온다. "변경 완료" 가 서버에 바로 일정 변경을 보낸다(changeReservation).
 import { useEffect } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
-import { ScreenLayout, StepNavBar, NavBar, Calendar, TimeSlotGrid, InfoNote, Button, cx, useAsync, useAction, ScreenError, ScreenLoading, ActionError, notBookableWithin, isWithinHours, showToast } from '@ansimclean/ui';
+import { ScreenLayout, StepNavBar, NavBar, Calendar, TimeSlotGrid, InfoNote, Button, cx, useAsync, useAction, ScreenError, ScreenLoading, ActionError, isWithinHours, showToast } from '@ansimclean/ui';
 
-// 달력에서 막는 날(아래 Calendar 의 isDisabled): 서버 규칙(§6.1 '내일부터 예약할 수 있어요')과 같게 — 오늘·이전·주말은 고를 수 없다
+// 청소의 최소 3시간 기준과 예약 가능 기간을 달력과 시간 버튼에 함께 적용한다. 주말도 예약 가능하다.
 import { getTimeSlots, saveBookingStep, changeReservation } from '../../api/customer.js';
 import { BOOKING_DATE_NOTE, CHANGE_LOCK_COPY } from '../../api/mock.js';
 import { useBookingDraft } from './bookingDraft.js';
 import common from './booking.module.css';
 import { useReturnTo } from './useReturnTo.js';
 import styles from './BookingDateTime.module.css';
+import useBookingAvailability from './useBookingAvailability.js';
 
 /** 날짜·시간 선택 화면. 달력 + 시간 버튼 + 안내 문구, 날짜·시간을 모두 골라야 버튼이 열린다 */
 export default function BookingDateTime() {
@@ -32,9 +33,14 @@ export default function BookingDateTime() {
   }, [editId]);
   // 시간 버튼 목록 + 예약 가능 기간(bookableDays) + 변경·취소 기한(changeDeadlineHours)을 서버(GET /catalog/time-slots)에서 받는다
   const { data: slots, error, reload } = useAsync(() => getTimeSlots(), []);
+  const availability = useBookingAvailability(slots, draft.date, draft.time, category, editId ? current?.date : undefined);
   // 버튼 동작. 예약 변경이면 서버에 보내고, 성공한 뒤에만 변경 초안을 지우고 내 예약으로 간다 (실패하면 고른 값이 남는다).
   // 새 예약이면 값은 이미 초안에 있으므로(달력·시간을 누를 때 update) 다음 화면으로 가기만 한다
   const next = useAction(async () => {
+    if (!availability.isStillAvailable()) {
+      showToast('예약 가능한 날짜와 시간을 다시 선택해주세요');
+      return;
+    }
     if (editId) {
       await changeReservation(editId, { date: draft.date, time: draft.time });
       clear();
@@ -55,11 +61,11 @@ export default function BookingDateTime() {
     <ScreenLayout noPadding gap="none" navBar={navBar}>
       <div className={cx(common.body, styles.body)}>
         <div className={cx(common.stack, styles.stack)}>
-          {/* 오늘·지난 날·주말과 예약 가능 기간(bookableDays) 뒤의 날짜는 막는다. 예약 변경이면 기간을 지금 방문일(오늘보다 뒤면)부터 센다 */}
-          <Calendar value={draft.date} onChange={(date) => update({ date })} isDisabled={notBookableWithin(slots.bookableDays, editId ? current?.date : undefined)} />
+          {/* 주말도 선택 가능. 청소 최소 3시간·예약 가능 기간과 수리의 당일 제한은 유지한다. */}
+          <Calendar value={draft.date} onChange={(date) => update({ date })} isDisabled={availability.isDateDisabled} />
           {/* 회색 날짜의 이유를 알 수 없었다 (사용성 검토 2026-09-22) */}
-          <InfoNote glyph="📅">{BOOKING_DATE_NOTE}</InfoNote>
-          <TimeSlotGrid slots={slots} value={draft.time} onChange={(time) => update({ time })} />
+          <InfoNote glyph="📅">{category === 'repair' ? BOOKING_DATE_NOTE : `현재 시간에서 최소 ${slots.minimumLeadHours ?? 3}시간 이후부터 예약할 수 있어요.`}</InfoNote>
+          <TimeSlotGrid slots={slots} value={draft.time} onChange={(time) => update({ time })} isDisabled={availability.isTimeDisabled} />
           {/* 고른 방문이 변경·취소 기한(방문 N시간 전) 안이면, 예약한 뒤엔 바꾸거나 취소할 수 없다고 미리 경고한다 */}
           {isWithinHours(draft.date, draft.time, slots.changeDeadlineHours) && (
             <InfoNote tone="warning" glyph="!">
@@ -68,7 +74,7 @@ export default function BookingDateTime() {
           )}
         </div>
         <div className={cx(common.cta, styles.cta)}>
-          <Button variant="primary" disabled={!draft.date || !draft.time} loading={next.loading} onClick={next.run}>
+          <Button variant="primary" disabled={!availability.canContinue} loading={next.loading} onClick={next.run}>
             {editId ? '변경 완료' : '다음'}
           </Button>
           {/* 실패 문구: 서버 문구(예: 변경 기한이 지나 거부된 BOOKING_NOT_CHANGEABLE)가 있으면 그것을, 없으면 fallback */}

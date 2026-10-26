@@ -15,5 +15,6 @@
   ],
   "unavailable": [],
   "bookableDays": 60,
-  "changeDeadlineHours": 24
+  "changeDeadlineHours": 24,
+  "minimumLeadHours": 3
 }

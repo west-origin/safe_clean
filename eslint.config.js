@@ -7,8 +7,8 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
-  // backend/target 은 Maven·JaCoCo 가 만든 산출물이다 (JS 리포트 파일이 들어 있다)
-  { ignores: ['**/dist/**', '**/node_modules/**', 'design/figma/**', 'apps/*/ios/**', 'apps/*/android/**', 'backend/target/**'] },
+  // backend/target·.env.* 폴더·APK 배포 폴더는 빌드 산출물·로컬 도구이며 앱 소스가 아니다.
+  { ignores: ['**/dist/**', '**/node_modules/**', 'design/figma/**', 'apps/*/ios/**', 'apps/*/android/**', 'backend/target/**', '.env.*/**', '.tmp/**', 'artifacts/**'] },
   js.configs.recommended,
   // 저장소의 모든 JS·JSX 파일에 적용된다 (앱·ui·스크립트 모두)
   {

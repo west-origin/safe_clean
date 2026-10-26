@@ -76,6 +76,8 @@ public class JobService {
 
     private final JobChecklistItemRepository checklist;
     private final JobChecklistEventRepository checklistEvents;
+    private final RecordingSegmentRepository segments;
+    private final kr.ansimclean.api.booking.JobMediaService media;
     private final JobPauseRepository pauses;
     private final BookingService bookings;
     private final ProfileService profiles;
@@ -97,7 +99,10 @@ public class JobService {
     public JobService(JobChecklistItemRepository checklist, JobChecklistEventRepository checklistEvents, JobPauseRepository pauses, BookingService bookings, ProfileService profiles, CatalogService catalog,
                       LiveSessionService live, SettlementService settlements, AppSettingsService settings, OutboxService outbox, Idempotent idempotent, AppClock clock,
                       SupabaseStorageClient storage, kr.ansimclean.api.profile.ManagerPenaltyService penalties,
-                      @org.springframework.context.annotation.Lazy kr.ansimclean.api.booking.BookingDispatcher dispatcher) {
+                      @org.springframework.context.annotation.Lazy kr.ansimclean.api.booking.BookingDispatcher dispatcher,
+                      RecordingSegmentRepository segments, kr.ansimclean.api.booking.JobMediaService media) {
+        this.segments = segments;
+        this.media = media;
         this.storage = storage;
         this.penalties = penalties;
         this.dispatcher = dispatcher;
@@ -143,6 +148,10 @@ public class JobService {
     /** 실제 시작: 예약 행을 잠그고 → 이미 in_progress 면 그대로(paused 면 Booking.start 가 409) → 다른 진행 중 작업이 없는지 → scheduled → in_progress → 이력 → 지각 검사 */
     private StartResponse doStart(UUID managerId, UUID id) {
         Booking b = bookings.lockManagerBooking(managerId, id);
+        if (b.getRequiredPhotoRooms().isEmpty()) {
+            List<String> rooms = checklist.findByBookingIdOrderBySort(id).stream().map(JobChecklistItem::getGroupName).distinct().toList();
+            b.setRequiredPhotoRooms(rooms.isEmpty() ? List.of("청소 공간") : rooms);
+        }
         if (b.getStatus() == BookingStatus.IN_PROGRESS) return new StartResponse(id, b.getStartedAt().toString()); // 키 없이 두 번 눌러도 같다
         // 매니저당 진행 중(in_progress·paused) 작업은 하나뿐이다 — 다른 작업을 끝내지 않았으면 409
         Optional<Booking> active = bookings.activeJob(managerId);
@@ -254,7 +263,39 @@ public class JobService {
 
     /** 정기청소 회차면 시리즈 행 → 예약 행 순서로 잠근 뒤(고객 회차 취소와 같은 순서라 서로 기다리다 멈추지 않는다) 완료 처리 */
     private JobIdResponse doComplete(UUID managerId, UUID id) {
-        return finish(bookings.lockManagerBookingWithSeries(managerId, id), managerId);
+        Booking b = bookings.lockManagerBookingWithSeries(managerId, id);
+        if (b.getStatus() != BookingStatus.DONE) {
+            if (!BookingStatus.ACTIVE.contains(b.getStatus())) throw new ApiException(ErrorCode.INVALID_STATE, "진행 중인 작업만 완료할 수 있어요");
+            media.requireComplete(b);
+            if (live.find(id).filter(LiveSession::isEnded).isEmpty()) throw ApiException.validation("실시간 영상 종료를 다시 시도해주세요");
+        }
+        return finish(b, managerId);
+    }
+
+    /** 라이브 종료 의도를 먼저 영속화한다. stop 실패/앱 재실행에도 재송출하지 않고 종료를 재시도한다. */
+    public JobIdResponse finishVideo(UUID managerId, UUID id) {
+        Booking b = bookings.lockManagerBooking(managerId, id);
+        // 녹화 장애와 송출 종료는 별개다. 종료 의도를 먼저 저장하고 LiveService.stop이 원격 방 종료를 확인한다.
+        if (b.getVideoFinishedAt() == null && live.find(id).filter(s -> s.isActive() || (s.isEnded() && s.getStartedAt() != null)).isEmpty())
+            throw ApiException.validation("실시간 영상을 시작한 뒤에 종료할 수 있어요");
+        media.finishVideo(b);
+        return new JobIdResponse(id);
+    }
+
+    /** 현장에 안방/작은방 등이 더 있으면 필수 사진 공간과 체크리스트를 함께 추가한다. */
+    public JobIdResponse addRoom(UUID managerId, UUID id, String name) {
+        Booking b = bookings.lockManagerBooking(managerId, id);
+        if (!BookingStatus.ACTIVE.contains(b.getStatus()) || b.getBeforePhotosConfirmedAt() != null)
+            throw ApiException.validation("청소 전 사진 단계에서만 방을 추가할 수 있어요");
+        String room = name == null ? "" : name.trim();
+        if (room.isEmpty() || room.length() > 20) throw ApiException.validation("공간 이름을 1~20자로 입력해주세요");
+        List<String> rooms = new ArrayList<>(b.getRequiredPhotoRooms());
+        if (rooms.contains(room)) return new JobIdResponse(id);
+        if (rooms.size() >= 10) throw ApiException.validation("공간은 최대 10곳까지 등록할 수 있어요");
+        rooms.add(room); b.setRequiredPhotoRooms(rooms);
+        int sort = checklist.findByBookingIdOrderBySort(id).stream().mapToInt(JobChecklistItem::getSort).max().orElse(0) + 1;
+        checklist.save(JobChecklistItem.of(id, room, "청소 완료", sort));
+        return new JobIdResponse(id);
     }
 
     /**
@@ -293,11 +334,19 @@ public class JobService {
     public ChecklistResponse setChecklistItem(UUID managerId, UUID jobId, UUID itemId, boolean done) {
         Booking b = bookings.lockManagerBooking(managerId, jobId);
         if (!BookingStatus.ACTIVE.contains(b.getStatus())) throw new ApiException(ErrorCode.INVALID_STATE, "진행 중인 작업에서만 체크할 수 있어요");
+        if (b.getBeforePhotosConfirmedAt() == null || b.getVideoFinishedAt() != null)
+            throw ApiException.validation("실시간 영상 진행 중에만 체크할 수 있어요");
         JobChecklistItem item = checklist.findByIdAndBookingId(itemId, jobId).orElseThrow(ApiException::notFound);
         if (item.isDone() == done) return new ChecklistResponse(jobId, itemId, done);
         Instant now = clock.now();
         item.mark(done, now);
-        checklistEvents.save(JobChecklistEvent.of(item, done, now, managerId));
+        JobChecklistEvent event = checklistEvents.save(JobChecklistEvent.of(item, done, now, managerId));
+        if (done) {
+            LiveSession session = live.find(jobId).filter(LiveSession::isActive).orElseThrow(() -> ApiException.validation("영상 연결 후 다시 체크해주세요"));
+            Instant start = segments.findFirstByLiveSessionIdOrderByEndAtDesc(jobId).map(RecordingSegment::getEndAt)
+                    .orElse(session.getStartedAt() != null ? session.getStartedAt() : b.getBeforePhotosConfirmedAt());
+            segments.save(RecordingSegment.of(jobId, event, item, start.isAfter(now) ? now : start, now, managerId));
+        } else segments.revoke(jobId, itemId, now);
         return new ChecklistResponse(jobId, itemId, done);
     }
 

@@ -2,6 +2,7 @@ package kr.ansimclean.api.offer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,7 @@ public class OfferExpirer {
     // 두 단계는 각각 한 트랜잭션이고 서로 막지 않는다. 한 단계에서 예외가 나면 그 단계의 이번 실행이 모두 되돌려지고 30초 뒤 다시 시도한다
     // (같은 건이 계속 실패하면 다른 콜도 계속 막히니 '오퍼 만료 처리 실패'·'정지 매니저 콜 닫기 실패' 로그를 확인한다)
     @Scheduled(fixedDelay = 30000)
+    @SchedulerLock(name = "OfferExpirer", lockAtLeastFor = "PT25S")
     public void run() {
         try {
             int n = offers.expireDue(); // n = 이번에 expired 로 바꾼 콜 수
