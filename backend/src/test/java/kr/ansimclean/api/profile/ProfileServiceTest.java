@@ -265,6 +265,28 @@ class ProfileServiceTest {
         assertThat(service.managerProfile(manager).stats()).extracting(kr.ansimclean.api.profile.dto.ManagerProfileResponse.Stat::value).containsExactly("-", "1건");
     }
 
+    // 수정은 별칭·상세 주소만 바꾸고(빈 별칭은 '기타', 빈 상세 주소는 null) 도로명주소는 그대로. 남의 주소 id 는 NOT_FOUND
+    @Test
+    void 주소_수정은_별칭과_상세주소만_바꾼다() {
+        UUID customer = UUID.randomUUID();
+        when(profiles.findByIdAndDeletedAtIsNull(customer)).thenReturn(Optional.of(Profile.create(customer, "customer", "고객", null, "+821011112222")));
+        Address home = Address.create(customer, "집", "서울 강남구 테헤란로 1", "101호", true, NOW);
+        when(addresses.findById(home.getId())).thenReturn(Optional.of(home));
+
+        var res = service.updateAddress(customer, home.getId(), new kr.ansimclean.api.profile.dto.UpdateAddressRequest("우리 집", " 202호 "));
+        assertThat(res.label()).isEqualTo("우리 집");
+        assertThat(res.detailAddress()).isEqualTo("202호");
+        assertThat(res.roadAddress()).isEqualTo("서울 강남구 테헤란로 1");
+        assertThat(service.updateAddress(customer, home.getId(), new kr.ansimclean.api.profile.dto.UpdateAddressRequest(" ", "")).label()).isEqualTo("기타");
+        assertThat(home.getDetailAddress()).isNull();
+        verify(cache, org.mockito.Mockito.atLeastOnce()).evict(customer);
+
+        UUID stranger = UUID.randomUUID();
+        when(addresses.findById(stranger)).thenReturn(Optional.of(Address.create(UUID.randomUUID(), "남의 집", "서울 강남구 테헤란로 3", null, true, NOW)));
+        assertThatThrownBy(() -> service.updateAddress(customer, stranger, new kr.ansimclean.api.profile.dto.UpdateAddressRequest("x", null))).isInstanceOf(ApiException.class)
+                .extracting("code").isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
     // '회사' 를 기본으로 바꾸면 옛 기본 '집' 을 먼저 내리고 flush(DB 반영)한 뒤 '회사' 를 켠다 —
     // 고객당 기본 주소 하나만 허용하는 부분 유니크 인덱스 때문에 순서가 중요하다. 결과 목록의 isDefault 는 [false, true].
     // 마지막으로 남의 주소 id 는 NOT_FOUND

@@ -19,6 +19,7 @@ import kr.ansimclean.api.profile.dto.ProfileDetailResponse;
 import kr.ansimclean.api.profile.dto.ProfileFormResponse;
 import kr.ansimclean.api.profile.dto.SettingsProfile;
 import kr.ansimclean.api.profile.dto.SignupStep;
+import kr.ansimclean.api.profile.dto.UpdateAddressRequest;
 import kr.ansimclean.api.profile.dto.UserResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -293,6 +294,15 @@ public class ProfileService {
         }
         cache.evict(customerId);
         return addresses(customerId);
+    }
+
+    /** 예약 주소 선택 '수정' (앱 updateAddress) — 별칭·상세 주소만 바꾼다. 남의 주소 id 면 NOT_FOUND */
+    public AddressResponse updateAddress(UUID customerId, UUID addressId, UpdateAddressRequest req) {
+        holdLive(customerId); // 탈퇴와 직렬화 (makeDefaultAddress 와 같다)
+        Address a = addresses.findById(addressId).filter(x -> x.getCustomerId().equals(customerId)).orElseThrow(ApiException::notFound);
+        a.rename(req.label(), req.detailAddress());
+        cache.evict(customerId);
+        return toResponse(a);
     }
 
     /** Booking/Step2 "네" — 기본 주소. 없으면 NOT_FOUND (앱 어댑터가 null 로 바꾼다) */

@@ -13,6 +13,7 @@ import kr.ansimclean.api.profile.dto.NotificationRequest;
 import kr.ansimclean.api.profile.dto.NotificationResponse;
 import kr.ansimclean.api.profile.dto.ProfileFormResponse;
 import kr.ansimclean.api.profile.dto.SuggestedNoticesResponse;
+import kr.ansimclean.api.profile.dto.UpdateAddressRequest;
 import kr.ansimclean.api.profile.dto.UpdateProfileRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -95,6 +96,12 @@ public class CustomerProfileController {
     @PutMapping("/addresses/{id}/default")
     public List<AddressResponse> makeDefaultAddress(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id) {
         return service.makeDefaultAddress(user.id(), id);
+    }
+
+    /** 예약 주소 선택 '수정' (앱 updateAddress) — 별칭·상세 주소만 바꾸고 바뀐 1건을 돌려준다. 남의 주소면 404 */
+    @PatchMapping("/addresses/{id}")
+    public AddressResponse updateAddress(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id, @Valid @RequestBody UpdateAddressRequest req) {
+        return service.updateAddress(user.id(), id, req);
     }
 
     /** 주소 삭제 (앱 removeAddress) → 지운 id. 기본 주소를 지우면 남은 것 중 가장 오래된 주소가 기본이 된다 */

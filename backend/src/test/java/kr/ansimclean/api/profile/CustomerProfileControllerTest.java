@@ -123,6 +123,20 @@ class CustomerProfileControllerTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(addr.toString())).andExpect(jsonPath("$[0].isDefault").value(true));
     }
 
+    // PATCH /addresses/{id} 는 바뀐 1건(목록 항목 모양)을 돌려주고, 별칭이 30자를 넘으면 400
+    @Test
+    void 주소_수정은_한_건을_돌려주고_별칭_길이를_검사한다() throws Exception {
+        UUID id = customer("c");
+        UUID addr = UUID.randomUUID();
+        when(service.updateAddress(eq(id), eq(addr), any())).thenReturn(new AddressResponse(addr, "우리 집", "서울특별시 강남구 테헤란로 123", "202호", true));
+        mvc.perform(patch("/api/v1/customer/addresses/" + addr).header("Authorization", "Bearer c").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"label\":\"우리 집\",\"detailAddress\":\"202호\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.label").value("우리 집")).andExpect(jsonPath("$.detailAddress").value("202호"));
+        mvc.perform(patch("/api/v1/customer/addresses/" + addr).header("Authorization", "Bearer c").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"label\":\"" + "가".repeat(31) + "\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
     // { enabled: true } 는 저장된 { key, enabled } 를 돌려주고, 빈 본문 {} 은 NotificationRequest 의 NotNull 검사로 400
     @Test
     void 알림_토글은_enabled_가_필수() throws Exception {

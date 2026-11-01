@@ -158,6 +158,11 @@ class BookingFlowIT {
         mvc.perform(put("/api/v1/customer/addresses/" + officeId + "/default").header("Authorization", auth))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[?(@.id == '" + officeId + "')].isDefault").value(true));
         mvc.perform(get("/api/v1/customer/addresses/default").header("Authorization", auth)).andExpect(jsonPath("$.roadAddress").value("서울특별시 강남구 역삼로 1"));
+        // 예약 주소 선택 '수정': 별칭·상세 주소만 바뀌고 도로명주소·기본 표시는 그대로 (2026-10-31)
+        mvc.perform(patch("/api/v1/customer/addresses/" + officeId).header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"label\":\"새 회사\",\"detailAddress\":\"7층\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.label").value("새 회사")).andExpect(jsonPath("$.detailAddress").value("7층"))
+                .andExpect(jsonPath("$.roadAddress").value("서울특별시 강남구 역삼로 1")).andExpect(jsonPath("$.isDefault").value(true));
 
         // 내 예약 목록: 방금 만든 한 장이 '예정' 탭에 매칭 중(assigning)으로 있고, 첫 행(일정)은 한국어 날짜
         JsonNode list = reservations();

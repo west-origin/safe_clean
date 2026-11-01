@@ -87,6 +87,12 @@ public class Address {
         this.sigungu = region.sigungu();
     }
 
+    /** 별칭과 상세 주소만 바꾼다 (도로명주소·시·도는 그대로). 별칭이 비면 '기타', 상세 주소가 비면 null. 부르는 곳: ProfileService.updateAddress */
+    public void rename(String label, String detailAddress) {
+        this.label = label == null || label.isBlank() ? "기타" : label.trim();
+        this.detailAddress = detailAddress == null || detailAddress.isBlank() ? null : detailAddress.trim();
+    }
+
     /** 기본 주소 표시를 켜고 끈다. 고객당 하나만 켤 수 있어(위 설명) 켜기 전에 옛 기본을 먼저 꺼야 한다 */
     public void makeDefault(boolean value) {
         this.isDefault = value;
