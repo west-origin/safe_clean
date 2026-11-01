@@ -1,0 +1,27 @@
+/* FaqCard.jsx 스타일. 시안 원본값: 패딩 20, Q 원 28, 원 ↔ 질문 24 */
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-4xl);
+  padding: var(--spacing-3xl);
+  border-radius: var(--radius-sm);
+  background: var(--color-brand-subtle);
+}
+
+/* 회색 동그라미 안의 흰 Q */
+.badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-text-secondary);
+  color: var(--color-text-inverse);
+}
+
+.question {
+  margin: 0;
+  color: var(--color-text-primary);
+}

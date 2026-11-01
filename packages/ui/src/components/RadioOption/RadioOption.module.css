@@ -79,3 +79,47 @@
 .description {
   color: var(--color-text-secondary);
 }
+
+/* 설명 안의 강조 글자 (<em>) — 브랜드 색 밑줄 (서비스 주기 '청연 VIP 라운지') */
+.description em {
+  color: var(--color-brand-primary);
+  font-style: normal;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── variant="card": 2026-10-31 사용자 첨부 서비스 주기 시안 (Figma 에 없음) ──
+   라벨·설명 왼쪽, 원형 라디오 오른쪽. 패딩 20, 높이 최소 80, 라벨은 진한 글자 */
+.card {
+  height: auto;
+  min-height: 80px; /* 시안 원본값 (1회 카드) */
+  gap: var(--spacing-xl);
+  padding: var(--spacing-3xl);
+  border-color: var(--color-surface-pressed);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+}
+
+.card.withDescription {
+  align-items: center;
+}
+
+/* 설명과 라벨 사이 */
+.card .text {
+  gap: var(--spacing-xs);
+}
+
+/* 오른쪽 원형 라디오 28. 선택 안 됨 = 회색 2px 고리 */
+.ring {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--color-border-default);
+  background: var(--color-surface-default);
+}
+
+/* 선택됨 = 브랜드 색 9px 고리 + 흰 가운데 (헤더 '안심클린' 과 같은 brand/primary) */
+.selected .ring {
+  box-shadow: inset 0 0 0 9px var(--color-brand-primary);
+}

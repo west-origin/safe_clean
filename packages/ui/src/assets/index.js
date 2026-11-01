@@ -262,6 +262,14 @@ export const ASSETS = {
       { src: optMovein4_1, srcSet: set3(optMovein4_1, optMovein4_2, optMovein4_3), width: 80, height: 84 },
       { src: optMovein5_1, srcSet: set3(optMovein5_1, optMovein5_2, optMovein5_3), width: 80, height: 86 },
     ],
+    // TODO(asset): 매장 청소 옵션 전용 이미지 없음 — 사무실 청소 이미지를 같은 순서로 빌려 쓴다 (2026-10-31)
+    store: [
+      { src: optOffice1_1, srcSet: set3(optOffice1_1, optOffice1_2, optOffice1_3), width: 80, height: 89 },
+      { src: optOffice2_1, srcSet: set3(optOffice2_1, optOffice2_2, optOffice2_3), width: 80, height: 83 },
+      { src: optOffice3_1, srcSet: set3(optOffice3_1, optOffice3_2, optOffice3_3), width: 80, height: 65 },
+      { src: optOffice4_1, srcSet: set3(optOffice4_1, optOffice4_2, optOffice4_3), width: 80, height: 84 },
+      { src: optOffice5_1, srcSet: set3(optOffice5_1, optOffice5_2, optOffice5_3), width: 80, height: 86 },
+    ],
   },
   /** Booking/Confirm › SummaryRow › Icon 7종 (2039:1658 · 90:164 · 90:170 · 90:187 · 90:178 · 90:184 · 90:173) — 4 카테고리 공통 */
   confirmIcons: {

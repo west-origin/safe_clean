@@ -54,6 +54,18 @@ export { default as SegmentedControl } from './components/SegmentedControl/index
 export { default as StatusBar } from './components/StatusBar/index.js';
 export { default as TabBar, CUSTOMER_TABS } from './components/TabBar/index.js';
 export { default as RadioOption } from './components/RadioOption/index.js';
+export { default as FaqCard } from './components/FaqCard/index.js';
+export { default as AddressOption } from './components/AddressOption/index.js';
+export { default as ScheduleRow } from './components/ScheduleRow/index.js';
+export { default as DurationStepper } from './components/DurationStepper/index.js';
+export { default as ScrollCalendar } from './components/ScrollCalendar/index.js';
+export { default as TimeChoiceGrid } from './components/TimeChoiceGrid/index.js';
+export { default as PriceCtaBar } from './components/PriceCtaBar/index.js';
+export { default as ManagerIntro } from './components/ManagerIntro/index.js';
+export { default as OptionCheckRow } from './components/OptionCheckRow/index.js';
+export { default as PaidOptionCard } from './components/PaidOptionCard/index.js';
+export { default as CircleChoiceGroup } from './components/CircleChoiceGroup/index.js';
+export { default as SectionDivider } from './components/SectionDivider/index.js';
 export { default as Chip } from './components/Chip/index.js';
 export { default as NoticeChip } from './components/NoticeChip/index.js';
 export { NOTICE_ICONS } from './icons/noticeIcons.js';

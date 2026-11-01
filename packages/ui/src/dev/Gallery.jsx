@@ -38,6 +38,18 @@ import ScheduleCard from '../components/ScheduleCard/index.js';
 import StatusBar from '../components/StatusBar/index.js';
 import TabBar from '../components/TabBar/index.js';
 import RadioOption from '../components/RadioOption/index.js';
+import FaqCard from '../components/FaqCard/index.js';
+import AddressOption from '../components/AddressOption/index.js';
+import ScheduleRow from '../components/ScheduleRow/index.js';
+import DurationStepper from '../components/DurationStepper/index.js';
+import ScrollCalendar from '../components/ScrollCalendar/index.js';
+import TimeChoiceGrid from '../components/TimeChoiceGrid/index.js';
+import PriceCtaBar from '../components/PriceCtaBar/index.js';
+import ManagerIntro from '../components/ManagerIntro/index.js';
+import OptionCheckRow from '../components/OptionCheckRow/index.js';
+import PaidOptionCard from '../components/PaidOptionCard/index.js';
+import CircleChoiceGroup from '../components/CircleChoiceGroup/index.js';
+import SectionDivider from '../components/SectionDivider/index.js';
 import Chip from '../components/Chip/index.js';
 import NoticeChip from '../components/NoticeChip/index.js';
 import { NOTICE_ICONS } from '../icons/noticeIcons.js';
@@ -269,6 +281,9 @@ function ManagerGallery() {
         </Row>
         <Row label="뒤로가기 없음">
           <NavBar title="홈" />
+        </Row>
+        <Row label="icon=close, 제목 없음 (주소 검색 시안)">
+          <NavBar icon="close" onBack={() => {}} />
         </Row>
       </Section>
 
@@ -547,6 +562,67 @@ function CustomerGallery() {
             <RadioOption label="거리가 너무 멀어요" selected={radio === 'a'} onSelect={() => setRadio('a')} />
             <RadioOption label="시간이 맞지 않아요" selected={radio === 'b'} onSelect={() => setRadio('b')} />
           </div>
+        </Row>
+        <Row label="variant=card (서비스 주기 시안, 설명 안 <em> = 브랜드 밑줄)">
+          <div role="radiogroup" aria-label="카드 예시" className={styles.stack}>
+            <RadioOption variant="card" label="정기" description={<>매 회차 2% 자동 할인 +<br /><em>청연 VIP 라운지</em> 전용 혜택</>} selected={radio === 'a'} onSelect={() => setRadio('a')} />
+            <RadioOption variant="card" label="1회" selected={radio === 'b'} onSelect={() => setRadio('b')} />
+          </div>
+        </Row>
+      </Section>
+
+      <Section title="FaqCard · SectionDivider" figma="Figma 에 없음 — 2026-10-31 서비스 주기 시안">
+        <Row label="AddressOption (주소 선택 시안, 탭해서 전환)">
+          <div role="radiogroup" aria-label="주소 예시" className={styles.stack}>
+            <AddressOption name="gallery-address" label="우리" address="세종특별자치시 마음로 152 (고운동, 가락마을11단지) 101동 1001호" selected={radio === 'a'} onSelect={() => setRadio('a')} onEdit={() => {}} />
+            <AddressOption name="gallery-address" label="회사" address="서울 강남구 테헤란로 123" selected={radio === 'b'} onSelect={() => setRadio('b')} />
+          </div>
+        </Row>
+        <Row label="OptionCheckRow (선택 / 안 됨 / 한도로 꺼짐)">
+          <div className={styles.stack}>
+            <OptionCheckRow icon={<Icons.OptionShelfIcon />} label="진열대 먼지 제거" selected onToggle={() => {}} />
+            <OptionCheckRow icon={<Icons.OptionEntranceIcon />} label="출입문 유리 닦기" selected={false} onToggle={() => {}} />
+            <OptionCheckRow icon={<Icons.OptionShelfIcon />} label="분리배출" selected={false} disabled onToggle={() => {}} />
+          </div>
+        </Row>
+        <Row label="PaidOptionCard (안 고름 / 고름)">
+          <div className={styles.wrapRow}>
+            <PaidOptionCard icon={<Icons.OptionKitchenIcon />} label={'주방\n기름때 청소'} price="+50,000원" selected={false} onToggle={() => {}} />
+            <PaidOptionCard icon={<Icons.OptionSignboardIcon />} label={'간판·외부\n유리 청소'} price="+35,000원" selected onToggle={() => {}} />
+          </div>
+        </Row>
+        <Row label="CircleChoiceGroup (반려동물: 없음 고름 / 무료주차: 아무것도 안 고름)">
+          <div className={styles.stack}>
+            <CircleChoiceGroup label="반려동물" value="none" onChange={() => {}} options={[{ key: 'dog', label: '강아지', icon: <Icons.AnswerDogIcon /> }, { key: 'cat', label: '고양이', icon: <Icons.AnswerCatIcon /> }, { key: 'other', label: '기타', icon: <Icons.AnswerBirdIcon /> }, { key: 'none', label: '없음', icon: <Icons.AnswerCatIcon dashed /> }]} />
+            <CircleChoiceGroup label="무료주차" onChange={() => {}} options={[{ key: 'free', label: '가능', icon: <Icons.AnswerParkingIcon /> }, { key: 'none', label: '불가능', icon: <Icons.AnswerNoParkingIcon /> }, { key: 'unknown', label: '모름', icon: <Icons.AnswerUnknownIcon /> }]} />
+          </div>
+        </Row>
+        <Row label="ManagerIntro">
+          <ManagerIntro title="교육받은 매니저님이 방문합니다." linkLabel="어떤 교육을 받나요?" onLink={() => {}} />
+        </Row>
+        <Row label="ScheduleRow (값 있음 / 없음)">
+          <div className={styles.stack}>
+            <ScheduleRow value="2시간" caption="서비스 시간" actionLabel="변경" onAction={() => {}} />
+            <ScheduleRow caption="방문 일" actionLabel="선택" onAction={() => {}} />
+          </div>
+        </Row>
+        <Row label="DurationStepper (2~8시간)">
+          <DurationStepper hours={2} min={2} max={8} onChange={() => {}} priceLabel="41,600원" note="표준시간은 2시간 입니다." />
+        </Row>
+        <Row label="PriceCtaBar">
+          <PriceCtaBar priceLabel="41,600원" onDetail={() => {}}><Button chevron={false}>다음</Button></PriceCtaBar>
+        </Row>
+        <Row label="ScrollCalendar (지난 날 꺼짐 · 오늘 · 일요일 빨강)">
+          <ScrollCalendar months={[{ year: 2026, month: 11 }]} todayKey="2026-11-02" value="2026-11-05" onChange={() => {}} isDisabled={(d) => d.getDate() < 2} />
+        </Row>
+        <Row label="TimeChoiceGrid">
+          <TimeChoiceGrid groups={[{ label: '오전', times: ['08:00', '08:30', '09:00'] }, { label: '오후', times: ['14:00', '14:30'] }]} value="09:00" onChange={() => {}} isDisabled={(t) => t === '08:00'} />
+        </Row>
+        <Row label="FaqCard">
+          <FaqCard question="정기 청소 이용 시 매니저님께 요청사항을 전달할 수 있나요?" />
+        </Row>
+        <Row label="SectionDivider (8px 띠)">
+          <SectionDivider />
         </Row>
       </Section>
 

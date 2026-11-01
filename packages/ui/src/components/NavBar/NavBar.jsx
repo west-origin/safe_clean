@@ -5,6 +5,7 @@
 // ScreenError 도 onBack 만 받았을 때 제목 없는 NavBar 를 만들어 뒤로가기를 보여 준다.
 // 예약 단계 화면의 진행 표시 줄은 이것이 아니라 StepNavBar 다.
 import BackIcon from '../../icons/BackIcon.jsx';
+import CloseIcon from '../../icons/CloseIcon.jsx';
 import { cx } from '../../utils/cx.js';
 import styles from './NavBar.module.css';
 
@@ -12,20 +13,22 @@ import styles from './NavBar.module.css';
  * @param {object} props
  * @param {string} props.title 화면 제목 (Figma "Title")
  * @param {() => void} [props.onBack] 뒤로가기. 없으면 버튼을 숨긴다
+ * @param {'back'|'close'} [props.icon='back'] 왼쪽 버튼 모양. close = X '닫기' (주소 검색 시안, 2026-10-31)
  * @param {import('react').ReactNode} [props.right] 오른쪽 슬롯 (Figma 에는 없음. 화면에서 필요할 때만)
  * @param {string} [props.className]
  * 화면 이동은 하지 않는다. 뒤로가기를 누르면 onBack 만 부르고, 어디로 갈지는 화면이 정한다(navigate).
+ * title 이 비면 h1 을 그리지 않는다 — 본문에 화면 제목(h1)이 따로 있는 화면용 (예: 서비스 주기 '기본 청소').
  */
-export default function NavBar({ title, onBack, right, className }) {
+export default function NavBar({ title, onBack, icon = 'back', right, className }) {
   // 제목은 h1 이다 — 화면 읽기 도구가 "이 화면의 제목" 으로 읽는다. 버튼은 아이콘뿐이라 aria-label 로 이름을 준다.
   return (
     <header className={cx(styles.navBar, className)}>
       {onBack && (
-        <button type="button" className={styles.back} onClick={onBack} aria-label="뒤로가기">
-          <BackIcon />
+        <button type="button" className={styles.back} onClick={onBack} aria-label={icon === 'close' ? '닫기' : '뒤로가기'}>
+          {icon === 'close' ? <CloseIcon /> : <BackIcon />}
         </button>
       )}
-      <h1 className={cx('text-title-card', styles.title)}>{title}</h1>
+      {title ? <h1 className={cx('text-title-card', styles.title)}>{title}</h1> : <span className={styles.title} />}
       {right && <div className={styles.right}>{right}</div>}
     </header>
   );

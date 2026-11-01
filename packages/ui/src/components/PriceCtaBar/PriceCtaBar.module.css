@@ -1,0 +1,47 @@
+/* PriceCtaBar.jsx 스타일. 오른쪽 버튼 폭 115 (시안 원본값) */
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xl);
+}
+
+.price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.amount {
+  color: var(--color-text-primary);
+}
+
+.detail {
+  min-height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+/* '자세히' 는 글자가 작아 터치 높이 44 를 ::before 로 */
+.detail {
+  position: relative;
+}
+
+.detail::before {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: var(--touch-target);
+  transform: translateY(-50%);
+  content: '';
+}
+
+.action {
+  flex-shrink: 0;
+  width: 115px; /* 시안 원본값 */
+}

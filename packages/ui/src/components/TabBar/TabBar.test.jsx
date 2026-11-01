@@ -7,16 +7,15 @@ import TabBar from './TabBar.jsx';
 describe('TabBar (고객용)', () => {
   it('탭 4개가 Figma 순서·문구대로 있고 활성 탭에 aria-current 가 붙는다', () => {
     render(<TabBar active="reservations" />);
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['홈', '수리', '내 예약', '설정']);
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['홈', '내 예약', '문의', '프로필']);
     expect(screen.getByRole('button', { name: '내 예약' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('수리 탭은 래스터 이미지(srcset 1x/2x/3x)를 쓰고, 탭을 누르면 onSelect(key)', () => {
+  it('문의 탭은 상담 아이콘과 함께 표시되고 onSelect(inquiry)를 호출한다', () => {
     const onSelect = vi.fn();
     render(<TabBar active="home" onSelect={onSelect} />);
-    const img = screen.getByRole('button', { name: '수리' }).querySelector('img');
-    expect(img.getAttribute('srcset')).toMatch(/1x.*2x.*3x/);
-    fireEvent.click(screen.getByRole('button', { name: '설정' }));
-    expect(onSelect).toHaveBeenCalledWith('settings');
+    expect(screen.getByRole('button', { name: '문의' }).querySelector('svg')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '문의' }));
+    expect(onSelect).toHaveBeenCalledWith('inquiry');
   });
 });

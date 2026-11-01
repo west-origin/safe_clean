@@ -9,7 +9,7 @@ import styles from './TabBar.module.css';
 
 /**
  * @param {object} props
- * @param {'home'|'repair'|'reservations'|'settings'} props.active (Figma "Active")
+ * @param {'home'|'repair'|'reservations'|'inquiry'|'settings'} props.active
  * @param {(key: string) => void} [props.onSelect]
  * @param {string} [props.className]
  */

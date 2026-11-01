@@ -12,7 +12,8 @@
     "./typography.css": "./src/tokens/typography.css",
     "./tokens": "./src/tokens/tokens.js",
     "./dev": "./src/dev/index.js",
-    "./extra.css": "./src/tokens/extra.css"
+    "./extra.css": "./src/tokens/extra.css",
+    "./assets/*": "./src/assets/*"
   },
   "peerDependencies": {
     "react": "^19.0.0",

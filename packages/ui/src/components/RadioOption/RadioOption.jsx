@@ -24,14 +24,18 @@ function Indicator({ selected }) {
 /**
  * @param {object} props
  * @param {string} props.label
- * @param {string} [props.description] 라벨 아래 한 줄 설명 (Figma 에 없음 — 무엇을 고르는 것인지 먼저 알려 주려고, 사용성 검토 2026-09-22)
+ * @param {import('react').ReactNode} [props.description] 라벨 아래 한 줄 설명 (Figma 에 없음 — 무엇을 고르는 것인지 먼저 알려 주려고, 사용성 검토 2026-09-22).
+ *   안의 <em> 은 브랜드 색 밑줄 글자로 그린다 (서비스 주기의 '청연 VIP 라운지')
+ * @param {'row'|'card'} [props.variant='row'] row=Figma RadioOption(왼쪽 체크 원) /
+ *   card=라벨 왼쪽·원형 라디오 오른쪽의 큰 카드 (2026-10-31 사용자 첨부 서비스 주기 시안, Figma 에 없음)
  * @param {boolean} props.selected State=Selected
  * @param {() => void} [props.onSelect]
  * @param {string} [props.className]
  * 누르면 onSelect 만 부른다. 선택을 바꾸는 것은 부모의 몫이라, 매니저 근무 일정의 "하루 종일" 처럼
  * 같은 버튼을 다시 누르면 꺼지는 토글로 쓰는 곳도 있다.
  */
-export default function RadioOption({ label, description, selected, onSelect, className }) {
+export default function RadioOption({ label, description, variant = 'row', selected, onSelect, className }) {
+  const card = variant === 'card';
   // 모양은 버튼이지만 role="radio" + aria-checked 로 보조기기가 "선택됨/선택 안 됨" 라디오로 읽게 한다.
   // 묶음(role="radiogroup")과 그룹 이름은 부르는 쪽이 감싸서 붙인다.
   return (
@@ -39,14 +43,16 @@ export default function RadioOption({ label, description, selected, onSelect, cl
       type="button"
       role="radio"
       aria-checked={selected}
-      className={cx(styles.option, description && styles.withDescription, selected && styles.selected, className)}
+      className={cx(styles.option, description && styles.withDescription, card && styles.card, selected && styles.selected, className)}
       onClick={onSelect}
     >
-      <Indicator selected={selected} />
+      {!card && <Indicator selected={selected} />}
       <span className={styles.text}>
         <span className={cx('text-heading-s', styles.label)}>{label}</span>
-        {description && <span className={cx('text-body-s', styles.description)}>{description}</span>}
+        {description && <span className={cx(card ? 'text-body-default' : 'text-body-s', styles.description)}>{description}</span>}
       </span>
+      {/* card: 오른쪽 원형 라디오. 선택되면 두꺼운 브랜드 색 고리 + 흰 가운데 */}
+      {card && <span className={styles.ring} aria-hidden="true" />}
     </button>
   );
 }

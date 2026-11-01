@@ -1,0 +1,39 @@
+/* ScheduleRow.jsx 스타일. 시안 원본값: 줄 높이 최소 64, 버튼 78×52 알약 */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xl);
+  min-height: 64px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+  min-width: 0;
+}
+
+.value {
+  color: var(--color-text-primary);
+}
+
+.caption {
+  color: var(--color-text-secondary);
+}
+
+/* 아직 안 고른 항목: 크게, 아주 연한 회색 */
+.placeholder {
+  color: var(--raw-date-past);
+}
+
+/* 흰 알약 버튼: 글자만큼 폭, 라벨 16 (text-button-label 22 를 title-card 크기로) */
+.action {
+  flex-shrink: 0;
+  width: auto;
+  min-width: 78px; /* 시안 원본값 */
+  height: 52px; /* 시안 원본값 */
+  padding: 0 var(--spacing-3xl);
+  border-color: var(--color-surface-pressed);
+  --font-size-button-label: var(--font-size-title-card);
+}

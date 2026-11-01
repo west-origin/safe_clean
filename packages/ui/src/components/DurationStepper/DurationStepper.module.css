@@ -1,0 +1,65 @@
+/* DurationStepper.jsx 스타일. 시안 원본값: 둥근 버튼 46, 가운데 ↔ 버튼 24, 줄 ↔ 안내 28 */
+.stepper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px; /* 시안 원본값 */
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4xl);
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2xs);
+  min-width: 140px; /* 시간 글자가 바뀌어도 버튼이 흔들리지 않게 */
+}
+
+.hours,
+.price {
+  color: var(--color-text-primary);
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* 회색 원 버튼. 꺼지면 아이콘만 연하게 */
+.round {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 46px; /* 시안 원본값 */
+  height: 46px;
+  min-height: var(--touch-target);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.round:active:not(:disabled) {
+  background: var(--color-surface-pressed);
+}
+
+.round:disabled {
+  color: var(--color-border-default);
+  cursor: not-allowed;
+}
+
+.round:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}

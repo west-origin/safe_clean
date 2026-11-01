@@ -1,0 +1,51 @@
+/* CircleChoiceGroup.jsx 스타일. 시안 원본값: 원 70, 원 ↔ 이름 8, 한 줄 4칸 */
+.group {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--spacing-xl) var(--spacing-sm);
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70px; /* 시안 원본값 */
+  height: 70px;
+  border-radius: 50%;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+}
+
+.choice:active .circle {
+  background: var(--color-surface-pressed);
+}
+
+.choice:focus-visible .circle {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* 고른 원: 브랜드 색 + 흰 아이콘 */
+.selected .circle,
+.selected:active .circle {
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+}
+
+.label {
+  color: var(--color-text-primary);
+}

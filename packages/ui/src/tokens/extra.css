@@ -8,6 +8,11 @@
 :root {
   /* 터치 타겟 최소 크기 (모바일 접근성 기준 44px) */
   --touch-target: 44px;
+  /* 2026-10-29 홈 접근성 요청: 본문 13pt 이상(18px=13.5pt), 행간 1.5, 번호 32px. */
+  --home-font-body: 18px;
+  --home-line-height: 1.5;
+  --home-counter-font: 32px;
+  --home-control-size: 56px;
 
   /* 화면 폭 상한. Figma 는 393px 이지만 폰(360~430)에서는 가로를 꽉 채우고, 태블릿·PC 에서만 이 폭으로 가운데 정렬한다 (2026-09-21 결정 — 큰 폰에서 양옆 여백이 생기던 것).
    * 절대 위치 요소는 393 기준 px 대신 가운데(50%)·오른쪽 기준으로 두어 폭이 달라져도 같은 자리에 온다 */
@@ -52,6 +57,30 @@
   --raw-note-text: #7f7f7f; /* Auth/TermsConsent › PrivacyNoteCard 본문 */
   --raw-step-current: #000000; /* Auth/* › StepCounter "01/" (text/primary #16171e 와 다름) */
   --raw-step-total: #999999; /* Auth/* › StepCounter "04" */
+}
+
+/* 2026-10-29 사용자 첨부 홈화면 시안의 남색·민트·노랑·카드 음영 */
+:root {
+  --raw-home-ink: #101348;
+  --raw-brand-mark-light: #74ccfa; /* 기존 앱 아이콘 중앙 문양의 그라디언트 */
+  --raw-brand-mark-blue: #46aaff;
+  --raw-home-secondary: #69789b;
+  --raw-home-mint: #edfdf8;
+  --raw-home-gift: #fff5d2;
+  --raw-home-notice: #91a4ae;
+  --raw-home-card-shadow: 0 2px 14px rgb(34 132 252 / 7%), inset 0 0 0 1px #edf5fe;
+}
+
+/* 2026-10-31 사용자 첨부 아이콘 시안(플랫 컬러)의 색 — 홈 서비스 아이콘 Service{Store,Home,Studio}Icon */
+:root {
+  --raw-home-icon-roof: #f0676a; /* 집 지붕·가게 차양 */
+  --raw-home-icon-wall: #d9dde3; /* 집·가게 벽 */
+  --raw-home-icon-door: #a3acb7; /* 문 */
+  --raw-home-icon-chimney: #3b4049; /* 굴뚝 */
+  --raw-home-icon-window: #9fd0fb; /* 가게 창 */
+  --raw-home-icon-box-top: #ffc45e; /* 박스 윗면 */
+  --raw-home-icon-box-left: #ff9b3d; /* 박스 왼면 */
+  --raw-home-icon-box-right: #ffb24c; /* 박스 오른면 */
 }
 
 /* 고객용 C3 (주소·거주형태·홈) 원본색 (Figma 에 변수 없음) */
@@ -105,4 +134,11 @@
   --raw-success-green: #20c983; /* 예약 완료(1:241) 체크 원 */
   --raw-repair-card-shadow: 0 8px 24px rgb(0 0 0 / 8%); /* 예약 정보 카드(1:247) 그림자 */
   --raw-repair-complete-gradient: linear-gradient(180deg, #d9faf1 0%, #f7fffd 55%, #ffffff 100%); /* 예약 완료(1:236) 배경 */
+}
+
+/* 2026-10-31 사용자 첨부 방문일·방문 시간 시안의 색 (ScrollCalendar·TimeChoiceGrid·ScheduleRow) */
+:root {
+  --raw-sunday: #e5484d; /* 일요일 */
+  --raw-sunday-muted: #f6c4c5; /* 지난 일요일 */
+  --raw-date-past: #d4d4d4; /* 지난 날·고를 수 없는 시간, 아직 안 고른 '방문 일' */
 }

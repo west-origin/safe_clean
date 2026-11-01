@@ -7,6 +7,8 @@
   padding-top: 11px;
   padding-bottom: max(18px, env(safe-area-inset-bottom));
   background: var(--color-surface-default);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  box-shadow: var(--raw-home-card-shadow);
 }
 
 /* 탭 버튼 하나: 네 탭이 폭을 똑같이 나눈다. 기본 글자색은 비활성(text/secondary) */
@@ -28,7 +30,7 @@
 
 /* 현재 탭: 라벨을 진한 색으로 */
 .tab.active {
-  color: var(--color-text-primary);
+  color: var(--color-brand-primary);
 }
 
 /* 키보드로 포커스했을 때만 보이는 테두리 (버튼 안쪽에 그린다) */
@@ -38,14 +40,13 @@
   border-radius: var(--radius-sm);
 }
 
-/* 아이콘 칸 30×30: 아이콘 색은 활성·비활성 모두 진한 색이고, 비활성은 투명도로만 연하게 한다
-   (SVG 아이콘은 이 글자색으로 칠해지고, 래스터 그림(수리 탭)에도 투명도가 똑같이 걸린다) */
+/* 아이콘 칸: 활성 파랑, 비활성 회색으로 라벨과 같은 색을 쓴다. */
 .icon {
   display: flex;
   width: 30px;
   height: 30px;
-  color: var(--color-text-primary);
-  opacity: 0.35; /* Figma: 비활성 아이콘 35% */
+  color: inherit;
+  opacity: 1;
 }
 
 /* 현재 탭 아이콘은 불투명하게 */

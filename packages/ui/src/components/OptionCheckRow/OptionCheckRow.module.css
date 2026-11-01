@@ -1,0 +1,70 @@
+/* OptionCheckRow.jsx 스타일. 시안 원본값: 높이 64, 패딩 좌 20 / 우 20, 아이콘 32, 아이콘 ↔ 이름 20 */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3xl);
+  width: 100%;
+  min-height: 64px; /* 시안 원본값 */
+  margin: 0;
+  padding: 0 var(--spacing-3xl);
+  border: 1px solid var(--color-surface-pressed);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-default);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.row:active:not(:disabled) {
+  background: var(--color-surface-subtle);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* 한도까지 골라 못 고르는 줄 */
+.row:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.row:disabled .icon {
+  opacity: 0.4;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+}
+
+.icon :is(svg, img) {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.label {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* 오른쪽 원 28: 선택 안 됨 = 회색 2px 고리, 선택 = 브랜드 색 9px 고리 + 흰 가운데 */
+.ring {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--color-border-default);
+  background: var(--color-surface-default);
+}
+
+.selected .ring {
+  box-shadow: inset 0 0 0 9px var(--color-brand-primary);
+}
