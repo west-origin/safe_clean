@@ -18,12 +18,23 @@ export default defineConfig(({ mode }) => {
     if (!env.VITE_API_URL) console.warn('[ansimclean] VITE_API_URL 이 비어 있어요 — Capacitor 앱에서는 API 를 부를 수 없습니다 (.env.production)');
     else if (env.VITE_API_URL.startsWith('http://')) console.warn(`[ansimclean] VITE_API_URL 이 http:// 입니다 (${env.VITE_API_URL}) — 앱의 CSP 가 막습니다. https:// 로 바꾸세요`);
   }
+  // 개발 서버에서 VITE_API_URL 이 다른 출처(예: Cloud Run 테스트 서버)면 브라우저가 CORS 로 막는다 — 배포 서버는 앱 출처(capacitor://localhost 등)만
+  // 허용하고 http://localhost:5173 은 일부러 넣지 않았다 (backend/.env.example). 그래서 로그인이 '네트워크 연결을 확인해주세요' 로 실패했다.
+  // 개발 서버가 그 주소로 대신 전달(proxy)하고, 앱은 같은 출처의 경로(예: /api/v1)만 부르게 바꾼다. 빌드(앱)에는 영향 없다.
+  const apiTarget = mode === 'development' && /^https?:\/\//.test(env.VITE_API_URL ?? '') ? new URL(env.VITE_API_URL) : null;
   return {
   // define: 코드 안의 import.meta.env.VITE_APP_VERSION 글자를 버전 문자열로 바꿔 넣는다 (screens/settings/Settings.jsx 의 버전 행이 읽는다)
-  define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(version) },
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(version),
+    ...(apiTarget && { 'import.meta.env.VITE_API_URL': JSON.stringify(apiTarget.pathname) }), // 개발 서버: 같은 출처의 경로로 (아래 proxy 가 전달)
+  },
   // react(): JSX 변환 + 개발 중 화면 즉시 갱신. cspPlugin(): 빌드 때만 index.html 에 CSP 를 넣는다
   plugins: [react(), cspPlugin({ payments: true })],
-  server: { port: 5173 }, // .claude/launch.json 의 customer 와 같은 포트. 가짜 서버 모드(dev:customer:mock)는 --port 5175 로 띄운다
+  server: {
+    port: 5173, // .claude/launch.json 의 customer 와 같은 포트. 가짜 서버 모드(dev:customer:mock)는 --port 5175 로 띄운다
+    // Origin 헤더를 지워 보낸다 — 남겨 두면 서버(Spring)가 여전히 CORS 요청으로 보고 허용 목록에 없는 localhost 를 403 으로 막는다
+    proxy: apiTarget ? { [apiTarget.pathname]: { target: apiTarget.origin, changeOrigin: true, configure: (proxy) => proxy.on('proxyReq', (req) => req.removeHeader('origin')) } } : undefined,
+  },
   optimizeDeps: {
     // @ansimclean/ui 는 워크스페이스 링크 패키지라 Vite 가 그 안의 react 사용을 뒤늦게 발견하고
     // 재최적화하면서 React 가 두 벌 로드되는 문제가 있다("Invalid hook call"). 미리 목록에 넣어 막는다.

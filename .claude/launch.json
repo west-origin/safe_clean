@@ -38,6 +38,15 @@
       "port": 5176
     },
     {
+      "name": "customer-mock-win",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "set VITE_API_MOCK=1&& npm run dev -w apps/customer -- --port 5178"
+      ],
+      "port": 5178
+    },
+    {
       "name": "customer-local",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
