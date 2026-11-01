@@ -25,9 +25,10 @@ const str = (s) => "E'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "''").r
 const jsonb = (v) => "'" + JSON.stringify(v).replace(/'/g, "''") + "'::jsonb";
 const rows = (table, cols, values) => `insert into ${table} (${cols.join(', ')}) values\n${values.map((v) => '  (' + v.join(', ') + ')').join(',\n')};\n`;
 
-const CATEGORY_ORDER = ['home', 'office', 'appliance', 'move-in']; // 카테고리 순서 — seed 의 sort 값과 shapes 파일을 만드는 순서
+// 카테고리 순서 — seed 의 sort 값과 shapes 파일을 만드는 순서. store(매장 청소)는 B1 뒤에 V058 로 손으로 넣었다 (seed 는 다시 만들지 않는다)
+const CATEGORY_ORDER = ['home', 'office', 'appliance', 'move-in', 'store'];
 // 결정 §13-3: 임시 가격 (정기 / 1회). 운영 전 새 마이그레이션으로 교체
-const PRICES = { home: [80000, 100000], office: [120000, 150000], appliance: [60000, 70000], 'move-in': [150000, 180000] };
+const PRICES = { home: [80000, 100000], office: [120000, 150000], appliance: [60000, 70000], 'move-in': [150000, 180000], store: [120000, 150000] };
 // 매니저 약관 라벨 앞의 '(필수) '·'(선택) ' 을 떼어 약관 제목으로 쓴다
 const stripPrefix = (label) => label.replace(/^\((필수|선택)\)\s*/, '');
 

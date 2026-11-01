@@ -1938,7 +1938,7 @@ DB 제약조건:
 
 | 컬럼 | DB 타입 | NULL 허용 | 기본값·계산식 | 의미 |
 | --- | --- | --- | --- | --- |
-| `key` | `text` | 아니오 | 없음 | 서비스 분류 키(예: home, office, appliance, move-in, repair) |
+| `key` | `text` | 아니오 | 없음 | 서비스 분류 키(예: home, office, appliance, move-in, repair, store(매장 청소, V058)) |
 | `label` | `text` | 아니오 | 없음 | 서비스 표시명 |
 | `promo` | `text` | 아니오 | 없음 | 프로모션 유형(recurring=정기 안내, placeholder=기타 안내) |
 | `promo_text` | `text` | 예 | 없음 | 프로모션 표시 문구 |

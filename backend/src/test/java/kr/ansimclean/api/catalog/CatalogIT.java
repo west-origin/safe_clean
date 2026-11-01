@@ -49,18 +49,22 @@ class CatalogIT {
             "category-office, /api/v1/catalog/categories/office",
             "category-appliance, /api/v1/catalog/categories/appliance",
             "category-move-in, /api/v1/catalog/categories/move-in",
+            "category-store, /api/v1/catalog/categories/store", // 매장 청소 (V058)
             "options-home, /api/v1/catalog/categories/home/options",
             "options-office, /api/v1/catalog/categories/office/options",
             "options-appliance, /api/v1/catalog/categories/appliance/options",
             "options-move-in, /api/v1/catalog/categories/move-in/options",
+            "options-store, /api/v1/catalog/categories/store/options", // 매장 청소 (V058)
             "notice-chips-home, /api/v1/catalog/categories/home/notice-chips",
             "notice-chips-office, /api/v1/catalog/categories/office/notice-chips",
             "notice-chips-appliance, /api/v1/catalog/categories/appliance/notice-chips",
             "notice-chips-move-in, /api/v1/catalog/categories/move-in/notice-chips",
+            "notice-chips-store, /api/v1/catalog/categories/store/notice-chips", // 매장 청소 (V058)
             "confirm-copy-home, /api/v1/catalog/categories/home/confirm-copy",
             "confirm-copy-office, /api/v1/catalog/categories/office/confirm-copy",
             "confirm-copy-appliance, /api/v1/catalog/categories/appliance/confirm-copy",
             "confirm-copy-move-in, /api/v1/catalog/categories/move-in/confirm-copy",
+            "confirm-copy-store, /api/v1/catalog/categories/store/confirm-copy", // 매장 청소 (V058)
             "time-slots, /api/v1/catalog/time-slots",
             "reasons-reject, /api/v1/catalog/reasons?kind=reject",
             "reasons-pause, /api/v1/catalog/reasons?kind=pause",

@@ -45,7 +45,7 @@ public class Booking {
     @Column(name = "manager_id", columnDefinition = "uuid")
     private UUID managerId;
 
-    // 서비스 종류 키 (home·office·appliance·move-in·repair 등, service_categories.key)
+    // 서비스 종류 키 (home·office·appliance·move-in·repair·store 등, service_categories.key)
     @Column(name = "category_key", columnDefinition = "text", nullable = false)
     private String categoryKey;
 

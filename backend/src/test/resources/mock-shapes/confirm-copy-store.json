@@ -1,0 +1,11 @@
+{
+  "copy": {
+    "title": "예약내용을\n확인해주세요",
+    "description": "아래 내용으로 예약을 진행할게요.\n다시 한번 확인해주세요."
+  },
+  "frequencyDescriptions": {
+    "recurring": "매월 같은 날짜에 한 번 진행해요",
+    "oneTime": "원하는 날짜에 한 번만 진행해요"
+  },
+  "seriesTermMonths": 6
+}

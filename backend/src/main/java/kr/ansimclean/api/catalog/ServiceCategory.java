@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 // GET /catalog/categories/{category} 응답(CategoryResponse)을 만든다. 값은 Flyway 마이그레이션으로 넣는다.
 // 카테고리를 더할 때 가격표(catalog_prices)나 app_settings.duration_hours 칸을 빠뜨리면 견적·예약이 INTERNAL 로 실패하고,
 // 체크리스트·짧은 라벨을 빠뜨리면 대체값(home 목록·전체 라벨)이 나간다 (PricingService·CatalogService 참고).
-/** service_categories — 예약 카테고리 (V002 의 청소 home · office · appliance · move-in, V012 의 수리 repair). 읽기 전용 참조 데이터 */
+/** service_categories — 예약 카테고리 (V002 의 청소 home · office · appliance · move-in, V012 의 수리 repair, V058 의 매장 청소 store). 읽기 전용 참조 데이터 */
 @Entity
 @Table(name = "service_categories")
 public class ServiceCategory {

@@ -1,0 +1,34 @@
+{
+  "free": [
+    {
+      "key": "shelf",
+      "label": "진열대 먼지 제거",
+      "icon": 0
+    },
+    {
+      "key": "entrance",
+      "label": "출입문 유리 닦기",
+      "icon": 1
+    },
+    {
+      "key": "recycle",
+      "label": "분리배출",
+      "icon": 2
+    }
+  ],
+  "paid": [
+    {
+      "key": "kitchen",
+      "label": "주방\n기름때 청소",
+      "price": "+50,000원",
+      "icon": 3
+    },
+    {
+      "key": "signboard",
+      "label": "간판·외부\n유리 청소",
+      "price": "+35,000원",
+      "icon": 4
+    }
+  ],
+  "freeLimit": 2
+}
