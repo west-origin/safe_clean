@@ -72,3 +72,45 @@
   width: 304px;
   flex-shrink: 0;
 }
+
+/* 2026-10-31 시안의 하단 고정 버튼(ScreenLayout stickyCta 안): 알약이 아니라 둥근 사각형, 높이 56, 라벨 16
+   (text-button-label 22 를 title-card 크기로 — Home.module.css 처럼 변수만 바꾼다). 서비스 주기·주소 선택·주소 검색이 쓴다 */
+.ctaRounded {
+  height: 56px;
+  border-radius: var(--radius-sm);
+  --font-size-button-label: var(--font-size-title-card);
+}
+
+/* 가운데 작은 알약 버튼 (예: '+ 주소추가', '서비스 가능지역'). 폭은 글자만큼, 라벨 16 */
+.pill {
+  width: auto;
+  align-self: center;
+  padding: 0 var(--spacing-4xl);
+  border-color: var(--color-surface-pressed);
+  --font-size-button-label: var(--font-size-title-card);
+}
+
+/* 시안 화면들의 본문 틀: 좌우 24, 위 4 / 아래 24, 제목 줄바꿈('\n')을 그대로 */
+.page {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-2xs) var(--spacing-4xl) var(--spacing-4xl);
+}
+
+.pageTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+  white-space: pre-line;
+}
+
+/* 방문일·방문 시간 화면의 오른쪽 아래 '확인' (2026-10-31 시안): 알약 102×56, 라벨 16 */
+.ctaRight {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.confirmPill {
+  width: 102px; /* 시안 원본값 */
+  height: 56px;
+  --font-size-button-label: var(--font-size-title-card);
+}

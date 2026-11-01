@@ -1,0 +1,54 @@
+/* 날짜/시간 화면(BookingSchedule.jsx) 레이아웃. 2026-10-31 사용자 첨부 시안 (393 폭 기준으로 환산한 값).
+   본문 틀(.page)·하단 버튼은 booking.module.css 공통 */
+.body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 제목 ↔ 매니저 안내 32 */
+.top {
+  gap: 32px; /* 시안 원본값 */
+  padding-bottom: var(--spacing-4xl);
+}
+
+/* '시간' 섹션: 띠 아래 28, 줄 사이 24 */
+.times {
+  gap: var(--spacing-4xl);
+  padding-top: 28px; /* 시안 원본값 */
+}
+
+.sectionTitle {
+  margin-bottom: var(--spacing-sm);
+}
+
+/* 시간 시트: 스테퍼 위아래 여백 */
+.stepper {
+  padding: var(--spacing-4xl) 0;
+}
+
+/* '자세히' 시트 */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  margin: 0;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+}
+
+.detailKey {
+  color: var(--color-text-secondary);
+}
+
+.detailValue {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.detailNote {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,25 @@
+/* 주소 수정 화면(BookingAddressEdit.jsx) 레이아웃. 본문 틀(.page)·하단 버튼·알약 버튼은 booking.module.css 공통 */
+.page {
+  gap: 32px; /* 제목 ↔ 입력칸 */
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3xl);
+}
+
+.road {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.remove {
+  margin-top: var(--spacing-sm);
+}

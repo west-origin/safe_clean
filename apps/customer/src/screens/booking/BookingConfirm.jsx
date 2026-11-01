@@ -82,16 +82,16 @@ export default function BookingConfirm() {
 
           {/* 요약 카드. "수정하기" 는 go(단계) 로 그 단계에 ?returnTo=확인 화면 을 붙여 연다 — 서비스 종류만 홈으로 */}
           <Card padding="none" gap="none" className={styles.summary}>
-            <SummaryItem icon={ASSETS.confirmIcons.service} title="서비스 종류" value={info.cat?.label} onEdit={() => navigate('/home')} />
-            {/* 주소 "수정하기": 새 주소면 주소 검색으로, 기존 주소면 '기존 주소 사용' 선택(step2)으로 */}
+            <SummaryItem icon={ASSETS.confirmIcons.service} title="서비스 종류" value={category === 'home' && draft.homeService ? (draft.homeService === 'studio' ? '원룸 청소' : '가정 청소') : info.cat?.label} onEdit={() => navigate('/home')} />
+            {/* 주소 "수정하기": 주소 선택(저장 주소가 없으면 주소 검색)으로 */}
             <SummaryItem
               icon={ASSETS.confirmIcons.address}
               title="주소"
               value={address ? address.roadAddress : '주소를 입력해주세요'}
               subValue={address ? address.detailAddress : undefined}
-              onEdit={() => go('step2')}
+              onEdit={() => go('address')}
             />
-            <SummaryItem icon={ASSETS.confirmIcons.schedule} title="방문 일정" value={hasSchedule ? formatDate(draft.date) : '날짜와 시간을 선택해주세요'} subValue={hasSchedule ? formatTimeKo(draft.time) : undefined} onEdit={() => go('datetime')} />
+            <SummaryItem icon={ASSETS.confirmIcons.schedule} title="방문 일정" value={hasSchedule ? formatDate(draft.date) : '날짜와 시간을 선택해주세요'} subValue={hasSchedule ? formatTimeKo(draft.time) : undefined} onEdit={() => go('schedule')} />
             <SummaryItem icon={ASSETS.confirmIcons.frequency} title="서비스 주기" value={info.frequencies.find((f) => f.key === frequency)?.label} subValue={info.frequencyDescriptions[frequency]} onEdit={() => go('frequency')} />
             {/* 고르지 않은 항목은 제목과 빈 상자만 남아 빠뜨린 건지 알 수 없었다 → "없어요" (전체 점검 G6) */}
             {chosenOptions.length > 0 ? (
@@ -105,7 +105,10 @@ export default function BookingConfirm() {
             ) : (
               <SummaryItem icon={ASSETS.confirmIcons.options} title="선택 옵션" value={CONFIRM_EMPTY_COPY.options} onEdit={() => go('options')} />
             )}
-            {chosenNotices.length > 0 ? (
+            {draft.noticeSummary ? (
+              // 주의사항 화면의 답 한 줄 (2026-11-01) — 예: '반려동물: 강아지 · 영유아: 없음 · 무료주차: 불가능'
+              <SummaryItem icon={ASSETS.confirmIcons.notes} title="주의사항" value={draft.noticeSummary.replace(/^\[[^\]]*\]\s*/, '')} onEdit={() => go('notes')} />
+            ) : chosenNotices.length > 0 ? (
               <SummaryItem icon={ASSETS.confirmIcons.notes} title="주의사항" onEdit={() => go('notes')}>
                 <div className={styles.chips}>
                   {chosenNotices.map((c) => (

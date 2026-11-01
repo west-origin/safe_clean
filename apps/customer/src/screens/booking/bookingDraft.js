@@ -50,7 +50,7 @@ function write(category, value) {
 }
 
 /**
- * @param {string} category 'home' | 'office' | 'appliance' | 'move-in'
+ * @param {string} category 'home' | 'office' | 'appliance' | 'move-in' | 'store'
  * @returns {[object, (patch: object | ((prev: object) => object)) => void, () => void]} [draft, update, clear] — update 는 객체(병합) 또는 함수(이전 값 → 병합할 객체).
  *   내용을 바꾸면 `submitKey`(예약 생성 멱등 키, BACKEND_PLAN.md §9.4)는 지운다 — 서버가 같은 키에 다른 본문을 거부하기 때문. submitKey 자체를 넣는 patch 는 예외
  */

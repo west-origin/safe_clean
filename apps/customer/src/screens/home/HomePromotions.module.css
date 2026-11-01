@@ -1,0 +1,103 @@
+.carousel {
+  position: relative;
+  min-width: 0;
+}
+.viewport {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  touch-action: pan-y;
+}
+.track {
+  display: flex;
+  transition: transform 600ms var(--ease-standard);
+}
+.reset {
+  transition: none;
+}
+.slide {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+/* 배너 이미지 한 장이 카드 전체를 채운다. 비율은 360×108 (사용자 첨부 시안의 집수리 배너와 비슷한 가로형) */
+.card {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 360 / 108;
+  object-fit: cover;
+}
+/* 첨부 시안처럼 카드 오른쪽 아래 모서리 안쪽에 작은 알약 버튼으로 둔다 */
+.controls {
+  position: absolute;
+  right: var(--spacing-sm);
+  bottom: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+.counter,
+.pause {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px; /* 시각 크기. 터치 영역은 ::before 로 44px */
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-default);
+  color: var(--raw-home-ink);
+  box-shadow: var(--raw-home-card-shadow);
+  cursor: pointer;
+}
+.counter::before,
+.pause::before {
+  content: '';
+  position: absolute;
+  inset: calc((32px - var(--touch-target)) / 2) 0;
+}
+.counter {
+  gap: var(--spacing-xs);
+  padding: 0 var(--spacing-sm) 0 var(--spacing-md);
+}
+.pause {
+  width: 32px;
+}
+.pause::before {
+  inset: calc((32px - var(--touch-target)) / 2);
+}
+.carousel button:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 4px;
+}
+.eventSheet {
+  color: var(--raw-home-ink);
+}
+.eventSheet p {
+  margin: 0;
+}
+.eventList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4xl);
+  margin: 0;
+  padding: var(--spacing-sm) 0;
+  list-style: none;
+}
+.eventButton {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    transition: none;
+  }
+}

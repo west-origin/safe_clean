@@ -1,0 +1,17 @@
+/* 주소 선택 화면(BookingAddress.jsx) 레이아웃. 2026-10-31 사용자 첨부 시안 (393 폭 기준으로 환산한 값).
+   본문 틀(.page)·하단 버튼·알약 버튼은 booking.module.css 공통 */
+.page {
+  gap: 44px; /* 시안 원본값: 제목 ↔ 주소 목록 */
+}
+
+/* 주소 사이 24 */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4xl);
+}
+
+/* 목록 아래 '+ 주소추가' 까지 */
+.add {
+  margin-top: var(--spacing-2xl);
+}

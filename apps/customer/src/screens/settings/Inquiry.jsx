@@ -7,6 +7,7 @@ import { ScreenLayout, NavBar, TextArea, Button, Sheet, cx, useAction, ActionErr
 import { submitInquiry, newInquiryKey } from '../../api/customer.js';
 import { INQUIRY_COPY, INPUT_LIMITS } from '../../api/mock.js';
 import MyInquiries from './MyInquiries.jsx';
+import CustomerFooter from '../CustomerFooter.jsx';
 import styles from './settingsSub.module.css';
 
 /** 1:1 문의 화면: 내 문의 목록 + 문의 입력칸 + 접수 완료 시트 */
@@ -32,6 +33,7 @@ export default function Inquiry() {
 
   return (
     <ScreenLayout
+      tabBar={<CustomerFooter active="inquiry" />}
       navBar={<NavBar title={INQUIRY_COPY.title} onBack={() => navigate('/settings')} />}
       stickyCta={
         <Button loading={send.loading} disabled={!content.trim()} onClick={send.run}>

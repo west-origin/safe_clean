@@ -1,22 +1,76 @@
-/* 서비스 주기 화면(BookingFrequency.jsx) 여백. 섹션·라디오 묶음·CTA 는 booking.module.css 공통 */
-/* PageBody: 상 12 / 하 20 */
+/* 서비스 주기 화면(BookingFrequency.jsx) 레이아웃. 2026-10-31 사용자 첨부 시안 (393 폭 기준으로 환산한 값).
+   제목 블록 → 서비스 주기 → 회색 띠 → '정기 서비스는?' 가로 카드. "다음" 은 ScreenLayout 의 stickyCta */
 .body {
-  padding: var(--spacing-lg) 0 var(--spacing-3xl);
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-2xs) 0 var(--spacing-4xl);
+  /* 시안 글자 크기: 섹션 제목·카드 라벨·질문은 18 (text-heading-s 20 을 이 화면에서만 body-m 크기로) — Home.module.css 와 같은 방식 */
+  --font-size-heading-s: var(--font-size-body-m);
 }
 
-/* ContentStack: 간격 58 */
-.stack {
-  gap: 58px; /* Figma 원본값 */
-}
-
-/* TitleBlock: ServiceLabel ↔ 제목 3 */
+/* 큰 제목 + 회색 설명 */
 .titleBlock {
   display: flex;
   flex-direction: column;
-  gap: 3px; /* Figma 원본값 */
+  gap: var(--spacing-lg);
+  padding: 0 var(--spacing-4xl);
 }
 
-/* 제목 위 서비스 이름 (서버가 준 카테고리 label) — 브랜드 색 */
-.serviceLabel {
-  color: var(--color-brand-primary);
+.description {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* 서비스 주기: 설명 아래 44, 제목 ↔ 카드 20 */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4xl);
+  margin-top: 44px; /* 시안 원본값 */
+  padding: 0 var(--spacing-4xl);
+}
+
+/* 카드 사이 14 */
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 14px; /* 시안 원본값 */
+}
+
+/* 회색 띠: 카드 아래 24 */
+.divider {
+  margin-top: var(--spacing-4xl);
+}
+
+/* '정기 서비스는?' : 띠 아래 30, 제목 ↔ 카드 24 */
+.faq {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4xl);
+  margin-top: 30px; /* 시안 원본값 */
+}
+
+.faqTitle {
+  padding: 0 var(--spacing-4xl);
+}
+
+/* 가로로 미는 카드 줄. 손을 떼면 카드 시작점에 붙는다 */
+.faqTrack {
+  display: flex;
+  gap: var(--spacing-xl);
+  overflow-x: auto;
+  padding: 0 var(--spacing-4xl);
+  scroll-padding: 0 var(--spacing-4xl);
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.faqTrack::-webkit-scrollbar {
+  display: none;
+}
+
+/* 카드 폭 306 (시안 원본값). 화면이 좁으면 옆 카드가 살짝 보이게 85% */
+.faqCard {
+  flex: 0 0 min(306px, 85%);
+  scroll-snap-align: start;
 }

@@ -51,6 +51,11 @@ const routes = [
       { path: '/settings/notices/:id', lazy: page(() => import('./screens/settings/NoticeDetail.jsx')) },
       { path: '/booking/:category/frequency', lazy: page(() => import('./screens/booking/BookingFrequency.jsx')) }, // C5 */Frequency (step 1)
       { path: '/booking/:category/datetime', lazy: page(() => import('./screens/booking/BookingDateTime.jsx')) }, // C5 */DateTime (2)
+      { path: '/booking/:category/address', lazy: page(() => import('./screens/booking/BookingAddress.jsx')) }, // 주소 선택 (코드에서 정함, 2026-10-31 사용자 시안) — 주소 없으면 address-search 로
+      { path: '/booking/:category/address-edit/:id', lazy: page(() => import('./screens/booking/BookingAddressEdit.jsx')) }, // 주소 수정·삭제 (코드에서 정함, 2026-10-31)
+      { path: '/booking/:category/schedule', lazy: page(() => import('./screens/booking/BookingSchedule.jsx')) }, // 날짜/시간 (2026-10-31 사용자 시안). 예약 변경(?edit=)은 /datetime 그대로
+      { path: '/booking/:category/visit-date', lazy: page(() => import('./screens/booking/BookingVisitDate.jsx')) }, // 방문일 (2026-10-31 사용자 시안)
+      { path: '/booking/:category/visit-time', lazy: page(() => import('./screens/booking/BookingVisitTime.jsx')) }, // 방문 시간 (2026-10-31 사용자 시안)
       { path: '/booking/:category/step2', lazy: page(() => import('./screens/booking/BookingStep2.jsx')) }, // C5 */Step2 (3)
       { path: '/booking/:category/address-search', lazy: page(() => import('./screens/booking/BookingAddressSearch.jsx')) }, // C5 */AddressSearch (4)
       { path: '/booking/:category/address-confirm', lazy: page(() => import('./screens/booking/BookingAddressConfirm.jsx')) }, // C5 */AddressConfirm (5)

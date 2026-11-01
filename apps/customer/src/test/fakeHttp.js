@@ -52,7 +52,7 @@ export const LIVE_BOOKING_ID = 'r0';
 /** 끝났는데 녹화본이 아직 업로드 중인 예약. `__fake.readyRecordings.add(id)` 로 준비 상태로 바꾼다 */
 export const UPLOADING_BOOKING_ID = 'r4';
 /** 임시 가격표 (backend V002 와 같은 값) */
-export const PRICES = { home: { recurring: 80000, oneTime: 100000 }, office: { recurring: 120000, oneTime: 150000 }, appliance: { recurring: 60000, oneTime: 70000 }, 'move-in': { recurring: 150000, oneTime: 180000 } };
+export const PRICES = { home: { recurring: 80000, oneTime: 100000 }, office: { recurring: 120000, oneTime: 150000 }, appliance: { recurring: 60000, oneTime: 70000 }, 'move-in': { recurring: 150000, oneTime: 180000 }, store: { recurring: 120000, oneTime: 150000 } };
 
 // 가짜 서버의 로그인 사용자. 기본은 가입을 마친 고객이고, patch 로 가입 단계(signupStep)·이름 등만 바꿔 만든다
 const user = (patch) => ({ id: FAKE_USER_ID, role: 'customer', name: '김하늘', profileComplete: true, signupStep: null, ...patch });
@@ -351,6 +351,14 @@ export function fakeHttpModule() {
       state.addresses = state.addresses.filter((a) => a.id !== id);
       if (wasDefault && state.addresses[0]) state.addresses[0].isDefault = true; // 서버처럼 다음 주소가 기본
       return { id };
+    }],
+    // 주소 수정: 별칭·상세 주소만 (서버처럼 빈 별칭은 '기타', 빈 상세는 null)
+    ['PATCH', /^\/customer\/addresses\/([^/]+)$/, ([id], b) => {
+      const a = state.addresses.find((x) => x.id === id);
+      if (!a) throw notFound(id);
+      a.label = b.label?.trim() || '기타';
+      a.detailAddress = b.detailAddress?.trim() || null;
+      return { ...a };
     }],
     // 기본 주소 바꾸기: 고른 주소만 isDefault=true 로 하고 전체 목록을 돌려준다
     ['PUT', /^\/customer\/addresses\/([^/]+)\/default$/, ([id]) => {

@@ -1,15 +1,16 @@
-/* 주소 검색 화면(BookingAddressSearch.jsx) 레이아웃. 시트 틀·CTA 는 booking.module.css 공통 */
-/* SearchBlock: 제목 ↔ 검색창 10 */
-.searchBlock {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
+/* 주소 검색 화면(BookingAddressSearch.jsx) 레이아웃. 2026-10-31 사용자 첨부 시안 (393 폭 기준으로 환산한 값).
+   본문 틀(.page)·하단 버튼·알약 버튼은 booking.module.css 공통 */
+/* 제목 ↔ 검색창 24, 검색창 ↔ 결과·안내 12 */
+.page {
+  flex: 1 1 auto;
+  gap: var(--spacing-4xl);
 }
 
-/* 검색창 + 그 아래 결과 목록 또는 안내 문구. 이름의 Map 은 Figma MapPreview 자리였던 흔적이다 */
-.fieldAndMap {
+/* 검색어가 없을 때: 남은 칸 가운데에 '서비스 가능지역' */
+.empty {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--spacing-lg); /* 검색창 ↔ 결과·안내 (자리표시 이미지를 걷어내며, 사용성 검토 2026-09-22) */
+  justify-content: center;
+  min-height: 320px; /* 시안처럼 화면 가운데쯤 오게 */
 }
-

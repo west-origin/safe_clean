@@ -1,0 +1,4 @@
+/* 방문일 화면(BookingVisitDate.jsx) 레이아웃. 제목 아래 요일 줄까지 24 */
+.title {
+  padding: var(--spacing-2xs) var(--spacing-4xl) var(--spacing-4xl);
+}

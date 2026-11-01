@@ -23,9 +23,12 @@ function renderSearch() {
 describe('Booking/AddressSearch 주소 검색', () => {
   beforeEach(() => sessionStorage.clear());
 
-  it('검색어가 없으면 입력 안내를 보인다', () => {
+  // 2026-10-31 시안: 검색어가 없으면 안내 문구 대신 '서비스 가능지역' 버튼만, "다음" 은 없다
+  it('검색어가 없으면 서비스 가능지역 버튼을 보이고 다음 버튼은 없다', () => {
     renderSearch();
-    expect(screen.getByText(ADDRESS_SEARCH_COPY.guide)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: ADDRESS_SEARCH_COPY.serviceArea })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '다음' })).toBeNull();
+    expect(screen.getByRole('button', { name: '닫기' })).toBeInTheDocument();
   });
 
   it('검색어를 적으면 검색 결과가 뜨고, 고른 도로명주소로 주소 확인 화면에 간다', async () => {

@@ -1,0 +1,4 @@
+/* 방문 시간 화면(BookingVisitTime.jsx) 레이아웃. 제목 ↔ 시간 목록 40 (시안 원본값) */
+.page {
+  gap: 40px;
+}

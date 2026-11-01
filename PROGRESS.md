@@ -1,5 +1,18 @@
 # PROGRESS
 
+## 서비스 주기 화면 시안 반영 (2026-10-31 사용자 요청 — Figma 에 없어 첨부 이미지 기준)
+- [x] `BookingFrequency`: 뒤로가기('청소 범위' 버튼은 같은 날 사용자 요청으로 삭제), '기본 청소' 제목·설명, 카드형 라디오(`RadioOption variant="card"`, brand/primary), 회색 띠(`SectionDivider`), '정기 서비스는?' 가로 카드(`FaqCard`), 하단 고정 '다음'(brand/primary, 둥근 사각형). 문구는 `mock.js` FREQUENCY_SCREEN_COPY.
+- [x] 시안에 없는 날짜/시간 선택 섹션·회차 안내(InfoNote)·서버 주기 설명·프로모션 배너는 다른 화면에서 쓸 예정이라 코드는 두고 `hidden` 으로 숨김.
+- [x] 글자 크기는 시안 비율에 맞춰 이 화면에서만 heading-s → 18, 버튼 라벨 → 16 (CSS 변수 재정의, Home 과 같은 방식). `npm run cap:sync:development -w apps/customer` 로 Android 반영.
+- [x] 예약 주소 단계 (같은 날 사용자 요청): 서비스 주기 "다음" → `/booking/:category/address`(새 화면 `BookingAddress`, 코드에서 정함). 저장 주소가 없으면 주소 검색으로 바로 넘기고, 있으면 주소 목록(`AddressOption`, 기본 주소 선택됨) + '+ 주소추가' + "다음". 주소를 정하면 날짜 화면 → 옵션(날짜 "다음" 이 /step2 대신 /options). 확인 화면 주소 '수정하기' 도 주소 선택으로. Step2 는 라우트만 남김.
+- [x] 주소 검색 화면을 시안대로: X 닫기(`NavBar icon="close"`), '지번, 도로명, 건물명으로 검색해 주세요.', 회색 검색창, 검색어가 없으면 가운데 '서비스 가능지역', "다음" 은 검색어가 있을 때만. 수리 예약 주소 변경도 같은 화면을 쓴다.
+- [x] 주소 선택 제목 '주소를 선택해 주세요.', '수정' 글자 크기를 주소와 같게. '수정' → 주소 수정 화면(`BookingAddressEdit`, 코드에서 정함): 도로명주소는 읽기 전용, 별칭·상세주소만 저장, '주소 삭제'(확인 시트). 백엔드 `PATCH /customer/addresses/{id}` 추가(Service·Controller·IT 테스트 작성) — **IT 미실행·Controller/Service 테스트 미실행** (이 컴퓨터에 JDK·Docker 없음). 배포 전까지 테스트 서버에서는 저장이 실패한다(삭제는 기존 API 라 동작).
+- [x] 날짜/시간 화면 `BookingSchedule`(/schedule, 사용자 시안): 매니저 안내·시간(기본 2시간, 시트에서 1시간씩 최대 8시간)·방문 일·방문 시간·1회면 정기 예약 안내·하단 금액(시간당 20,800원, 정기 -2,000원 — 사용자 요청으로 임의 책정한 표시용, 서버에 durationHours 안 보냄)+자세히 시트. 방문일 `BookingVisitDate`(세로 스크롤 달력, 지난 날 꺼짐, 오늘 표시, 일요일 빨강), 방문 시간 `BookingVisitTime`(서버 시간 목록). 예약 변경(?edit=)은 예전 `/datetime` 그대로. 매니저 그림은 기존 사진 에셋 `managerAvatar`.
+- [x] 옵션 화면 `BookingOptions` 를 사용자 시안(2026-11-01)대로: 뒤로가기 + '옵션을 선택해 주세요.', '무료 선택' 한 줄 카드(`OptionCheckRow`, 원형 표시), '유료 추가' 두 장씩 카드(`PaidOptionCard`, +/체크), 하단 금액(서비스 시간 + 유료 옵션, 표시용) + 자세히 + 다음. '청소 범위' 제외. 매장 옵션 5개는 서버(V058) 그대로, 그림은 홈 서비스 아이콘과 같은 플랫 SVG(`Option*Icon` 5개, 코드에서 정함). 다른 카테고리는 기존 래스터 그림.
+- [x] (2026-11-01) 가정·원룸(home) 옵션도 플랫 SVG 아이콘(`OptionDishes/Laundry/Bedding/PetCare/FridgeIcon`). 날짜/시간 화면의 정기 예약 안내(PromoNote)·'시간 ?' 아이콘 삭제(컴포넌트·아이콘째).
+- [x] (2026-11-01) 주의사항/요청사항 화면을 사용자 시안대로: 반려동물(강아지·고양이·기타·없음)·영유아(있음·없음)·무료주차(가능·불가능·모름) 동그라미 선택(`CircleChoiceGroup`, 선 아이콘 `Answer*Icon`), 처음엔 선택 없음, 하나라도 안 고르면 "다음" 꺼짐 + 작은 빨간 안내, 맨 아래 주의사항/요청사항 입력칸, 하단 금액. 서버 칩에 없는 답(동물 종류·무료주차)은 초안 noticeSummary 한 줄로 만들어 예약 요청사항 맨 앞에 붙인다(서버 변경 없음). 서버 칩과 같은 뜻(pet·baby)은 notices 로 그대로. 가입 때 고른 반려동물 미리 켜기는 '첫 화면은 선택 없음' 요청으로 뺐다. 무료주차 안내·입력칸 문구는 코드에서 정함.
+- [ ] 판단 필요: '서비스 가능지역'·'어떤 교육을 받나요?' 을 누르면 보여 줄 내용, 무료주차·동물 종류를 서버 주의사항 칩(Flyway)으로 정식 추가할지, 서비스 시간·금액을 서버 견적에 반영할지, '정기 서비스는?' 의 나머지 질문·답변, 홈 외 카테고리 설명 문구가 시안에 없음 (지금은 버튼만, 질문 1장, 설명은 home 만).
+
 ## Mac 빌드 인계 (2026-10-26 사용자 요청)
 - [x] 현재 앱·공용 UI·백엔드·마이그레이션·배포 소스를 커밋 대상으로 정리. 임시 파일·검증 결과물·로컬 IDE 설정·관계없는 설치 실행 파일은 제외.
 - [x] 두 앱에 공개 개발 API 주소를 담은 `.env.staging` 추가. Node.js 최소 요구 사항을 Capacitor 8에 맞게 22로 정리하고 Mac 실행 스크립트의 LF를 보장.
@@ -549,6 +562,7 @@
 
 ## 에셋 TODO (Figma 에 원본 없음 — 단계 4 화면에서 플레이스홀더 + TODO 로 처리)
 스펙은 `(교체필요)` 15개라 했으나 실제 파일에는 **21개** (옵션 아이콘 20 + 아바타 1).
+- (2026-10-29) 홈 롤링 배너 3장 `packages/ui/src/assets/home-banner-{coupon,daily,gift}.png` — 기존 3D 에셋 + 배너 문구를 Edge 헤드리스로 렌더링한 **임시 PNG**(1080×324, 360×108@3x). 디자인 배너가 오면 WebP 1x/2x/3x 로 교체
 - `(에셋 필요)` 3개: `BrandLogo (로고 이미지 에셋 필요)` 2167:2250 (Service/LivePortrait) · `Mascot (일러스트 에셋 필요)` 2167:2300 (Service/LivePortrait) · `Illustration (일러스트 에셋 필요 · 캘린더+청소도구)` 2169:2267 (Booking/Frequency)
 - `(교체필요)` 옵션 아이콘 80×65~89, 카테고리별 5개:
   - Booking/Options: 설거지, 세탁, 침구교체, 반려동물 배변 청소, 냉장고 정리 및 청소
@@ -950,3 +964,39 @@ Figma 매니저 페이지(22화면)에 로그인·가입 화면이 없어 사용
 - [x] 개발 Cloud Run 시험(2026-10-23): `ansimclean-api-test-00005-g94`(시크릿 `ansimclean-test-env` v4, 작업 트리 backend 그대로) — juso 호출이 3초 연결 제한에 걸려 502 UPSTREAM(ResourceAccessException). **Cloud Run(개발·운영) → juso 연결 불가 확정**, 시간 제한 수정은 동작(3초에 실패 응답). 시험 뒤 개발 서버 OFF
 - [x] 주소 검색을 카카오 로컬 API 로 교체(2026-10-23, 사용자 결정 — juso 는 Cloud Run 에서 연결 불가): `AddressSearchService` 가 주소 검색(search/address) + 키워드(장소) 검색(search/keyword)을 불러 합쳐 최대 10건(주소 결과 먼저, 같은 주소 중복 제거). 지명·도로 이름만인 결과(REGION·ROAD)는 번지가 없어 뺀다. 키 `KAKAO_REST_API_KEY`(`JUSO_API_KEY` 는 env 파일에서 지움). 앱 변경 없음. 카카오 주소의 짧은 시·도("서울")는 기존 AddressRegion 이 정식 이름으로 저장. **카카오 REST 키 받기 전이라 실제 호출은 미확인**
 - [x] 카카오 주소 검색 운영 반영(2026-10-23): 로컬·개발(`ansimclean-api-test-00006-nhm`, 시크릿 v5) 확인 뒤 운영 리비전 `ansimclean-api-00003-5ls` 100% (운영 소스 00001 + 주소 변경만, 시크릿 `ansimclean-api-env` v3 = v1 + `KAKAO_REST_API_KEY`). 운영에서 "서울 강남구 테헤란로 123"·"래미안퍼스티지"·부산 주소 검색 확인, health UP. 되돌리기: `update-traffic --to-revisions=ansimclean-api-00001-zkw=100`
+
+### 2026-10-29 고객 홈화면 개편 (사용자 첨부 이미지 기준)
+- [x] 헤더에 실제 Android 고객 앱 아이콘 적용. 가정/원룸 청소 진입점 분리, 선택한 종류를 예약 초안과 주기·확인 화면에 표시(기존 home 예약 API 공용).
+- [x] 입주·이사/가전/사무실 청소는 홈에서만 숨김. 기존 카테고리·예약 경로·서버 기능 유지. 추천 서비스 전체보기에는 현재 노출하는 두 서비스를 표시.
+- [x] 쿠폰/일상 여유/선물 안내 3개 배너: 5초 간격, 600ms 가로 전환, 첫 장 복제로 순환. 직접 밀기·키보드·점 선택·일시정지, 백그라운드/동작 줄이기 대응.
+- [x] 홈의 꺾쇠는 전체보기 옆에만 표시. 실제 공지 API로 안심클린 소식 표시. 선물 안내 배너는 기존과 동일하게 안내 전용(선물 구매 기능 없음).
+- [x] 하단 탭을 홈/내 예약/문의/프로필로 변경. 문의는 상담 헤드셋 아이콘과 기존 /settings/inquiry 연결. 기존 수리 화면은 /repair 유지.
+- [x] 첨부 이미지 기반 남색/민트/노랑/카드 음영을 extra.css 토큰으로 추가. 추가 배너 문구는 사용자 요청에 따라 제작. 쿠폰 발급 API를 새로 구현한 것은 아님.
+- [x] 전체 Vitest 163개 파일·473개 테스트 통과. 마지막 보완 후 관련 21개 테스트·check:tokens·lint 통과. 360px/393px 브라우저 시각 확인.
+- [x] staging 웹 빌드 → Capacitor Android sync → assembleDebug 성공. Android Studio 고객 프로젝트 열기 완료. APK: apps/customer/android/app/build/outputs/apk/debug/app-debug.apk.
+- [x] 최종 APK를 emulator-5554에 업데이트 설치하고 실행 성공. 실제 Android 홈화면 스크린샷으로 헤더·카테고리·배너·문의 탭 표시 확인.
+
+### 2026-10-29 홈 배너 제어·가독성 추가 수정
+- [x] 점 표시/재생 문구를 배너 오른쪽 아래 현재/전체 번호 버튼(숫자 32px, 높이 56px)과 오른쪽 재생/일시정지 아이콘(32px)으로 변경. 번호 버튼은 실제 배너 개수에 맞춰 표시.
+- [x] 번호 버튼으로 진행 중인 이벤트 목록 열기. 전체 배너 그림·제목·설명을 표시하며 항목을 누르면 선택한 배너로 돌아온다. 목록을 보는 동안 자동 넘김 중단, 사용자 일시정지 상태 유지.
+- [x] 홈의 추천 서비스·소식 전체보기 링크와 기존 전체 서비스 시트 제거. 헤더는 기존 앱 중앙 문양을 투명 배경 벡터로 재현해 네모/격자 배경 제거.
+- [x] 홈에 한정해 작은 안내문·본문·공용 예약 카드·하단 메뉴를 최소 18px(13.5pt), 줄 간격 1.5배로 적용. 버튼 높이 56px, 카드 간격 12px 이상·본문 섹션 간격 32px. 시트 닫기 핸들은 기존 44px 터치 영역 유지.
+- [x] 360/393px 브라우저 실측: 본문 18px/27px, 제목 20px/30px·28px/42px, 번호 32px/버튼 56px. 배너/제어 및 목록 글자 겹침·잘림 없음.
+- [x] 전체 Vitest 163개 파일·475개 테스트 통과. check:tokens·lint 통과.
+- [x] 최종 staging 웹 빌드 → Android sync → assembleDebug 성공. Android Studio 고객 프로젝트 열기 및 Customer 가상 기기 최종 APK 업데이트 설치 완료.
+- [x] 2026-10-29 후속 요청: 헤더 SVG width="40" height="40" 고정 및 flex 축소 방지. 브랜드 글자는 24px(행간 36px)로 조정. 토큰 검사·대상 ESLint·staging 웹 빌드·Android sync 통과.
+
+### 2026-10-31 홈 서비스 진입점을 동그란 아이콘으로
+- [x] 홈 상단 `.categories` 를 매장·가정·원룸 3개 원형 아이콘(64px, brand-subtle 배경 + brand-primary 선 아이콘) + 아래 이름으로 변경. 아이콘은 `packages/ui/src/icons/Service{Store,Home,Studio}Icon.jsx`(코드에서 정함, currentColor).
+- [x] 판단 항목: "매장" 은 사무실 청소 예약(`/booking/office/frequency`)으로 연결 — 예약 화면 제목은 서버 카탈로그 그대로 "사무실 청소". 가정/원룸은 기존 home 예약(homeService house/studio) 유지.
+- [x] Home 테스트 갱신(매장 이동 테스트 추가), check:tokens·lint 통과, 393px 브라우저 확인.
+- [x] (2026-10-31 후속) 아이콘을 첨부 시안처럼 플랫 컬러로 교체: 가정 = 굴뚝·빨간 지붕 집, 원룸 = 주황 박스, 매장 = 같은 색의 차양 가게(시안에 없어 코드에서 정함). 색은 `extra.css` `--raw-home-icon-*` 8개. 원 바탕은 `--color-surface-subtle`(시안의 연회색), 이름은 굵지 않은 회색(text-body-default + `--color-text-secondary`).
+
+### 2026-10-31 매장 청소 카테고리 `store` 추가 (사용자 요청)
+- [x] DB: `backend/.../db/migration/V058__store_cleaning_category.sql` — service_categories(매장 청소, sort 6)·catalog_prices·catalog_options(무료 3 + 유료 2)·catalog_notice_chips 9·catalog_frequency_copy·checklist_templates(매장 홀·출입구·화장실)·app_settings duration_hours(3)·category_short_labels(매장청소).
+- [x] 앱: mock.js(BOOKING_CATEGORIES·BOOKING_OPTIONS·NOTICE_CHIPS·FREQUENCY_DESCRIPTIONS)·가짜 서버 PRICES·`ASSETS.bookingOptionIcons.store`·홈 "매장" → `/booking/store/frequency`. 백엔드 테스트 모양 `mock-shapes/*-store.json` 4개 + CatalogIT 4줄.
+- [x] 판단 항목 (Figma 에 없어 코드에서 정함): 문구·옵션·칩·체크리스트 전부, 가격은 임시로 사무실과 같은 정기 120,000 / 1회 150,000원, 유료 옵션 주방 기름때 +50,000·간판·외부 유리 +35,000원, 소요 3시간.
+- [ ] 에셋 TODO: 매장 옵션 이미지 5개 — 지금은 사무실 청소 이미지를 빌려 씀.
+- [x] 검증: 앱 Vitest 163파일·476테스트, check:tokens, lint, build 통과. 가짜 서버로 매장 주기·옵션·주의사항 화면 확인. 백엔드 `mvnw verify -DskipITs` 통과 — **IT 미실행**(이 컴퓨터에 Docker 없음, V058 은 실제 Postgres 에서 아직 실행 안 됨).
+- [x] 개발 서버 배포(2026-10-31): 리비전 `ansimclean-api-test-00013-lzf`(시크릿 v5 그대로), 개발 DB 에 V058 적용 — /catalog/categories/store 4개 API·health·로그인 확인. 배포 뒤 개발 서버 다시 ON(manual 1). Android 번들 staging 재동기화(홈 "매장" → /booking/store). **운영 서버는 미배포**.
+- 참고: Windows PowerShell 5.1 은 BOM 없는 UTF-8 `deploy-development.ps1` 을 CP949 로 읽어 파싱 실패 — 임시 BOM 사본으로 실행 후 삭제.

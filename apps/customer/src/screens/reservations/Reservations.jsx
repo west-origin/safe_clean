@@ -7,7 +7,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ScreenLayout,
-  TabBar,
   UnderlineTabs,
   ReservationCard,
   EmptyState,
@@ -31,7 +30,7 @@ import {
   CHANGE_DEADLINE_HOURS,
   PAYMENT_COPY,
 } from '../../api/mock.js';
-import { useCustomerTabs } from '../useCustomerTabs.js';
+import CustomerFooter from '../CustomerFooter.jsx';
 import { onPushReceived } from '../../push/pushClient.js';
 
 const REFRESH_MS = 30_000; // 배정·완료 상태를 화면에 머무는 동안 갱신 (외부 검토 3차)
@@ -40,7 +39,6 @@ import styles from './Reservations.module.css';
 /** 내 예약 화면: 탭(예정/완료/취소)별 예약 카드 목록 + 카드의 변경·취소·영상 보기 + 취소 확인 시트 */
 export default function Reservations() {
   const navigate = useNavigate();
-  const selectTab = useCustomerTabs(); // 하단 탭바를 눌렀을 때 그 탭 화면으로 보내는 함수
   // 30초마다·배정/완료 푸시가 오면·앱이 다시 보이면 조용히 갱신. 취소 뒤 invalidate 로 늦은 폴링 응답을 버린다 (외부 검토 4차)
   // 푸시 종류는 가리지 않는다 — 앱이 떠 있을 때 온 푸시면 무엇이든 목록을 다시 받는다 (pushClient.js onPushReceived)
   const { data, error, reload, refresh, invalidate } = usePolling(() => getReservations(), [], {
@@ -69,7 +67,7 @@ export default function Reservations() {
     setCancelId(id);
   };
 
-  const tabBar = <TabBar active="reservations" onSelect={selectTab} />;
+  const tabBar = <CustomerFooter active="reservations" />;
   if (error) return <ScreenError error={error} onRetry={reload} tabBar={tabBar} />;
   if (!data) return <ScreenLoading tabBar={tabBar} />;
 

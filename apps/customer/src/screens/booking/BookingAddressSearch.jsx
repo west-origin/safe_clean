@@ -5,10 +5,13 @@
 // 예약 플로우 4단계(/booking/:category/address-search). 검색어·고른 주소는 예약 초안(sessionStorage)에 둔다.
 // 검색은 searchAddress → GET /catalog/address → 서버가 카카오 로컬 API(주소 + 장소 이름)로 찾는다 (backend/docs/api.md).
 //   글자를 칠 때마다 부르지 않게, 입력이 SEARCH_DELAY_MS 동안 멈추면 검색한다 (코드에서 정함).
+// 2026-10-31 사용자 첨부 시안으로 바꿨다: 흰 시트·단계 점 대신 X(닫기) + '지번, 도로명, 건물명으로 검색해 주세요.' + 회색 검색창,
+//   검색어가 없을 때는 안내 대신 가운데 '서비스 가능지역' 알약 버튼, "다음" 은 검색어를 적었을 때만 하단에 고정.
+//   주소 선택 화면(BookingAddress)에서 저장 주소가 없거나 '+ 주소추가' 를 누르면 온다.
 // 수리 예약의 '다른 주소로 변경' 도 /booking/repair:<수리 종류>/address-search 로 이 화면을 빌려 쓴다 (RepairAddress.jsx).
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ScreenLayout, StepNavBar, SearchField, AddressResultList, InfoNote, Button, useAsync, cx } from '@ansimclean/ui';
+import { ScreenLayout, NavBar, SearchField, AddressResultList, InfoNote, Button, useAsync, cx } from '@ansimclean/ui';
 import { searchAddress, saveBookingStep } from '../../api/customer.js';
 import { ADDRESS_SEARCH_COPY } from '../../api/mock.js';
 import { useBookingDraft } from './bookingDraft.js';
@@ -44,32 +47,38 @@ export default function BookingAddressSearch() {
     navigate(back.carry(`/booking/${category}/address-confirm`));
   };
 
+  const hasQuery = Boolean(query.trim());
+
   return (
-    <ScreenLayout noPadding gap="none">
-      <div className={common.sheet}>
-        <div className={common.sheetStack}>
-          <StepNavBar step={4} variant="sheet" onBack={() => navigate(-1)} />
-          <div className={styles.searchBlock}>
-            <h1 className={cx('text-heading-m', common.sectionTitle)}>주소를 검색해주세요</h1>
-            <div className={styles.fieldAndMap}>
-              <SearchField filled ariaLabel="주소 검색" value={query} onChange={(e) => update({ addressQuery: e.target.value })} autoComplete="street-address" />
-              {/* 결과가 있으면 목록, 없으면 안내: 검색어가 비었으면 입력 안내, 적었는데 결과가 0이면 '결과 없음' 안내. 검색 중이면 아무것도 */}
-              {results.length > 0 ? (
-                <AddressResultList results={results} onSelect={(r) => goConfirm(r.main)} />
-              ) : !query.trim() ? (
-                <InfoNote glyph="ⓘ">{ADDRESS_SEARCH_COPY.guide}</InfoNote>
-              ) : (
-                !searching && <InfoNote glyph="ⓘ">{ADDRESS_SEARCH_COPY.noResults}</InfoNote>
-              )}
-            </div>
-          </div>
-        </div>
-        {/* 결과를 고르지 않고 "다음" 을 누르면 적은 검색어(앞뒤 공백 제거)를 도로명주소로 쓴다 */}
-        <div className={common.cta}>
-          <Button variant="primary" disabled={!query.trim()} onClick={() => goConfirm(query.trim())}>
+    <ScreenLayout
+      noPadding
+      gap="none"
+      navBar={<NavBar icon="close" onBack={() => navigate(-1)} />}
+      stickyCta={
+        // 결과를 고르지 않고 "다음" 을 누르면 적은 검색어(앞뒤 공백 제거)를 도로명주소로 쓴다. 검색어가 있을 때만 (시안의 빈 화면엔 버튼이 없다)
+        hasQuery && (
+          <Button variant="primary" chevron={false} className={common.ctaRounded} onClick={() => goConfirm(query.trim())}>
             다음
           </Button>
-        </div>
+        )
+      }
+    >
+      <div className={cx(common.page, styles.page)}>
+        <h1 className={cx('text-heading-m', common.pageTitle)}>{ADDRESS_SEARCH_COPY.title}</h1>
+        <SearchField filled ariaLabel="주소 검색" placeholder={ADDRESS_SEARCH_COPY.placeholder} value={query} onChange={(e) => update({ addressQuery: e.target.value })} autoComplete="street-address" />
+        {/* 결과가 있으면 목록, 검색어가 비었으면 '서비스 가능지역', 적었는데 결과가 0이면 '결과 없음' 안내. 검색 중이면 아무것도 */}
+        {results.length > 0 ? (
+          <AddressResultList results={results} onSelect={(r) => goConfirm(r.main)} />
+        ) : !hasQuery ? (
+          <div className={styles.empty}>
+            {/* TODO(figma): '서비스 가능지역' 을 누르면 보여 줄 화면·내용이 시안에 없다 (PROGRESS.md 판단 항목) */}
+            <Button variant="outlineGray" chevron={false} className={common.pill}>
+              {ADDRESS_SEARCH_COPY.serviceArea}
+            </Button>
+          </div>
+        ) : (
+          !searching && <InfoNote glyph="ⓘ">{ADDRESS_SEARCH_COPY.noResults}</InfoNote>
+        )}
       </div>
     </ScreenLayout>
   );

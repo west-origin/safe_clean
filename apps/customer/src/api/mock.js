@@ -87,6 +87,10 @@ export const CHANGE_DEADLINE_HOURS = 24;
 
 /** 주소 검색 안내 (코드에서 정함 — 사용성 검토 2026-09-22. 검색은 카카오 로컬 API, §13-4 · 2026-10-23) */
 export const ADDRESS_SEARCH_COPY = {
+  // 2026-10-31 사용자 첨부 주소 검색 시안 문구 (예약 플로우 BookingAddressSearch)
+  title: '지번, 도로명, 건물명으로\n검색해 주세요.',
+  placeholder: '청연동 12-3 또는 청연아파트',
+  serviceArea: '서비스 가능지역',
   // 시·도가 없으면 서버가 받지 않는다(매칭 지역을 못 읽는다) — 예시도 시·도부터 (직접 사용 점검 U1, 코드에서 정함)
   guide: '시·도부터 입력해주세요. 예: 서울 강남구 강남대로 396',
   noResults: '검색 결과가 없어요. 시·도부터 적은 주소 그대로 진행할 수 있어요.',
@@ -175,6 +179,8 @@ export const BOOKING_CATEGORIES = {
   office: { label: '사무실 청소', promo: 'placeholder', promoText: '프로모션 배너 영역\nOffice 전용 이미지 필요' },
   appliance: { label: '가전청소', promo: 'placeholder', promoText: '프로모션 배너 영역\nAppliance 전용 이미지 필요' },
   'move-in': { label: '입주(이사) 청소', promo: 'placeholder', promoText: '프로모션 배너 영역\nMoveIn 전용 이미지 필요' },
+  // 매장 청소 (코드에서 정함, 2026-10-31 사용자 요청 — Figma 에 없음). 서버 V058 과 같다
+  store: { label: '매장 청소', promo: 'placeholder', promoText: '프로모션 배너 영역\nStore 전용 이미지 필요' },
 };
 
 /** Booking/Frequency › RadioOption 문구 (기본 선택: 정기청소 — Figma Selected) */
@@ -212,6 +218,11 @@ export const BOOKING_OPTIONS = {
     free: [{ key: 'sill', label: '창틀 청소', icon: 0 }, { key: 'veranda', label: '베란다', icon: 1 }, { key: 'closet', label: '붙박이장', icon: 2 }],
     paid: [{ key: 'grout', label: '줄눈\n시공', price: '+30,000원', icon: 3 }, { key: 'sick', label: '새집증후군\n케어', price: '+50,000원', icon: 4 }],
   },
+  // 매장 청소 (코드에서 정함). 아이콘은 사무실 청소 이미지를 빌려 쓴다 (ASSETS.bookingOptionIcons.store)
+  store: {
+    free: [{ key: 'shelf', label: '진열대 먼지 제거', icon: 0 }, { key: 'entrance', label: '출입문 유리 닦기', icon: 1 }, { key: 'recycle', label: '분리배출', icon: 2 }],
+    paid: [{ key: 'kitchen', label: '주방\n기름때 청소', price: '+50,000원', icon: 3 }, { key: 'signboard', label: '간판·외부\n유리 청소', price: '+35,000원', icon: 4 }],
+  },
 };
 export const FREE_OPTION_LIMIT = 2; // "무료 옵션(택2)"
 
@@ -237,6 +248,12 @@ export const NOTICE_CHIPS = {
     { key: 'noElevator', label: '엘리베이터가 없어요', icon: 'elevator' }, { key: 'noParking', label: '주차 공간이 없어요', icon: 'parking' }, { key: 'utilities', label: '수도·전기 사용 가능해요', icon: 'droplet' },
     { key: 'pet', label: '반려동물이 있어요', icon: 'pet' }, { key: 'caution', label: '특별히 주의할 공간이 있어요', icon: 'warning' }, { key: 'etc', label: '기타', icon: 'dots' },
   ],
+  // 매장 청소 (코드에서 정함). 서버 V058 catalog_notice_chips 와 같다
+  store: [
+    { key: 'beforeOpen', label: '영업 시간 전후에만 가능해요', icon: 'clock' }, { key: 'night', label: '야간 작업이 필요해요', icon: 'clock' }, { key: 'kitchen', label: '주방 시설이 있어요', icon: 'tools' },
+    { key: 'goods', label: '진열 상품이 있어요', icon: 'box' }, { key: 'access', label: '출입 등록이 필요해요', icon: 'lock' }, { key: 'noParking', label: '주차 공간이 없어요', icon: 'parking' },
+    { key: 'pet', label: '반려동물이 있어요', icon: 'pet' }, { key: 'caution', label: '특별히 주의할 공간이 있어요', icon: 'warning' }, { key: 'etc', label: '기타', icon: 'dots' },
+  ],
   // 수리(Figma rGCjx3zWMBk18fXgNZ9UYX 1:341) — 서버 V012 catalog_notice_chips 와 같다. 가짜 서버가 쓴다
   repair: [
     { key: 'parking', label: '주차 가능해요', icon: 'parking' }, { key: 'elevator', label: '엘리베이터 있어요', icon: 'elevator' },
@@ -257,6 +274,33 @@ export const NOTES_COPY = {
   tipBody: '-특히 신경 써줬으면 하는 공간이나 가구가 있다면 알려주세요.\n-청소 전 확인이 필요한 사항이 있다면 미리 알려주세요.\n-기타 특별한 요청사항이 있다면 자세히 적어주세요.',
 };
 
+/** Booking/NotesRequests 문구 — 2026-11-01 사용자 첨부 시안 그대로. 무료주차 문항·요청사항 칸 안내·안내 문구는 사용자 요청으로 추가(코드에서 정함).
+ *  questions 의 key 는 초안 noticeAnswers 의 키, options 의 key 는 고른 값. chipKey: 서버 주의사항 칩 중 이 답이면 같이 보낼 key */
+export const NOTES_SCREEN_COPY = {
+  title: '매니저님 방문 시 참고해야 할\n정보를 선택해 주세요.',
+  description: ['선택된 내용은 서비스에 필요한 ', '필수정보', ' 입니다.\n서비스 가격에 영향을 미치지 않습니다.'],
+  questions: [
+    { key: 'pet', title: '반려동물', description: '함께 생활하는 경우 꼭 체크해주세요.', chipKey: 'pet', chipWhen: ['dog', 'cat', 'other'],
+      options: [{ key: 'dog', label: '강아지' }, { key: 'cat', label: '고양이' }, { key: 'other', label: '기타' }, { key: 'none', label: '없음' }] },
+    { key: 'baby', title: '영유아(7세 이하)', short: '영유아', description: '함께 생활하는 경우 꼭 체크해주세요.', chipKey: 'baby', chipWhen: ['yes'],
+      options: [{ key: 'yes', label: '있음' }, { key: 'no', label: '없음' }] },
+    { key: 'parking', title: '무료주차', description: '매니저님 차량의 무료주차 가능 여부를 알려주세요.',
+      options: [{ key: 'free', label: '가능' }, { key: 'none', label: '불가능' }, { key: 'unknown', label: '모름' }] },
+  ],
+  requestTitle: '주의사항/요청사항',
+  requestDescription: '매니저님께 미리 알려주실 내용이 있다면 적어주세요.',
+  requestPlaceholder: '예) 현관 비밀번호는 방문 전날 알려드릴게요.\n안방은 청소하지 않아도 돼요.',
+  /** 안 고른 항목 이름들 → 빨간 안내 ('반려동물·무료주차를 선택해 주세요.') — 마지막 글자 받침에 따라 을/를 */
+  missing: (names) => {
+    const last = names[names.length - 1] ?? '';
+    const code = last.charCodeAt(last.length - 1) - 0xac00;
+    const josa = code >= 0 && code < 11172 && code % 28 !== 0 ? '을' : '를';
+    return `${names.join('·')}${josa} 선택해 주세요.`;
+  },
+  /** 고른 답 한 줄 — 예약 요청사항 맨 앞에 붙어 매니저에게 간다 ('반려동물: 강아지 · 영유아: 없음 · 무료주차: 불가능') */
+  summaryPrefix: '[방문 참고] ',
+};
+
 /** Booking/Confirm › SummaryRow/Frequency 부가 문구 — 카테고리 × 주기 (Figma 4 프레임에서 뽑음. 비어 있는 조합은 home 문구를 씀).
  *  recurring 문구는 Figma 가 "매주 지정한 요일에 진행해요" 지만 정기청소는 **매월 1회**다(사용자 결정 2026-09-22) → 사실대로. 디자이너 확인 필요 */
 export const FREQUENCY_DESCRIPTIONS = {
@@ -264,6 +308,7 @@ export const FREQUENCY_DESCRIPTIONS = {
   office: { recurring: '매월 같은 날짜에 한 번 진행해요', oneTime: '원하는 날짜에 한 번만 진행해요' },
   appliance: { recurring: '매월 같은 날짜에 한 번 진행해요', oneTime: '원하는 날짜에 한 번만 진행해요' },
   'move-in': { recurring: '매월 같은 날짜에 한 번 진행해요', oneTime: '입주 전 한 번만 진행해요' },
+  store: { recurring: '매월 같은 날짜에 한 번 진행해요', oneTime: '원하는 날짜에 한 번만 진행해요' },
 };
 
 /**
@@ -275,6 +320,71 @@ export const SERIES_TERM_MONTHS = 6;
  * 정기청소가 무엇을 약속하는지 (코드에서 정함 — 배너는 '원하는 주기' 를 말하는데 실제로는 매주 한 달이었다, 사용성 검토 2026-09-22).
  * months = 서버가 준 회차 수(seriesTermMonths). 개월 수와 회차 수가 같다(매월 1회). 6 이면 '6개월 동안 6회'
  */
+/** Booking/Address(주소 선택) 문구 — 2026-10-31 사용자 첨부 시안 그대로 (Figma 에 없음) */
+export const ADDRESS_SELECT_COPY = { title: '주소를 선택해 주세요.', add: '+ 주소추가' };
+
+/** Booking/AddressEdit(주소 수정) 문구 — 코드에서 정함 (2026-10-31 사용자 요청: 상세주소·별칭만 수정, 잘못 등록한 주소 삭제) */
+export const ADDRESS_EDIT_COPY = {
+  title: '주소를 수정해 주세요.',
+  road: '주소',
+  roadNote: '주소가 틀렸다면 삭제하고 새로 추가해 주세요.',
+  label: '주소 이름',
+  labelPlaceholder: '예: 우리 집',
+  detail: '상세주소',
+  detailPlaceholder: '예: 101동 1001호',
+  save: '저장',
+  remove: '주소 삭제',
+  removeTitle: '이 주소를 삭제할까요?',
+  removeConfirm: '삭제',
+  cancel: '취소',
+  saveFailed: '저장하지 못했어요. 다시 시도해주세요.',
+  removeFailed: '삭제하지 못했어요. 다시 시도해주세요.',
+};
+
+/** Booking/Schedule(날짜/시간) 문구·임시 금액 — 2026-10-31 사용자 첨부 시안 그대로, 금액은 사용자 요청으로 임의 책정(화면 표시용.
+ *  실제 결제 금액은 확인 화면의 서버 견적이 정한다). 서비스 시간은 기본 2시간, + 한 번에 1시간, 최대 8시간 */
+export const SCHEDULE_COPY = {
+  title: '날짜/시간을 선택해 주세요.',
+  intro: '교육받은 매니저님이 방문합니다.',
+  introLink: '어떤 교육을 받나요?',
+  timeSection: '시간',
+  duration: '서비스 시간',
+  date: '방문 일',
+  time: '방문 시간',
+  change: '변경',
+  choose: '선택',
+  detail: '자세히',
+  durationNote: (h) => `표준시간은 ${h}시간 입니다.`,
+  confirm: '확인',
+  dateTitle: '방문일을 선택해주세요.',
+  timeTitle: '방문 시간을 선택해 주세요.',
+  am: '오전',
+  pm: '오후',
+  detailTitle: '예상 금액',
+  detailRows: (h, hourly, discount) => [
+    ['서비스 시간', `${h}시간`],
+    ['시간당 금액', `${hourly.toLocaleString('ko-KR')}원`],
+    ...(discount ? [['정기 할인', `-${discount.toLocaleString('ko-KR')}원`]] : []),
+  ],
+  detailNote: '최종 금액은 예약 확인 화면에서 옵션과 함께 계산돼요.',
+};
+/** Booking/Options 문구 — 2026-11-01 사용자 첨부 시안 그대로 ('청소 범위' 는 사용자 요청으로 뺐다) */
+export const OPTIONS_COPY = { title: '옵션을\n선택해 주세요.', free: '무료 선택', paid: '유료 추가', paidDetail: '유료 옵션' };
+
+export const SCHEDULE_PRICE = { standardHours: 2, maxHours: 8, hourly: 20800, recurringDiscount: 2000 };
+
+/** Booking/Frequency 문구 — 2026-10-31 사용자 첨부 시안 그대로 (Figma 에 없음).
+ *  description 은 카테고리별(지금은 시안에 있는 home 만), labels 는 FREQUENCY_OPTIONS 의 표시 이름을 이 화면에서만 바꾼다(확인 화면 등은 그대로),
+ *  recurringBenefit 은 정기 카드 설명 [앞, 강조(브랜드 밑줄), 뒤], faqs 는 '정기 서비스는?' 카드 질문 (시안에 보이는 1장 — 나머지·답변은 TODO) */
+export const FREQUENCY_SCREEN_COPY = {
+  title: '기본 청소',
+  description: { home: '거실, 주방, 화장실 등 집 전반을 청소합니다. 옵션으로 세탁, 창틀, 베란다를 선택할 수 있어요.' },
+  labels: { recurring: '정기', oneTime: '1회' },
+  recurringBenefit: ['매 회차 2% 자동 할인 +', '청연 VIP 라운지', ' 전용 혜택'],
+  faqTitle: '정기 서비스는?',
+  faqs: ['정기 청소 이용 시 매니저님께 요청사항을 전달할 수 있나요?'],
+};
+
 export const RECURRING_TERM_NOTE = (months) => `정기청소는 매월 같은 날짜·같은 시간에 한 번씩, ${months}개월 동안 ${months}회 방문해요. 주말에도 선택한 날짜를 유지해요. 회차마다 따로 변경·취소할 수 있어요.`;
 
 /** Booking/Confirm 문구 */

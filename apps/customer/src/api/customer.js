@@ -397,7 +397,8 @@ export async function createBooking(category, draft) {
     roadAddress: draft.roadAddress,
     detailAddress: draft.detailAddress ?? '',
     notices: draft.notices ?? [],
-    request: draft.request ?? '',
+    // 주의사항 화면의 답(반려동물·영유아·무료주차) 한 줄을 요청사항 맨 앞에 — 서버 주의사항 칩에 없는 무료주차·동물 종류도 매니저에게 간다 (2026-11-01)
+    request: [draft.noticeSummary, draft.request?.trim()].filter(Boolean).join('\n'),
     // 수리 종류(repairType)는 보내지 않는다 — 수리는 수리 예약 플로우의 createRepairBooking 이 따로 만든다 (서버에서는 비어 있음 = 청소)
     // Step2 에서 '기존 주소 사용' 에 아니요(no)를 골랐으면 true — 서버가 새로 입력한 주소를 주소 목록에 남긴다 (BookingService)
     saveAddress: draft.reuseAddress === 'no',
@@ -485,6 +486,10 @@ export async function getAddresses() {
 /** 주소 관리 › 주소 추가 (Addresses 화면). 별칭(label)을 비우면 '기타' 로 보낸다 */
 export async function addAddress({ label, roadAddress, detailAddress }) {
   return http.post('/customer/addresses', { label: label || '기타', roadAddress, detailAddress });
+}
+/** 예약 주소 선택 › 수정 (BookingAddressEdit) — 별칭·상세 주소만 바꾼다(도로명주소는 그대로) → 바뀐 1건 */
+export async function updateAddress(id, { label, detailAddress }) {
+  return http.patch(`/customer/addresses/${encodeURIComponent(id)}`, { label, detailAddress });
 }
 /** 예약 "기존 주소를 사용할까요?" 에 쓸 기본 주소를 바꾼다 → 바뀐 목록 (직접 사용 점검 U15) */
 export async function setDefaultAddress(id) {

@@ -1,5 +1,5 @@
 // 고객 앱 홈 화면(Home.jsx) 테스트.
-// ① '다가오는 방문' 카드의 안내 문구가 변경 가능 여부에 맞게 바뀌는지 ② 히어로 캐러셀이 스크롤·탭·키보드로 넘어가는지 확인한다.
+// 예약 상태·기한 안내 유지, 청소 진입점 분리, 문의 탭 경로를 확인한다.
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -53,51 +53,42 @@ describe('Home 다가오는 방문', () => {
   });
 });
 
-/** 히어로 캐러셀 — 가로 트랙을 밀거나(스크롤) 탭하면 넘어가고, 점은 제자리에서 바뀐다 (2026-09-24 사용자 승인) */
-describe('Home 히어로 스와이프', () => {
-  // 홈을 띄우고 트랙을 찾는다. jsdom(테스트용 가짜 브라우저)은 레이아웃을 계산하지 않아 clientWidth 가 0 이므로
-  // 폭을 375 로 정해 둔다 — 0 이면 화면의 onScroll 이 장 번호 계산을 건너뛴다
-  const setup = async () => {
+describe('새 홈 서비스와 탐색', () => {
+  it('매장·가정·원룸 동그란 버튼을 보이고 숨긴 서비스는 홈에 노출하지 않는다', async () => {
     renderHome();
-    const track = await screen.findByRole('group', { name: /서비스 소개/ });
-    Object.defineProperty(track, 'clientWidth', { configurable: true, value: 375 });
-    return track;
-  };
-  // 점(CarouselDots)은 role="img" 이고 이름이 '슬라이드 n / 전체' 라 지금 장 번호를 이름으로 확인한다
-  const dots = () => screen.getByRole('img', { name: /슬라이드/ });
-
-  it('두 장이 나란히 있고, 반 넘게 밀면 다음 장이 된다', async () => {
-    const track = await setup();
-    expect(screen.getByText('실시간 청소')).toBeInTheDocument();
-    expect(screen.getByText('일반 청소')).toBeInTheDocument(); // 옆 장이 트랙에 붙어 있다
-    expect(dots()).toHaveAccessibleName('슬라이드 1 / 2');
-
-    track.scrollLeft = 150; // 40% — 놓으면 제자리로
-    fireEvent.scroll(track);
-    expect(dots()).toHaveAccessibleName('슬라이드 1 / 2');
-    track.scrollLeft = 260; // 70%
-    fireEvent.scroll(track);
-    expect(dots()).toHaveAccessibleName('슬라이드 2 / 2');
+    expect(await screen.findByRole('button', { name: '원룸' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '가정' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '매장' })).toBeInTheDocument();
+    for (const name of ['입주/이사 청소', '가전청소', '사무실 청소']) expect(screen.queryByText(name)).toBeNull();
+    expect(screen.getByRole('button', { name: '문의' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '전체보기' })).toBeNull();
+    expect(screen.queryByText('전체보기')).toBeNull();
   });
-
-  it('탭하면 트랙을 다음 장으로 스크롤하고, 마지막 장에서는 처음으로', async () => {
-    const track = await setup();
-    // jsdom 에는 실제 스크롤이 없어 scrollTo 를 가짜로 바꾼다: 요청한 left 를 기록하고,
-    // 브라우저처럼 scrollLeft 를 옮긴 뒤 scroll 이벤트를 보낸다
-    const calls = [];
-    track.scrollTo = (opts) => {
-      calls.push(opts.left);
-      track.scrollLeft = opts.left;
-      fireEvent.scroll(track);
-    };
-    fireEvent.click(track);
-    expect(calls).toEqual([375]);
-    expect(dots()).toHaveAccessibleName('슬라이드 2 / 2');
-    fireEvent.click(track);
-    expect(calls).toEqual([375, 0]);
-    expect(dots()).toHaveAccessibleName('슬라이드 1 / 2');
-    fireEvent.keyDown(track, { key: 'ArrowRight' }); // 키보드도 같은 길
-    expect(calls.at(-1)).toBe(375);
+  it('원룸 선택을 예약에 전달한다', async () => {
+    render(<MemoryRouter initialEntries={['/home']}><Routes>
+      <Route path="/home" element={<Home />} />
+      <Route path="/booking/home/frequency" element={<p>예약 주기 화면</p>} />
+    </Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: '원룸' }));
+    expect(await screen.findByText('예약 주기 화면')).toBeInTheDocument();
+    expect(JSON.parse(sessionStorage.getItem('ansimclean.booking.home')).homeService).toBe('studio');
+  });
+  it('매장은 매장 청소 예약으로 이동한다', async () => {
+    render(<MemoryRouter initialEntries={['/home']}><Routes>
+      <Route path="/home" element={<Home />} />
+      <Route path="/booking/store/frequency" element={<p>매장 예약 화면</p>} />
+    </Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: '매장' }));
+    expect(await screen.findByText('매장 예약 화면')).toBeInTheDocument();
+  });
+  it('문의 탭은 실제 문의 경로로 이동한다', async () => {
+    render(<MemoryRouter initialEntries={['/home']}><Routes>
+      <Route path="/home" element={<Home />} />
+      <Route path="/settings/inquiry" element={<p>문의 화면</p>} />
+    </Routes></MemoryRouter>);
+    await screen.findByRole('heading', { name: '안심클린', level: 1 });
+    fireEvent.click(screen.getByRole('button', { name: '문의' }));
+    expect(await screen.findByText('문의 화면')).toBeInTheDocument();
   });
 });
 

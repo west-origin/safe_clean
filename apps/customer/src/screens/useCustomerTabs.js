@@ -7,6 +7,7 @@ export const TAB_PATHS = {
   home: '/home',
   repair: '/repair',
   reservations: '/reservations',
+  inquiry: '/settings/inquiry',
   settings: '/settings',
 };
 

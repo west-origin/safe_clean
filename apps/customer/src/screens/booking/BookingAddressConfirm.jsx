@@ -26,7 +26,7 @@ export default function BookingAddressConfirm() {
   // saveBookingStep 은 지금 서버를 부르지 않는다 (customer.js — 서버에는 예약 완료 때 한 번 보낸다)
   const next = async () => {
     await saveBookingStep(category, 'address-confirm', { roadAddress, detailAddress });
-    update({ roadAddress, detailAddress });
+    update({ reuseAddress: 'no', roadAddress, detailAddress }); // 'no' = 기본 주소가 아니라 초안 주소를 쓴다 (BookingConfirm)
     navigate(back.next(`/booking/${category}/options`));
   };
 

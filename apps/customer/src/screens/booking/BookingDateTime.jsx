@@ -1,5 +1,5 @@
 // Figma: Booking/DateTime (85:251) — 393×916. CalendarPanel(상 4) → TimePanel(상 9) → Button/Primary(상 12, 하 52). 4 카테고리 동일.
-// "다음" 은 날짜·시간을 모두 고르면 활성 → /step2 (PROGRESS.md 판단 항목). 예약 변경(?edit=)은 서버가 24시간 규칙으로 거부할 수 있어 useAction 으로 실패 문구를 보여준다
+// "다음" 은 날짜·시간을 모두 고르면 활성 → /options (2026-10-31: 주소를 앞 단계에서 고른다. 예전엔 /step2). 예약 변경(?edit=)은 서버가 24시간 규칙으로 거부할 수 있어 useAction 으로 실패 문구를 보여준다
 // 예약 플로우 2단계(/booking/:category/datetime). 두 가지로 쓰인다.
 //   새 예약: 고른 날짜·시간을 예약 초안(sessionStorage)에 두고 다음 단계(Step2)로 간다. 서버에는 확인 화면에서 한꺼번에 간다.
 //   예약 변경(?edit=예약 id): 내 예약 카드의 '예약 변경' 에서 온다. "변경 완료" 가 서버에 바로 일정 변경을 보낸다(changeReservation).
@@ -49,7 +49,7 @@ export default function BookingDateTime() {
       return;
     }
     await saveBookingStep(category, 'datetime', { date: draft.date, time: draft.time });
-    navigate(back.next(`/booking/${category}/step2`));
+    navigate(back.next(`/booking/${category}/options`)); // 주소는 서비스 주기 다음 주소 선택에서 이미 골랐다 (2026-10-31) — 예전엔 /step2
   });
 
   // 예약 변경은 8단계 플로우가 아니므로 진행 표시 대신 일반 상단 바

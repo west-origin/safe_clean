@@ -1,21 +1,16 @@
-// 예약 플로우 7단계 '주의사항·요청사항' 화면(BookingNotesRequests.jsx) 테스트.
-// 가입 때 받은 정보로 미리 켜 둔 주의사항 칩이 고객이 건드리지 않아도 예약 초안에 남는지 확인한다.
+// 주의사항·요청사항 화면(BookingNotesRequests) 테스트 (2026-11-01 시안):
+// 처음엔 아무것도 안 골라져 "다음" 이 꺼지고 빨간 안내가 보인다 → 세 문항을 다 고르면 켜지고, "다음" 에서 서버 칩 key·답 한 줄·요청사항이 초안에 남는다.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import BookingNotesRequests from './BookingNotesRequests.jsx';
 
-// 목: 실제 서버 대신 가짜 서버(test/fakeHttp.js)가 api/http.js 자리에 들어간다. 이 화면이 부르는 칩 목록·추천 주의사항도 거기서 온다
 vi.mock('../../api/http.js', async () => (await import('../../test/fakeHttp.js')).fakeHttpModule());
 
 describe('Booking/NotesRequests', () => {
-  // 예약 초안은 sessionStorage 에 저장된다(bookingDraft.js) — 앞 테스트의 초안이 다음 테스트로 넘어가지 않게 비운다
   beforeEach(() => sessionStorage.clear());
 
-  // 준비: 가짜 서버의 GET /customer/profile/suggested-notices 가 { notices: ['pet'] } 을 돌려준다.
-  // MemoryRouter 는 주소창 없이 메모리 안에서 경로를 바꾸는 라우터이고, '다음' 뒤 도착할 확인 화면은 문구 한 줄(<p>)로 대신한다.
-  // 확인: 반려동물 칩이 켜진 채(aria-pressed=true) 시작하고, 그대로 '다음' 을 누르면 초안 notices 에 'pet' 이 저장된다.
-  it('가입 때 고른 반려동물 칩은 미리 켜져 있고, 건드리지 않고 다음을 눌러도 초안에 남는다 (자체 점검 #14)', async () => {
+  it('세 문항을 모두 골라야 다음으로 가고, 답이 초안에 남는다', async () => {
     render(
       <MemoryRouter initialEntries={['/booking/home/notes']}>
         <Routes>
@@ -24,10 +19,23 @@ describe('Booking/NotesRequests', () => {
         </Routes>
       </MemoryRouter>,
     );
-    const pet = await screen.findByRole('button', { name: /반려동물이 있어요/ });
-    expect(pet).toHaveAttribute('aria-pressed', 'true');
+    const pet = await screen.findByRole('radiogroup', { name: '반려동물' });
+    expect(screen.getAllByRole('radio').every((r) => r.getAttribute('aria-checked') === 'false')).toBe(true);
+    expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
+    expect(screen.getByText('반려동물·영유아·무료주차를 선택해 주세요.')).toBeInTheDocument();
+
+    fireEvent.click(pet.querySelector('[role=radio]')); // 강아지
+    fireEvent.click(screen.getAllByRole('radio', { name: '없음' })[1]); // 영유아 없음
+    expect(screen.getByText('무료주차를 선택해 주세요.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: '불가능' }));
+    fireEvent.change(screen.getByRole('textbox', { name: '주의사항/요청사항' }), { target: { value: '안방 제외' } });
+    expect(screen.queryByRole('status')).toBeNull(); // 빨간 안내가 사라졌다
+
     fireEvent.click(screen.getByRole('button', { name: '다음' }));
     expect(await screen.findByText('확인 화면')).toBeInTheDocument();
-    expect(JSON.parse(sessionStorage.getItem('ansimclean.booking.home')).notices).toEqual(['pet']);
+    const draft = JSON.parse(sessionStorage.getItem('ansimclean.booking.home'));
+    expect(draft.notices).toEqual(['pet']);
+    expect(draft.noticeSummary).toBe('[방문 참고] 반려동물: 강아지 · 영유아: 없음 · 무료주차: 불가능');
+    expect(draft.request).toBe('안방 제외');
   });
 });

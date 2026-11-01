@@ -4,9 +4,9 @@
 // 하는 일: 메뉴 행 → 아래 MENU_PATHS 의 하위 화면, 알림 토글 저장(낙관적 갱신), 로그아웃, 회원 탈퇴(비밀번호 확인 시트).
 import { useRef, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router';
-import { ScreenLayout, TabBar, ProfileCard, MenuGroup, MenuRow, DeleteAccountSheet, cx, useAsync, useAction, ErrorState, ScreenLoading, ActionError } from '@ansimclean/ui';
+import { ScreenLayout, ProfileCard, MenuGroup, MenuRow, DeleteAccountSheet, cx, useAsync, useAction, ErrorState, ScreenLoading, ActionError } from '@ansimclean/ui';
 import { getSettings, updateNotificationSetting, logout, deleteAccount } from '../../api/customer.js';
-import { useCustomerTabs } from '../useCustomerTabs.js';
+import CustomerFooter from '../CustomerFooter.jsx';
 import { NOTIFICATION_TOGGLE_FAILED, PUSH_OS_DENIED_NOTE } from '../../api/mock.js';
 import { getPushState, subscribePushState } from '../../push/pushClient.js';
 import styles from './Settings.module.css';
@@ -26,7 +26,6 @@ const MENU_PATHS = {
 /** 설정 탭 화면. 조회가 실패해도 로그아웃 버튼은 남긴다 */
 export default function Settings() {
   const navigate = useNavigate();
-  const selectTab = useCustomerTabs(); // 하단 탭을 누르면 그 탭 경로로 이동하는 함수
   const { data, error, reload, refresh, setData } = useAsync(() => getSettings(), []);
 
 
@@ -73,7 +72,7 @@ export default function Settings() {
   if (error) {
     // 설정 조회가 계속 실패해도 로그아웃 길은 남긴다 (검수 3차)
     return (
-      <ScreenLayout tabBar={<TabBar active="settings" onSelect={selectTab} />}>
+      <ScreenLayout tabBar={<CustomerFooter active="settings" />}>
         <ErrorState onRetry={reload} />
         <div className={styles.logoutRow}>
           <button type="button" className={cx('text-body-default', styles.logout)} disabled={signOut.loading} onClick={signOut.run}>
@@ -83,10 +82,10 @@ export default function Settings() {
       </ScreenLayout>
     );
   }
-  if (!data) return <ScreenLoading tabBar={<TabBar active="settings" onSelect={selectTab} />} />;
+  if (!data) return <ScreenLoading tabBar={<CustomerFooter active="settings" />} />;
 
   return (
-    <ScreenLayout noPadding gap="none" tabBar={<TabBar active="settings" onSelect={selectTab} />}>
+    <ScreenLayout noPadding gap="none" tabBar={<CustomerFooter active="settings" />}>
       <div className={styles.body}>
         <header className={cx(styles.inset, styles.header)}>
           <h1 className={cx('text-heading-m', styles.title)}>{data.header.title}</h1>

@@ -19,7 +19,7 @@ function renderConfirm() {
       <Routes>
         <Route path="/booking/:category/confirm" element={<BookingConfirm />} />
         <Route path="/booking/:category/complete" element={<p>완료 화면</p>} />
-        <Route path="/booking/:category/step2" element={<p>주소 입력 화면</p>} />
+        <Route path="/booking/:category/address" element={<p>주소 입력 화면</p>} />
         <Route path="/booking/:category/options" element={<BookingOptions />} />
         <Route path="/booking/:category/notes" element={<p>요청사항 화면</p>} />
       </Routes>
