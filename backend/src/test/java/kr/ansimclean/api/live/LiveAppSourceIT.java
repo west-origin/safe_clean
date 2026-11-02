@@ -165,6 +165,7 @@ class LiveAppSourceIT {
         verify(livekit).mutePublishedTrack(room, cameraIdentity, "TR1", true);
 
         // 재개 뒤 앱이 트랙을 내렸다(앱 종료·끊김) → 카메라 대기
+        when(livekit.getParticipant(room, cameraIdentity)).thenReturn(Optional.of(new Participant(cameraIdentity, List.of(new Track("TR1", true, false)))));
         mvc.perform(post("/api/v1/live/sessions/" + id + "/resume").header("Authorization", manager.bearer())).andExpect(status().isOk());
         webhook("w2", new WebhookEvent("ev-2", "track_unpublished", room, cameraIdentity, null, null, new Track("TR1", true, false)));
         mvc.perform(get("/api/v1/live/sessions/" + id).header("Authorization", manager.bearer()))

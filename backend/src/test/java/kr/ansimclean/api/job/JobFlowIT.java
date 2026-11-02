@@ -153,6 +153,7 @@ class JobFlowIT {
         assertThat(active.get("checklist")).hasSize(3);
         String itemId = active.get("checklist").get(0).get("items").get(0).get("id").asString();
         ItSupport.confirmBeforePhotos(mvc, today1, manager);
+        mvc.perform(post("/api/v1/live/sessions/" + today1 + "/start").header("Authorization", manager.bearer())).andExpect(status().isOk());
         mvc.perform(put("/api/v1/manager/jobs/" + today1 + "/checklist/" + itemId).header("Authorization", manager.bearer()).contentType(MediaType.APPLICATION_JSON).content("{\"done\":true}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.done").value(true));
         mvc.perform(put("/api/v1/manager/jobs/" + today1 + "/checklist/" + itemId).header("Authorization", manager.bearer()).contentType(MediaType.APPLICATION_JSON).content("{\"done\":true}"))
@@ -232,6 +233,7 @@ class JobFlowIT {
         mvc.perform(post("/api/v1/manager/jobs/" + job + "/start").header("Authorization", manager.bearer())).andExpect(status().isOk());
         String item = getJson("/api/v1/manager/jobs/active").get("checklist").get(0).get("items").get(0).get("id").asString();
         ItSupport.confirmBeforePhotos(mvc, job, manager);
+        mvc.perform(post("/api/v1/live/sessions/" + job + "/start").header("Authorization", manager.bearer())).andExpect(status().isOk());
         var gate = new java.util.concurrent.CountDownLatch(1);
         try (var pool = java.util.concurrent.Executors.newFixedThreadPool(2)) {
             java.util.concurrent.Callable<Integer> check = () -> {
@@ -253,9 +255,8 @@ class JobFlowIT {
         assertThat(jdbc.queryForObject("select count(*) from job_checklist_events where item_id=?::uuid", Integer.class, item)).isEqualTo(1);
     }
 
-    /** 실제 API 순서로 영상 시작 → 종료 요청 → 원격 종료 확인 → 후 사진을 준비한다. */
+    /** 실제 API 순서로 영상 종료 요청 → 원격 종료 확인 → 후 사진을 준비한다. */
     void finishMedia(UUID job) throws Exception {
-        mvc.perform(post("/api/v1/live/sessions/" + job + "/start").header("Authorization", manager.bearer())).andExpect(status().isOk());
         mvc.perform(post("/api/v1/manager/jobs/" + job + "/finish-video").header("Authorization", manager.bearer())).andExpect(status().isOk());
         mvc.perform(post("/api/v1/live/sessions/" + job + "/stop").header("Authorization", manager.bearer())).andExpect(status().isOk());
         ItSupport.captureAfterPhotos(mvc, job, manager);

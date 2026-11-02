@@ -5,7 +5,8 @@
 - [x] backend 실패 6건: CleaningPhotoIT·JobFlowIT·LiveSessionIT·LiveAppSourceIT를 전 사진 확정 → 영상 시작 → 영상 종료 요청/원격 종료 확인 → 모든 후 사진 → 작업 완료 순서로 갱신. 사진 준비는 공통 ItSupport에서 실제 API로 수행. 필수 사진/영상 종료 누락 시 거부 검증 추가. 운영 코드·마이그레이션 변경 없음.
 - [x] 로컬 프론트 178파일/494개 테스트, 토큰 재생성·검사, ESLint, 두 앱 프로덕션 빌드 통과.
 - [x] 로컬 Java 21 `verify -DskipITs`: 623개 테스트 통과. Docker 통합 테스트는 GitHub 러너에서 최종 확인한다.
-- [ ] GitHub apps·backend 검사 결과 확인 중.
+- [x] GitHub apps 검사 통과. 첫 수정 후 남은 IT 3건은 체크 전 라이브 세션 시작 누락 2건·휴대폰 재개 시 mock이 계속 muted=true를 반환한 1건으로 확인해 보완.
+- GitHub Docker 통합 테스트 결과는 이 수정 커밋의 Actions 실행에서 확인한다.
 
 ## 서비스 주기 화면 시안 반영 (2026-10-31 사용자 요청 — Figma 에 없어 첨부 이미지 기준)
 - [x] `BookingFrequency`: 뒤로가기('청소 범위' 버튼은 같은 날 사용자 요청으로 삭제), '기본 청소' 제목·설명, 카드형 라디오(`RadioOption variant="card"`, brand/primary), 회색 띠(`SectionDivider`), '정기 서비스는?' 가로 카드(`FaqCard`), 하단 고정 '다음'(brand/primary, 둥근 사각형). 문구는 `mock.js` FREQUENCY_SCREEN_COPY.
