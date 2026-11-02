@@ -52,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Testcontainers
 @ActiveProfiles("test")
 @Import(JobFlowIT.FixedClock.class)
-@org.springframework.test.context.TestPropertySource(properties = "app.admin.token=" + JobFlowIT.ADMIN)
+@org.springframework.test.context.TestPropertySource(properties = {"app.admin.token=" + JobFlowIT.ADMIN, "app.livekit.source=app"})
 class JobFlowIT {
     static final String ADMIN = "it-admin"; // 테스트용 운영자 토큰 값 — 위 @TestPropertySource 가 app.admin.token 에 넣는다
 
@@ -85,6 +85,8 @@ class JobFlowIT {
     kr.ansimclean.api.booking.LateStartNotifier lateNotifier;
     @MockitoBean
     JwtDecoder jwtDecoder;
+    @MockitoBean
+    kr.ansimclean.api.common.supabase.SupabaseStorageClient storage;
 
     final JsonMapper json = JsonMapper.builder().build();
     ItSupport.User customer;
@@ -150,6 +152,7 @@ class JobFlowIT {
         assertThat(active.get("since").asString()).isEqualTo("09:50부터 진행 · 카메라 연결 대기 중");
         assertThat(active.get("checklist")).hasSize(3);
         String itemId = active.get("checklist").get(0).get("items").get(0).get("id").asString();
+        ItSupport.confirmBeforePhotos(mvc, today1, manager);
         mvc.perform(put("/api/v1/manager/jobs/" + today1 + "/checklist/" + itemId).header("Authorization", manager.bearer()).contentType(MediaType.APPLICATION_JSON).content("{\"done\":true}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.done").value(true));
         mvc.perform(put("/api/v1/manager/jobs/" + today1 + "/checklist/" + itemId).header("Authorization", manager.bearer()).contentType(MediaType.APPLICATION_JSON).content("{\"done\":true}"))
@@ -178,6 +181,7 @@ class JobFlowIT {
 
         // 완료 → 정산 pending, 완료 화면, 고객 완료 탭
         CLOCK.set(Instant.parse("2026-09-16T04:00:00Z")); // 13:00 서울
+        finishMedia(today1);
         mvc.perform(post("/api/v1/manager/jobs/" + today1 + "/complete").header("Authorization", manager.bearer()).header("Idempotency-Key", "c1")).andExpect(status().isOk());
         mvc.perform(get("/api/v1/manager/jobs/active").header("Authorization", manager.bearer())).andExpect(status().isNotFound());
         // 완료 화면 요약 행: [0] 청소 시간 [1] 총 소요 [2] 체크리스트(묶음 3개의 항목 9개 중 위에서 체크한 1개) [3] 촬영 기록(녹화가 없어 '기록 없음')
@@ -227,6 +231,7 @@ class JobFlowIT {
         CLOCK.set(Instant.parse("2026-09-16T01:00:00Z"));
         mvc.perform(post("/api/v1/manager/jobs/" + job + "/start").header("Authorization", manager.bearer())).andExpect(status().isOk());
         String item = getJson("/api/v1/manager/jobs/active").get("checklist").get(0).get("items").get(0).get("id").asString();
+        ItSupport.confirmBeforePhotos(mvc, job, manager);
         var gate = new java.util.concurrent.CountDownLatch(1);
         try (var pool = java.util.concurrent.Executors.newFixedThreadPool(2)) {
             java.util.concurrent.Callable<Integer> check = () -> {
@@ -241,10 +246,19 @@ class JobFlowIT {
             assertThat(second.get(10, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(200);
         }
         assertThat(jdbc.queryForObject("select count(*) from job_checklist_events where item_id=?::uuid", Integer.class, item)).isEqualTo(1);
+        finishMedia(job);
         mvc.perform(post("/api/v1/manager/jobs/" + job + "/complete").header("Authorization", manager.bearer())).andExpect(status().isOk());
         mvc.perform(put("/api/v1/manager/jobs/" + job + "/checklist/" + item).header("Authorization", manager.bearer())
                 .contentType(MediaType.APPLICATION_JSON).content("{\"done\":false}")).andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("select count(*) from job_checklist_events where item_id=?::uuid", Integer.class, item)).isEqualTo(1);
+    }
+
+    /** 실제 API 순서로 영상 시작 → 종료 요청 → 원격 종료 확인 → 후 사진을 준비한다. */
+    void finishMedia(UUID job) throws Exception {
+        mvc.perform(post("/api/v1/live/sessions/" + job + "/start").header("Authorization", manager.bearer())).andExpect(status().isOk());
+        mvc.perform(post("/api/v1/manager/jobs/" + job + "/finish-video").header("Authorization", manager.bearer())).andExpect(status().isOk());
+        mvc.perform(post("/api/v1/live/sessions/" + job + "/stop").header("Authorization", manager.bearer())).andExpect(status().isOk());
+        ItSupport.captureAfterPhotos(mvc, job, manager);
     }
 
     // LateStartNotifier.notifyDue 를 스케줄러 대신 직접 부른다 (돌려주는 값 = 이번에 안내를 쌓은 예약 수).

@@ -1,5 +1,12 @@
 # PROGRESS
 
+## GitHub CI 실패 수정 (2026-11-02 사용자 요청)
+- [x] apps 실패: `backend-mock-export.mjs shapes`의 시간표 응답 생성에서 누락된 `minimumLeadHours: 3` 복구. 기존 서버 계약·스냅샷과 일치하며 재생성 diff 없음.
+- [x] backend 실패 6건: CleaningPhotoIT·JobFlowIT·LiveSessionIT·LiveAppSourceIT를 전 사진 확정 → 영상 시작 → 영상 종료 요청/원격 종료 확인 → 모든 후 사진 → 작업 완료 순서로 갱신. 사진 준비는 공통 ItSupport에서 실제 API로 수행. 필수 사진/영상 종료 누락 시 거부 검증 추가. 운영 코드·마이그레이션 변경 없음.
+- [x] 로컬 프론트 178파일/494개 테스트, 토큰 재생성·검사, ESLint, 두 앱 프로덕션 빌드 통과.
+- [x] 로컬 Java 21 `verify -DskipITs`: 623개 테스트 통과. Docker 통합 테스트는 GitHub 러너에서 최종 확인한다.
+- [ ] GitHub apps·backend 검사 결과 확인 중.
+
 ## 서비스 주기 화면 시안 반영 (2026-10-31 사용자 요청 — Figma 에 없어 첨부 이미지 기준)
 - [x] `BookingFrequency`: 뒤로가기('청소 범위' 버튼은 같은 날 사용자 요청으로 삭제), '기본 청소' 제목·설명, 카드형 라디오(`RadioOption variant="card"`, brand/primary), 회색 띠(`SectionDivider`), '정기 서비스는?' 가로 카드(`FaqCard`), 하단 고정 '다음'(brand/primary, 둥근 사각형). 문구는 `mock.js` FREQUENCY_SCREEN_COPY.
 - [x] 시안에 없는 날짜/시간 선택 섹션·회차 안내(InfoNote)·서버 주기 설명·프로모션 배너는 다른 화면에서 쓸 예정이라 코드는 두고 `hidden` 으로 숨김.

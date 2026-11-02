@@ -139,7 +139,7 @@ if (mode === 'shapes') {
     write(`notice-chips-${k}`, { chips: customer.NOTICE_CHIPS[k], copy: customer.NOTES_COPY });
     write(`confirm-copy-${k}`, { copy: customer.CONFIRM_COPY, frequencyDescriptions: customer.FREQUENCY_DESCRIPTIONS[k], seriesTermMonths: customer.SERIES_TERM_MONTHS });
   }
-  write('time-slots', { ...customer.TIME_SLOTS, unavailable: [], bookableDays: customer.BOOKABLE_DAYS, changeDeadlineHours: customer.CHANGE_DEADLINE_HOURS });
+  write('time-slots', { ...customer.TIME_SLOTS, unavailable: [], bookableDays: customer.BOOKABLE_DAYS, changeDeadlineHours: customer.CHANGE_DEADLINE_HOURS, minimumLeadHours: 3 });
   write('reasons-reject', manager.REJECT_REASONS);
   write('reasons-pause', manager.PAUSE_REASONS);
   write('terms-customer', customer.TERMS);

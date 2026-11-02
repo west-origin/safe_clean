@@ -49,8 +49,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 통합 (Docker 필요): 청소 시작 → '전' 사진 2곳 → 한 곳만 '후' 사진(다시 찍기 포함) → 고객은 완료 전 ready=false →
- * 완료 → 고객은 전·후가 다 있는 한 곳만 본다 → 완료 뒤 매니저 쓰기는 409. 남의 예약은 404.
+ * 통합 (Docker 필요): 공간 추가 → 모든 공간의 전 사진 확정 → 영상 시작·종료 → 후 사진(재촬영 포함) → 완료.
+ * 필수 사진·영상 종료를 건너뛰면 거부하고, 고객은 완료 뒤에만 모든 사진 쌍을 본다. 완료 뒤 쓰기는 409, 남의 예약은 404.
  * V055 마이그레이션과 엔티티가 맞는지(ddl-auto=validate)도 이 컨텍스트가 뜨면서 확인된다.
  * Storage 는 목이다(밖으로 나가지 않게) — 서명 URL 은 'signed:<경로>' 로 돌려준다.
  */
@@ -59,6 +59,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Testcontainers
 @ActiveProfiles("test")
 @Import(CleaningPhotoIT.FixedClock.class)
+@org.springframework.test.context.TestPropertySource(properties = "app.livekit.source=app")
 class CleaningPhotoIT {
     @Container
     @ServiceConnection
@@ -128,6 +129,9 @@ class CleaningPhotoIT {
         UUID job = started();
         String base = "/api/v1/manager/jobs/" + job + "/photos";
 
+        mvc.perform(post("/api/v1/manager/jobs/" + job + "/rooms").header("Authorization", manager.bearer())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"거실 소파 앞\"}")).andExpect(status().isOk());
+
         JsonNode living = read(mvc.perform(multipart(base).file(png()).param("location", " 거실 소파 앞 ").header("Authorization", manager.bearer())).andExpect(status().isOk()));
         assertThat(living.get("location").asString()).isEqualTo("거실 소파 앞");
         assertThat(living.get("afterUrl").isNull()).isTrue();
@@ -139,6 +143,17 @@ class CleaningPhotoIT {
         mvc.perform(get("/api/v1/customer/bookings/" + job + "/photos").header("Authorization", customer.bearer()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.ready").value(false)).andExpect(jsonPath("$.photos").isEmpty());
 
+        // 필수 공간이 빠지면 확정 불가. 전 사진을 모두 찍어 확정한 뒤 영상을 시작한다.
+        mvc.perform(post(base + "/confirm-before").header("Authorization", manager.bearer())).andExpect(status().isBadRequest());
+        ItSupport.confirmBeforePhotos(mvc, job, manager);
+        mvc.perform(post("/api/v1/live/sessions/" + job + "/start").header("Authorization", manager.bearer())).andExpect(status().isOk());
+        mvc.perform(multipart(HttpMethod.PUT, base + "/" + livingId + "/after").file(png()).header("Authorization", manager.bearer()))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/manager/jobs/" + job + "/finish-video").header("Authorization", manager.bearer())).andExpect(status().isOk());
+        mvc.perform(multipart(HttpMethod.PUT, base + "/" + livingId + "/after").file(png()).header("Authorization", manager.bearer()))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/live/sessions/" + job + "/stop").header("Authorization", manager.bearer())).andExpect(status().isOk());
+
         // '후' 사진 — 두 번 찍으면 바뀌고 예전 파일은 지워진다
         String first = read(mvc.perform(multipart(HttpMethod.PUT, base + "/" + livingId + "/after").file(png()).header("Authorization", manager.bearer())).andExpect(status().isOk()))
                 .get("afterUrl").asString().substring("signed:".length());
@@ -149,14 +164,16 @@ class CleaningPhotoIT {
 
         mvc.perform(get(base).header("Authorization", manager.bearer()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.max").value(10))
-                .andExpect(jsonPath("$.photos.length()").value(2)).andExpect(jsonPath("$.photos[0].location").value("거실 소파 앞"));
+                .andExpect(jsonPath("$.photos.length()").value(4)).andExpect(jsonPath("$.photos[0].location").value("거실 소파 앞"));
 
-        // 완료 → 고객은 전·후가 다 있는 '거실 소파 앞' 만 본다
+        // 한 곳만 후 사진이 있으면 완료 불가. 모든 공간의 후 사진을 찍어야 완료된다.
+        mvc.perform(post("/api/v1/manager/jobs/" + job + "/complete").header("Authorization", manager.bearer())).andExpect(status().isBadRequest());
+        ItSupport.captureAfterPhotos(mvc, job, manager);
         CLOCK.set(Instant.parse("2026-09-16T03:00:00Z"));
         mvc.perform(post("/api/v1/manager/jobs/" + job + "/complete").header("Authorization", manager.bearer())).andExpect(status().isOk());
         mvc.perform(get("/api/v1/customer/bookings/" + job + "/photos").header("Authorization", customer.bearer()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.ready").value(true))
-                .andExpect(jsonPath("$.photos.length()").value(1))
+                .andExpect(jsonPath("$.photos.length()").value(4))
                 .andExpect(jsonPath("$.photos[0].id").value(livingId))
                 .andExpect(jsonPath("$.photos[0].afterUrl").value("signed:" + second));
 
@@ -165,7 +182,7 @@ class CleaningPhotoIT {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("INVALID_STATE"));
         mvc.perform(delete(base + "/" + livingId).header("Authorization", manager.bearer())).andExpect(status().isConflict());
         mvc.perform(get(base).header("Authorization", manager.bearer())).andExpect(status().isOk());
-        assertThat(jdbc.queryForObject("select count(*) from cleaning_photos where booking_id = ?::uuid", Integer.class, job.toString())).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from cleaning_photos where booking_id = ?::uuid", Integer.class, job.toString())).isEqualTo(4);
     }
 
     @Test

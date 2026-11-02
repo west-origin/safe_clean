@@ -5,11 +5,23 @@ import kr.ansimclean.api.schedule.AvailabilityService;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 
+import org.springframework.http.HttpMethod;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.json.JsonMapper;
+
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 // 쓰는 곳 예: MatchingIT·JobFlowIT.
 // 각 IT 는 진짜 ProfileService 와 @MockitoBean JwtDecoder(가짜 토큰 해석기)를 넘겨 준비 데이터를 만든다.
@@ -51,6 +63,44 @@ public final class ItSupport {
     public static void resetUserData(org.springframework.jdbc.core.JdbcTemplate jdbc) {
         // truncate … cascade: 표를 통째로 비운다. cascade 는 이 표들을 외래 키로 가리키는 표(예약·콜 등)까지 함께 비운다
         jdbc.execute("truncate table profiles, idempotency_keys, phone_verifications, outbox_events, livekit_events cascade");
+    }
+
+    /** 현재 필수 공간마다 실제 사진 API로 전 사진을 올리고 확정한다. 이미 올린 공간은 유지한다. */
+    public static void confirmBeforePhotos(MockMvc mvc, UUID job, User manager) throws Exception {
+        String base = "/api/v1/manager/jobs/" + job + "/photos";
+        var json = JsonMapper.builder().build();
+        var list = json.readTree(mvc.perform(get(base)
+                .header("Authorization", manager.bearer())).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+        for (var room : list.get("requiredRooms")) {
+            if (list.get("photos").valueStream().anyMatch(p -> room.asString().equals(p.get("location").asString()))) continue;
+            mvc.perform(multipart(base).file(photo())
+                    .param("location", room.asString()).header("Authorization", manager.bearer()))
+                    .andExpect(status().isOk());
+        }
+        mvc.perform(post(base + "/confirm-before")
+                .header("Authorization", manager.bearer())).andExpect(status().isOk());
+    }
+
+    /** 영상 종료 뒤 모든 공간의 후 사진을 올린다. 기존 후 사진(재촬영 검사 등)은 유지한다. */
+    public static void captureAfterPhotos(MockMvc mvc, UUID job, User manager) throws Exception {
+        String base = "/api/v1/manager/jobs/" + job + "/photos";
+        var json = JsonMapper.builder().build();
+        var list = json.readTree(mvc.perform(get(base)
+                .header("Authorization", manager.bearer())).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+        for (var p : list.get("photos")) {
+            if (!p.get("afterUrl").isNull()) continue;
+            mvc.perform(multipart(HttpMethod.PUT,
+                    base + "/" + p.get("id").asString() + "/after").file(photo()).header("Authorization", manager.bearer()))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    private static MockMultipartFile photo() throws Exception {
+        var bytes = new ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(new BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB), "png", bytes);
+        return new MockMultipartFile("file", "room.png", "image/png", bytes.toByteArray());
     }
 
     /** 고객 예약 생성(POST /customer/bookings) 요청 본문 JSON — 가정 청소 1회, 옵션 없음, 주의사항 반려동물. date "YYYY-MM-DD", time "HH:mm" */

@@ -125,6 +125,7 @@ class LiveAppSourceIT {
         mvc.perform(post("/api/v1/manager/offers/" + offer.getId() + "/accept").header("Authorization", manager.bearer())).andExpect(status().isOk());
         CLOCK.set(Instant.parse("2026-09-16T00:50:00Z"));
         mvc.perform(post("/api/v1/manager/jobs/" + id + "/start").header("Authorization", manager.bearer())).andExpect(status().isOk());
+        ItSupport.confirmBeforePhotos(mvc, id, manager);
         return id;
     }
 

@@ -146,6 +146,7 @@ class LiveSessionIT {
         mvc.perform(post("/api/v1/manager/offers/" + offer.getId() + "/accept").header("Authorization", manager.bearer())).andExpect(status().isOk());
         CLOCK.set(Instant.parse("2026-09-16T00:50:00Z"));
         mvc.perform(post("/api/v1/manager/jobs/" + id + "/start").header("Authorization", manager.bearer())).andExpect(status().isOk());
+        ItSupport.confirmBeforePhotos(mvc, id, manager);
         return id;
     }
 
@@ -212,17 +213,19 @@ class LiveSessionIT {
         mvc.perform(get("/api/v1/live/sessions/" + id).header("Authorization", manager.bearer())).andExpect(jsonPath("$.status").value("waiting_camera"));
         webhook("w2", new WebhookEvent("ev-2", "ingress_ended", room, null, null, null)); // 같은 id 두 번 → 무시(204)
 
-        // 완료 → 정지 → 녹화 끝 → 녹화본. 정지는 작업이 끝난 뒤에만(앱도 jobs/complete → live/stop 순서) — 그 전엔 409
+        // 종료 의도 없이 정지할 수 없다. 종료 요청 → 원격 영상 정지 → 후 사진 → 완료 순서.
         mvc.perform(post("/api/v1/live/sessions/" + id + "/stop").header("Authorization", manager.bearer()))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("INVALID_STATE"));
-        mvc.perform(post("/api/v1/manager/jobs/" + id + "/complete").header("Authorization", manager.bearer())).andExpect(status().isOk());
+        mvc.perform(post("/api/v1/manager/jobs/" + id + "/finish-video").header("Authorization", manager.bearer())).andExpect(status().isOk());
         // 정지는 바디캠이 지금 이 방에 묶여 있을 때만 대기 방으로 옮긴다(LiveService.releaseDevice → boundTo 가 LiveKit 에 묻는다) —
         // 다음 작업 방에 이미 묶인 바디캠을 빼 오지 않게 (자체 점검 #51). 실제 LiveKit 처럼 '이 방에 묶여 있음' 을 돌려주게 한다
         when(livekit.getIngress("ing-" + manager.id())).thenReturn(Optional.of(new IngressInfo("ing-" + manager.id(), "rtmp://lk.example/x", "full-key", room, false)));
         mvc.perform(post("/api/v1/live/sessions/" + id + "/stop").header("Authorization", manager.bearer())).andExpect(status().isOk());
         verify(livekit).stopEgress("eg-1");
-        verify(livekit).deleteRoom(room);
+        verify(livekit, org.mockito.Mockito.atLeastOnce()).deleteRoom(room);
         verify(livekit).updateIngressRoom("ing-" + manager.id(), "parking-" + manager.id());
+        ItSupport.captureAfterPhotos(mvc, id, manager);
+        mvc.perform(post("/api/v1/manager/jobs/" + id + "/complete").header("Authorization", manager.bearer())).andExpect(status().isOk());
         mvc.perform(get("/api/v1/live/sessions/" + id + "/recording").header("Authorization", customer.bearer()))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("RECORDING_NOT_READY"));
         webhook("w3", new WebhookEvent("ev-3", "egress_ended", room, null, null, new EgressInfo("eg-1", room, "complete", id + ".mp4", 630, null)));
@@ -261,10 +264,12 @@ class LiveSessionIT {
         reconciler.reconcile();
         assertThat(sessions.findById(id).orElseThrow().getRecordingStatus()).isEqualTo(LiveSession.REC_READY);
 
-        // 작업이 끝나면 세션도 정리한다
-        mvc.perform(post("/api/v1/manager/jobs/" + id + "/complete").header("Authorization", manager.bearer())).andExpect(status().isOk());
+        // 종료 의도가 저장되면 재조정기가 세션을 닫는다. 후 사진 촬영 뒤 작업을 완료한다.
+        mvc.perform(post("/api/v1/manager/jobs/" + id + "/finish-video").header("Authorization", manager.bearer())).andExpect(status().isOk());
         reconciler.reconcile();
         assertThat(sessions.findById(id).orElseThrow().isEnded()).isTrue();
+        ItSupport.captureAfterPhotos(mvc, id, manager);
+        mvc.perform(post("/api/v1/manager/jobs/" + id + "/complete").header("Authorization", manager.bearer())).andExpect(status().isOk());
         verify(livekit, org.mockito.Mockito.atLeastOnce()).deleteRoom(room); // 같은 reconcile() 안에서 '끝난 지 15분 안 세션' 루프가 한 번 더 닫는다(멱등)
     }
 }
