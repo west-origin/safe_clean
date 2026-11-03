@@ -28,6 +28,8 @@ describe('Booking/NotesRequests', () => {
     expect(screen.getAllByRole('radio').every((r) => r.getAttribute('aria-checked') === 'false')).toBe(true);
     expect(screen.queryByRole('radio', { name: '강아지' })).toBeNull(); // 2026-11-03: 있음/없음 두 가지
     expect(screen.queryByPlaceholderText(/예\)/)).toBeNull(); // 요청사항 예시 삭제
+    expect(screen.getByText('총 결제금액')).toBeInTheDocument(); // 하단은 날짜/시간 화면과 같은 BookingPriceFooter
+    expect(screen.queryByRole('button', { name: '자세히' })).toBeNull();
     expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
     expect(screen.getByText('반려동물·영유아·무료주차·공동현관 비밀번호를 선택해 주세요.')).toBeInTheDocument();
 

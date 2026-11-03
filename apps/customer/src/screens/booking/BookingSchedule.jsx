@@ -9,14 +9,15 @@
 // 예약 가능 날짜·시간 판단(최소 3시간·예약 가능 기간·막힌 시간)은 예전 화면과 같은 useBookingAvailability.
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ScreenLayout, NavBar, ManagerIntro, SectionDivider, ScheduleAccordion, SwipeCalendar, TimeRangeGrid, hoursBetween, PriceCtaBar, Button, cx, useAsync, useAction, ScreenError, ScreenLoading, ActionError, showToast, formatDateShortWeekday, fromDateKey, startOfToday, toDateKey } from '@ansimclean/ui';
+import { ScreenLayout, NavBar, ManagerIntro, SectionDivider, ScheduleAccordion, SwipeCalendar, TimeRangeGrid, hoursBetween, cx, useAsync, useAction, ScreenError, ScreenLoading, ActionError, showToast, formatDateShortWeekday, fromDateKey, startOfToday, toDateKey } from '@ansimclean/ui';
 import { getTimeSlots, saveBookingStep } from '../../api/customer.js';
 import { SCHEDULE_COPY as COPY, SCHEDULE_PRICE as PRICE } from '../../api/mock.js';
 import { useBookingDraft } from './bookingDraft.js';
 import common from './booking.module.css';
 import { useReturnTo } from './useReturnTo.js';
 import useBookingAvailability from './useBookingAvailability.js';
-import { won, schedulePrice } from './bookingPrice.js';
+import { schedulePrice } from './bookingPrice.js';
+import BookingPriceFooter from './BookingPriceFooter.jsx';
 import styles from './BookingSchedule.module.css';
 
 const DEFAULT_BOOKABLE_DAYS = 60; // 서버가 bookableDays 를 주지 않을 때 달력을 그릴 기간 (BookingVisitDate 와 같다)
@@ -84,14 +85,9 @@ export default function BookingSchedule() {
       gap="none"
       navBar={navBar}
       stickyCta={
-        <>
-          <PriceCtaBar priceLabel={won(schedulePrice(hours, frequency))} caption={COPY.total}>
-            <Button variant="primary" chevron={false} className={common.ctaRounded} disabled={!availability.canContinue || !end} loading={next.loading} onClick={next.run}>
-              다음
-            </Button>
-          </PriceCtaBar>
+        <BookingPriceFooter price={schedulePrice(hours, frequency)} disabled={!availability.canContinue || !end} loading={next.loading} onNext={next.run}>
           <ActionError error={next.error} fallback="일정을 저장하지 못했어요. 다시 시도해주세요." />
-        </>
+        </BookingPriceFooter>
       }
     >
       <div className={styles.body}>

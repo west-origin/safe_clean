@@ -25,27 +25,3 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--spacing-lg);
 }
-
-/* '자세히' 시트 */
-.detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-  margin: 0;
-}
-
-.detailRow {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--spacing-xl);
-}
-
-.detailKey {
-  margin: 0;
-  color: var(--color-text-secondary);
-}
-
-.detailValue {
-  margin: 0;
-  color: var(--color-text-primary);
-}

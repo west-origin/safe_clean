@@ -51,22 +51,3 @@
   margin: 0 0 var(--spacing-sm);
   color: var(--color-status-live);
 }
-
-/* '자세히' 시트 */
-.detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-  margin: 0;
-}
-
-.detailRow {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--spacing-xl);
-}
-
-.detailValue {
-  margin: 0;
-  color: var(--color-text-primary);
-}

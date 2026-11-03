@@ -7,18 +7,18 @@
 //   처음엔 아무것도 안 골라져 있고, 하나라도 안 고르거나 필요한 비밀번호가 비어 있으면 "다음" 이 꺼지고 아래에 작은 빨간 안내가 보인다.
 //   비밀번호는 초안(doorCodes)에만 두고 서버로 보내지 않는다 — 요청사항은 수락 전 콜 상세에도 보여서 여러 매니저에게 노출된다.
 //   배정된 매니저에게만 전달하려면 서버에 따로 칸이 필요하다 (PROGRESS.md 판단 항목).
-//   하단은 날짜/시간·옵션 화면과 같은 금액(표시용) + 자세히 + 다음.
+//   하단은 날짜/시간·옵션 화면과 같은 BookingPriceFooter('총 결제금액' + 금액(표시용) + 다음, 2026-11-03).
 // 예약 플로우 (/booking/:category/notes). 고른 답은 예약 초안 noticeAnswers 에 두고, "다음" 에서
 //   - 서버 주의사항 칩 중 같은 뜻인 것(반려동물 있음 → pet, 영유아 있음 → baby — 그 카테고리 칩에 있을 때만)을 notices 로,
 //   - 답 전체 한 줄을 noticeSummary 로 남긴다 → 예약을 만들 때 요청사항 맨 앞에 붙어 매니저에게 간다 (api/customer.js createBooking).
 // 칩 목록·요청사항 칸 문구는 서버(GET /catalog/categories/{c}/notice-chips), 그 밖의 문구는 mock.js NOTES_SCREEN_COPY.
-import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ScreenLayout, NavBar, SectionDivider, ChoiceCardGroup, TextField, TextArea, PriceCtaBar, Sheet, Button, cx, useAsync, ScreenError, ScreenLoading, AnswerDogIcon, AnswerBabyIcon, AnswerParkingIcon, AnswerUnknownIcon, AnswerDoorIcon } from '@ansimclean/ui';
+import { ScreenLayout, NavBar, SectionDivider, ChoiceCardGroup, TextField, TextArea, cx, useAsync, ScreenError, ScreenLoading, AnswerDogIcon, AnswerBabyIcon, AnswerParkingIcon, AnswerUnknownIcon, AnswerDoorIcon } from '@ansimclean/ui';
 import { getNoticeChips, saveBookingStep } from '../../api/customer.js';
-import { INPUT_LIMITS, NOTES_SCREEN_COPY as COPY, OPTIONS_COPY, SCHEDULE_COPY, SCHEDULE_PRICE } from '../../api/mock.js';
+import { INPUT_LIMITS, NOTES_SCREEN_COPY as COPY, SCHEDULE_PRICE } from '../../api/mock.js';
+import BookingPriceFooter from './BookingPriceFooter.jsx';
 import { useBookingDraft } from './bookingDraft.js';
-import { won, schedulePrice } from './bookingPrice.js';
+import { schedulePrice } from './bookingPrice.js';
 import common from './booking.module.css';
 import styles from './BookingNotesRequests.module.css';
 
@@ -38,7 +38,6 @@ export default function BookingNotesRequests() {
   const { category } = useParams();
   const [draft, update] = useBookingDraft(category);
   const { data, error, reload } = useAsync(() => getNoticeChips(category), [category]);
-  const [detailOpen, setDetailOpen] = useState(false); // '자세히' 시트
   const answers = draft.noticeAnswers ?? {}; // { pet, baby, parking } — 처음엔 비어 있다
   const request = draft.request ?? '';
   const doorCodes = draft.doorCodes ?? {}; // { building: 'yes'|'no', buildingCode, frontCode } — 처음엔 비어 있다
@@ -80,18 +79,13 @@ export default function BookingNotesRequests() {
       gap="none"
       navBar={navBar}
       stickyCta={
-        <>
+        <BookingPriceFooter price={basePrice + paidTotal} disabled={blocked} onNext={next}>
           {blocked && (
             <p className={cx('text-body-xs', styles.missing)} role="status">
               {missing.length > 0 ? COPY.missing(missing.map((q) => q.short ?? q.title)) : COPY.missing(missingCodes, '입력해')}
             </p>
           )}
-          <PriceCtaBar priceLabel={won(basePrice + paidTotal)} detailLabel={SCHEDULE_COPY.detail} onDetail={() => setDetailOpen(true)}>
-            <Button variant="primary" chevron={false} className={common.ctaRounded} disabled={blocked} onClick={next}>
-              다음
-            </Button>
-          </PriceCtaBar>
-        </>
+        </BookingPriceFooter>
       }
     >
       <div className={styles.body}>
@@ -154,25 +148,6 @@ export default function BookingNotesRequests() {
         </section>
       </div>
 
-      {/* '자세히': 서비스 시간 금액 + 유료 옵션 합계 */}
-      <Sheet open={detailOpen} onClose={() => setDetailOpen(false)} title={SCHEDULE_COPY.detailTitle}>
-        <dl className={styles.detail}>
-          <div className={styles.detailRow}>
-            <dt className={cx('text-body-default', styles.hint)}>{`${SCHEDULE_COPY.duration} ${hours}시간`}</dt>
-            <dd className={cx('text-body-bold', styles.detailValue)}>{won(basePrice)}</dd>
-          </div>
-          {paidTotal > 0 && (
-            <div className={styles.detailRow}>
-              <dt className={cx('text-body-default', styles.hint)}>{OPTIONS_COPY.paidDetail}</dt>
-              <dd className={cx('text-body-bold', styles.detailValue)}>{`+${won(paidTotal)}`}</dd>
-            </div>
-          )}
-        </dl>
-        <p className={cx('text-body-s', styles.hint)}>{SCHEDULE_COPY.detailNote}</p>
-        <Button variant="primary" chevron={false} className={common.ctaRounded} onClick={() => setDetailOpen(false)}>
-          {SCHEDULE_COPY.confirm}
-        </Button>
-      </Sheet>
     </ScreenLayout>
   );
 }

@@ -8,12 +8,12 @@
 // 누를 때마다 고른 key 를 예약 초안(bookingDraft, sessionStorage)에 바로 저장하고, '다음' 에서 Step2 화면의
 // '옵션 선택' 칸에 보일 요약 문구(optionsSummary)를 만든다. 확인 화면 '수정하기' 로 왔으면 확인 화면으로 돌아간다.
 import { useNavigate, useParams } from 'react-router';
-import { useState } from 'react';
-import { ScreenLayout, NavBar, OptionCheckRow, PaidOptionCard, PriceCtaBar, Sheet, Button, ASSETS, cx, useAsync, ScreenError, ScreenLoading, OptionShelfIcon, OptionEntranceIcon, OptionRecycleIcon, OptionKitchenIcon, OptionSignboardIcon, OptionDishesIcon, OptionLaundryIcon, OptionBeddingIcon, OptionPetCareIcon, OptionFridgeIcon } from '@ansimclean/ui';
+import { ScreenLayout, NavBar, OptionCheckRow, PaidOptionCard, ASSETS, cx, useAsync, ScreenError, ScreenLoading, OptionShelfIcon, OptionEntranceIcon, OptionRecycleIcon, OptionKitchenIcon, OptionSignboardIcon, OptionDishesIcon, OptionLaundryIcon, OptionBeddingIcon, OptionPetCareIcon, OptionFridgeIcon } from '@ansimclean/ui';
 import { getBookingOptions, saveBookingStep } from '../../api/customer.js';
-import { OPTIONS_COPY as COPY, SCHEDULE_COPY, SCHEDULE_PRICE } from '../../api/mock.js';
+import { OPTIONS_COPY as COPY, SCHEDULE_PRICE } from '../../api/mock.js';
+import BookingPriceFooter from './BookingPriceFooter.jsx';
 import { useBookingDraft } from './bookingDraft.js';
-import { won, schedulePrice, optionPrice } from './bookingPrice.js';
+import { schedulePrice, optionPrice } from './bookingPrice.js';
 import common from './booking.module.css';
 import { useReturnTo } from './useReturnTo.js';
 import styles from './BookingOptions.module.css';
@@ -39,7 +39,6 @@ export default function BookingOptions() {
   const paid = draft.paidOptions ?? [];
   // 카테고리별 옵션 그림 목록. 서버 옵션의 icon 은 이 배열의 순번이다. 모르는 카테고리면 가정 청소 그림을 쓴다
   const icons = ASSETS.bookingOptionIcons[category] ?? ASSETS.bookingOptionIcons.home;
-  const [detailOpen, setDetailOpen] = useState(false); // '자세히' 시트
   // 순번 i 의 그림: 매장·가정이면 플랫 SVG, 아니면 기존 래스터
   const iconOf = (i) => {
     const Flat = FLAT_OPTION_ICONS[category]?.[i];
@@ -83,11 +82,7 @@ export default function BookingOptions() {
       gap="none"
       navBar={navBar}
       stickyCta={
-        <PriceCtaBar priceLabel={won(total)} detailLabel={SCHEDULE_COPY.detail} onDetail={() => setDetailOpen(true)}>
-          <Button variant="primary" chevron={false} className={common.ctaRounded} onClick={next}>
-            다음
-          </Button>
-        </PriceCtaBar>
+        <BookingPriceFooter price={total} onNext={next} />
       }
     >
       <div className={cx(common.page, styles.page)}>
@@ -110,25 +105,6 @@ export default function BookingOptions() {
         </section>
       </div>
 
-      {/* '자세히': 서비스 시간 금액 + 고른 유료 옵션 */}
-      <Sheet open={detailOpen} onClose={() => setDetailOpen(false)} title={SCHEDULE_COPY.detailTitle}>
-        <dl className={styles.detail}>
-          <div className={styles.detailRow}>
-            <dt className={cx('text-body-default', styles.detailKey)}>{`${SCHEDULE_COPY.duration} ${hours}시간`}</dt>
-            <dd className={cx('text-body-bold', styles.detailValue)}>{won(basePrice)}</dd>
-          </div>
-          {paidChosen.map((o) => (
-            <div key={o.key} className={styles.detailRow}>
-              <dt className={cx('text-body-default', styles.detailKey)}>{oneLine(o.label)}</dt>
-              <dd className={cx('text-body-bold', styles.detailValue)}>{o.price}</dd>
-            </div>
-          ))}
-        </dl>
-        <p className={cx('text-body-s', styles.detailKey)}>{SCHEDULE_COPY.detailNote}</p>
-        <Button variant="primary" chevron={false} className={common.ctaRounded} onClick={() => setDetailOpen(false)}>
-          {SCHEDULE_COPY.confirm}
-        </Button>
-      </Sheet>
     </ScreenLayout>
   );
 }
