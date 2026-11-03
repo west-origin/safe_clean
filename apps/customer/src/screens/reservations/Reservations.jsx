@@ -1,14 +1,17 @@
 // Figma: Reservations (2047:1683) — 헤더 + 밑줄 탭(예정 N / 완료 / 취소) + ReservationCard 목록 + TabBar(Reservations)
 // Figma 에 없어 코드에서 정한 것: 완료·취소 탭 목록과 빈 상태, 예약 변경(→ 날짜/시간 화면 ?edit=), 예약 취소(확인 시트), 진행 중 카드의 "실시간 영상 보기"(소개 화면 Service/Start 를 거치지 않고 바로 /service/live)
 // (코드에서 정함, B3) 정기청소 회차(series)의 취소 시트에는 "이번 회차만 / 정기청소 전체" 선택이 있다 (BACKEND_PLAN.md §9.2-5). 서버가 기한 규칙으로 거부하면 그 문구를 보여준다
+// 2026-11-03 사용자 첨부 예약내역 시안으로 바꿨다: 제목 '내 예약을 확인해 주세요.'(설명 줄 없음), 폭을 나눈 탭, 카드는 ReservationTicket
+//   (서비스 이름 매장·가정·원룸 + 파란 일정 + 배정 알약 / 매니저 사진·이름·진행 상태 / 방문 시작·종료 예정 / 구분선 아래 변경·취소 버튼 또는 기한 안내).
+//   매니저 사진은 아직 없어 임시 사진(ASSETS.managerAvatar). 카드의 '결제하기' 버튼은 사용자 요청으로 뺐다.
 // 고객 앱 '내 예약' 탭 화면 (/reservations). 데이터는 getReservations(GET /customer/reservations) 한 번으로
 // 헤더 문구·탭 목록·예약 목록을 받는다. 각 예약의 tab(어느 탭에 속하는지)·status·rows(카드 행 문구)는 서버가 정해 준다.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ScreenLayout,
   UnderlineTabs,
-  ReservationCard,
+  ReservationTicket,
   EmptyState,
   Sheet,
   Button,
@@ -21,6 +24,8 @@ import {
   cx,
   ActionError,
   showToast,
+  ASSETS,
+  fromDateKey,
 } from '@ansimclean/ui';
 import { getReservations, cancelReservation, getSupportPhone } from '../../api/customer.js';
 import {
@@ -28,13 +33,42 @@ import {
   CANCEL_COPY,
   CHANGE_LOCK_COPY,
   CHANGE_DEADLINE_HOURS,
-  PAYMENT_COPY,
+  RESERVATIONS_COPY as COPY,
 } from '../../api/mock.js';
 import CustomerFooter from '../CustomerFooter.jsx';
 import { onPushReceived } from '../../push/pushClient.js';
 
-const REFRESH_MS = 30_000; // 배정·완료 상태를 화면에 머무는 동안 갱신 (외부 검토 3차)
 import styles from './Reservations.module.css';
+
+const REFRESH_MS = 30_000; // 배정·완료 상태를 화면에 머무는 동안 갱신 (외부 검토 3차)
+const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
+
+/** 카드 이름: 매장·가정·원룸 (home 은 서버 homeType 으로 나눈다. 옛 예약은 '가정/원룸'), 그 밖은 서버 이름. 정기 회차면 서버 이름의 ' · 정기 2/6회' 를 이어 붙인다 */
+function titleOf(r) {
+  const short = r.category === 'home' ? COPY.homeTypes[r.homeType] ?? COPY.categories.home : COPY.categories[r.category] ?? r.title.split(' · ')[0];
+  const series = r.title.split(' · ').slice(1).join(' · ');
+  return series ? `${short} · ${series}` : short;
+}
+
+/** 진행 상태: 취소 / 청소 완료 / 청소 중 / (매니저 수락 + 방문 onTheWayMinutes 분 전부터) 이동 중 / 예약 완료 */
+function progressOf(r, now) {
+  if (r.status === 'cancelled') return COPY.progress.cancelled;
+  if (r.status === 'done') return COPY.progress.done;
+  if (r.status === 'inProgress') return COPY.progress.cleaning;
+  const start = fromDateKey(r.date);
+  if (r.status === 'scheduled' && start && r.time) {
+    const [h, m] = r.time.split(':').map(Number);
+    start.setHours(h, m);
+    if (now >= start.getTime() - COPY.onTheWayMinutes * 60_000) return COPY.progress.onTheWay;
+  }
+  return COPY.progress.booked;
+}
+
+/** '2026-11-20' + '10:00' → '11.20 (금) 10:00' */
+function shortDateTime(date, time) {
+  const d = fromDateKey(date);
+  return d ? `${d.getMonth() + 1}.${d.getDate()} (${WEEKDAY[d.getDay()]}) ${time}` : time;
+}
 
 /** 내 예약 화면: 탭(예정/완료/취소)별 예약 카드 목록 + 카드의 변경·취소·영상 보기 + 취소 확인 시트 */
 export default function Reservations() {
@@ -47,6 +81,12 @@ export default function Reservations() {
   });
   // 기한이 지난 카드에 "N시간 전까지 할 수 있어요" 만 있어 아직 되는 것처럼 읽혔다 → 안 된다는 것과 연락처 (직접 사용 점검 U2). 번호가 없으면 1:1 문의
   const { data: supportPhone } = useAsync(() => getSupportPhone(), []);
+  // '이동 중' 판단에 쓰는 지금 시각 — 1분마다 다시 읽는다 (그리는 중에 Date.now() 를 부르지 않는다)
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
   const [tab, setTab] = useState('upcoming'); // 보고 있는 탭 key: 'upcoming' 예정 | 'done' 완료 | 'cancelled' 취소
   const [cancelId, setCancelId] = useState(null); // 취소 시트를 연 예약 id. null 이면 시트가 닫혀 있다
   const [scope, setScope] = useState('one'); // 정기청소: 'one' 이번 회차만 | 'all' 정기청소 전체
@@ -91,8 +131,7 @@ export default function Reservations() {
   return (
     <ScreenLayout noPadding gap="none" tabBar={tabBar}>
       <header className={styles.header}>
-        <h1 className={cx('text-heading-m', styles.title)}>{data.header.title}</h1>
-        <p className={cx('text-body-s', styles.description)}>{data.header.description}</p>
+        <h1 className={cx('text-heading-m', styles.title)}>{COPY.title}</h1>
       </header>
       {options.length > 0 && (
         <UnderlineTabs options={options} value={tab} onChange={setTab} ariaLabel="예약 상태" />
@@ -101,36 +140,42 @@ export default function Reservations() {
         {list.length === 0 && <EmptyState icon="calendar" title={RESERVATIONS_EMPTY[tab]} />}
         {/* changeable 이 없으면 바꿀 수 있는 것으로 본다. false(기한 지남)면 카드가 버튼 대신 notChangeableNote 문구를 보여 준다.
             '녹화 영상 보기'(onReplay)는 같은 시청 화면에 &replay=1 을 붙여 녹화본으로 연다 */}
-        {list.map((r) => (
-          <div key={r.id}>
-            <ReservationCard
-              title={r.title}
-              status={r.status}
-              rows={r.rows}
-              changeable={r.changeable ?? true}
-              notChangeableNote={CHANGE_LOCK_COPY.card(deadlineHours, supportPhone)}
-              onChange={() =>
-                navigate(`/booking/${r.category}/datetime?edit=${r.id}`, {
-                  state: { date: r.date, time: r.time },
-                })
-              } // 현재 일정을 달력에 미리 채운다
-              onCancel={() => openCancel(r.id)}
-              onWatch={() => navigate(`/service/live?booking=${r.id}`)} // 소개 화면을 거치지 않고 바로 시청
-              recordingReady={r.recordingReady}
-              onReplay={() => navigate(`/service/live?booking=${r.id}&replay=1`)}
+        {list.map((r) => {
+          const before = r.status === 'scheduled' || r.status === 'assigning'; // 시작 전
+          const changeable = before && (r.changeable ?? true);
+          // 구분선 아래: 시작 전 → 변경·취소 버튼(기한이 지났으면 안내 한 줄), 진행 중 → 실시간 영상, 완료 → 녹화 영상·전후 사진
+          const actions = changeable
+            ? [
+                // 현재 일정을 달력에 미리 채운다
+                { label: COPY.change, onClick: () => navigate(`/booking/${r.category}/datetime?edit=${r.id}`, { state: { date: r.date, time: r.time } }) },
+                { label: COPY.cancel, onClick: () => openCancel(r.id) },
+              ]
+            : r.status === 'inProgress'
+              ? [{ label: COPY.watch, tone: 'brand', onClick: () => navigate(`/service/live?booking=${r.id}`) }] // 소개 화면을 거치지 않고 바로 시청
+              : r.status === 'done'
+                ? [
+                    ...(r.recordingReady ? [{ label: COPY.replay, tone: 'brand', onClick: () => navigate(`/service/live?booking=${r.id}&replay=1`) }] : []),
+                    { label: COPY.photos, onClick: () => navigate(`/service/photos?booking=${encodeURIComponent(r.id)}`) },
+                  ]
+                : [];
+          return (
+            <ReservationTicket
+              key={r.id}
+              title={titleOf(r)}
+              badge={r.status === 'cancelled' ? undefined : r.status === 'assigning' ? 'assigning' : 'assigned'}
+              schedule={r.rows?.[0]?.value ?? ''}
+              avatar={ASSETS.managerAvatar}
+              manager={r.rows?.find((row) => row.label === '매니저')?.value ?? ''}
+              progress={progressOf(r, now)}
+              times={[
+                { label: COPY.start, value: shortDateTime(r.date, r.time) },
+                ...(r.endTime ? [{ label: COPY.end, value: shortDateTime(r.date, r.endTime) }] : []),
+              ]}
+              note={before && !changeable ? CHANGE_LOCK_COPY.card(deadlineHours, supportPhone) : undefined}
+              actions={actions}
             />
-            {r.status === 'done' && (
-              <Button variant="secondary" onClick={() => navigate(`/service/photos?booking=${encodeURIComponent(r.id)}`)}>청소 전·후 사진 보기</Button>
-            )}
-            <Button
-              variant="secondary"
-              chevron={false}
-              onClick={() => navigate(`/payments/checkout?booking=${r.id}`)}
-            >
-              {PAYMENT_COPY.title}
-            </Button>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* 취소 확인 시트. 정기청소 회차(series)면 범위 선택이 보이고, 버튼 문구도 고른 범위를 그대로 말한다 */}

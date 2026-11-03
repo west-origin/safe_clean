@@ -148,13 +148,30 @@ export const REPAIR_HERO = { eyebrow: '머리 아픈 집수리, ', headline: '�
 /** Reservations (2047:1683) — 문구 Figma 그대로. status: 'scheduled'(방문 예정) | 'assigning'(매니저 배정 중). tab: 'upcoming' | 'done' | 'cancelled' */
 // test/fakeHttp.js 가 가짜 서버의 처음 예약 목록으로 쓴다 (GET /customer/reservations·/customer/home). 실서버는 DB 예약을 준다
 export const RESERVATIONS = [
-  { id: 'r1', tab: 'upcoming', category: 'home', title: '가정/원룸 청소', status: 'scheduled', date: '2026-11-01', time: '09:00', rows: [{ label: '일정', value: '2026년 11월 1일 (일) 오전 9시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
-  { id: 'r2', tab: 'upcoming', category: 'appliance', title: '가전청소', status: 'assigning', date: '2026-11-14', time: '14:00', rows: [{ label: '일정', value: '2026년 11월 14일 (토) 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '배정 후 알려드려요' }] },
+  { id: 'r1', tab: 'upcoming', category: 'home', homeType: 'house', title: '가정 청소', status: 'scheduled', date: '2026-11-01', time: '09:00', endTime: '12:00', rows: [{ label: '일정', value: '2026년 11월 1일 (일) 오전 9시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
+  { id: 'r2', tab: 'upcoming', category: 'appliance', title: '가전청소', status: 'assigning', date: '2026-11-14', time: '14:00', endTime: '16:00', rows: [{ label: '일정', value: '2026년 11월 14일 (토) 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '배정 후 알려드려요' }] },
   // 아래 3건은 Figma 에 없음 — 진행 중(Service/Start 진입점)·완료·취소 탭을 채우려고 코드에서 정함
-  { id: 'r0', tab: 'upcoming', category: 'home', title: '가정/원룸 청소', status: 'inProgress', date: '2026-09-19', time: '14:00', rows: [{ label: '일정', value: '오늘 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
-  { id: 'r3', tab: 'done', category: 'appliance', title: '가전청소', status: 'done', date: '2026-08-03', time: '14:00', rows: [{ label: '일정', value: '2026년 8월 3일 (월) 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
-  { id: 'r4', tab: 'cancelled', category: 'office', title: '사무실 청소', status: 'cancelled', date: '2026-07-20', time: '10:00', rows: [{ label: '일정', value: '2026년 7월 20일 (월) 오전 10시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '배정 전 취소' }] },
+  { id: 'r0', tab: 'upcoming', category: 'home', homeType: 'studio', title: '원룸 청소', status: 'inProgress', date: '2026-09-19', time: '14:00', endTime: '16:00', rows: [{ label: '일정', value: '오늘 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
+  { id: 'r3', tab: 'done', category: 'appliance', title: '가전청소', status: 'done', date: '2026-08-03', time: '14:00', endTime: '16:00', rows: [{ label: '일정', value: '2026년 8월 3일 (월) 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
+  { id: 'r4', tab: 'cancelled', category: 'office', title: '사무실 청소', status: 'cancelled', date: '2026-07-20', time: '10:00', endTime: '13:00', rows: [{ label: '일정', value: '2026년 7월 20일 (월) 오전 10시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '배정 전 취소' }] },
 ];
+
+/** 내 예약 카드 문구 — 2026-11-03 사용자 첨부 예약내역 시안 (코드에서 정함: 두 칸 이름, 진행 상태 문구는 사용자 요청 그대로).
+ *  onTheWayMinutes: 매니저가 수락한 예약을 방문 몇 분 전부터 '이동 중' 으로 보일지 — 서버에 출발 신호가 없어 시각으로 정한다 (판단 항목) */
+export const RESERVATIONS_COPY = {
+  title: '내 예약을 확인해 주세요.',
+  start: '방문 시작',
+  end: '종료 예정',
+  homeTypes: { house: '가정', studio: '원룸' },
+  categories: { store: '매장', home: '가정/원룸' },
+  progress: { booked: '예약 완료', onTheWay: '이동 중', cleaning: '청소 중', done: '청소 완료', cancelled: '예약 취소' },
+  onTheWayMinutes: 60,
+  change: '예약 변경',
+  cancel: '예약 취소',
+  watch: '실시간 영상 보기',
+  replay: '녹화 영상 보기',
+  photos: '청소 전·후 사진 보기',
+};
 
 /** Reservations › PageHeader · SegmentTabs (탭 문구 "예정 2" 의 2 는 건수) */
 export const RESERVATIONS_HEADER = { title: '내 예약을\n확인해주세요', description: '예정된 일정과 지난 이용 내역을\n한 곳에서 볼 수 있어요.' };

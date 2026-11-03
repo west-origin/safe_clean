@@ -370,6 +370,10 @@ const bookingBody = (category, draft) => ({
   time: draft.time,
   freeOptions: draft.freeOptions ?? [],
   paidOptions: draft.paidOptions ?? [],
+  // 가정/원룸 구분 (홈의 '가정'·'원룸' 버튼이 초안 homeService 에 남긴 값) — home 카테고리일 때만. 서버가 내 예약 카드 이름을 가정·원룸으로 나눈다 (2026-11-03)
+  ...(category === 'home' && draft.homeService ? { homeType: draft.homeService } : {}),
+  // 날짜/시간 화면에서 고른 청소 시간(시작~종료). 서버가 종료 시각(endTime)을 이 값으로 정한다 — 금액은 서버 견적 그대로 (2026-11-03)
+  ...(draft.durationHours ? { durationHours: draft.durationHours } : {}),
 });
 
 /**

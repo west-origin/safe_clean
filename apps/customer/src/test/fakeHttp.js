@@ -258,6 +258,7 @@ export function fakeHttpModule() {
       const seriesId = b.frequency === 'recurring' ? `${id}-series` : null; // 정기청소 회차들을 묶는 id — 전체 취소(wholeSeries)가 이것으로 찾는다
       const booking = {
         id, category: b.category, frequency: b.frequency, date: b.date, time: b.time, roadAddress: b.roadAddress, detailAddress: b.detailAddress,
+        homeType: b.category === 'home' ? b.homeType ?? null : null,
         serviceLabel: repair ? '수리 서비스' : BOOKING_CATEGORIES[b.category].label, cleaner: CLEANER_PENDING, managerAssigned: false, matchingFailed: false, cancelled: false, seriesId, repair: b.repair ?? null, repairType: b.repairType ?? null,
         visits: q.visits.map((v, i) => ({ id: i === 0 ? id : `${id}-${i}`, ...v })),
         perVisitLabel: q.perVisit.label, totalAmount: q.totalAmount, totalLabel: q.totalLabel,
@@ -267,8 +268,13 @@ export function fakeHttpModule() {
       state.bookings[idempotencyKey ?? id] = booking; // 멱등 키가 있으면: 같은 키로 다시 오면 위에서 이 응답을 그대로 돌려준다
       state.bookings[id] = booking; // GET /customer/bookings/{id} 가 찾는 이름
       // 회차마다 '내 예약' 카드를 만들어 목록 맨 앞에 붙인다. 서버도 정기청소 회차 전부를 생성 즉시 만든다 (domain.md §6.8)
+      // 서버 V059: home 이면 homeType(가정 house / 원룸 studio)으로 카드 이름을 나누고, 종료 시각은 durationHours(없으면 2시간)로
+      const homeType = b.category === 'home' ? b.homeType ?? null : null;
+      const title = homeType ? `${homeType === 'house' ? '가정' : '원룸'} 청소` : booking.serviceLabel;
+      const [h, m] = b.time.split(':').map(Number);
+      const endTime = `${String(h + (b.durationHours ?? 2)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
       const cards = booking.visits.map((v) => ({
-        id: v.id, tab: 'upcoming', category: b.category, title: booking.serviceLabel, status: 'assigning', date: v.date, time: b.time, series: Boolean(seriesId), seriesId, recordingReady: false, changeable: true,
+        id: v.id, tab: 'upcoming', category: b.category, homeType, title, status: 'assigning', date: v.date, time: b.time, endTime, series: Boolean(seriesId), seriesId, recordingReady: false, changeable: true,
         rows: [{ label: '일정', value: `${dateLongWeekday(v.date)} ${timeKo(b.time)}` }, { label: '주소', value: b.roadAddress }, { label: '매니저', value: CLEANER_PENDING }],
       }));
       state.reservations = [...cards, ...state.reservations];

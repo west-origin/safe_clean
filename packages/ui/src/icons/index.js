@@ -39,6 +39,8 @@ export { default as AuthLockIcon } from './AuthLockIcon.jsx';
 export { default as BrandMarkIcon } from './BrandMarkIcon.jsx';
 export { default as AccordionChevronIcon } from './AccordionChevronIcon.jsx';
 export { default as SuccessCheckIcon } from './SuccessCheckIcon.jsx';
+export { default as AssignPendingIcon } from './AssignPendingIcon.jsx';
+export { default as AssignDoneIcon } from './AssignDoneIcon.jsx';
 export { default as ChevronRightSmallIcon } from './ChevronRightSmallIcon.jsx';
 export { default as BadgeNewIcon } from './BadgeNewIcon.jsx';
 export { default as BadgeScheduledIcon } from './BadgeScheduledIcon.jsx';

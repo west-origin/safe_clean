@@ -25,14 +25,40 @@ function renderScreen() {
 }
 
 describe('Reservations 흐름', () => {
+  it('2026-11-03 시안: 제목·탭, 카드는 매장·가정·원룸 이름 + 파란 일정 + 배정 알약 + 매니저 + 진행 상태 + 시작·종료, 결제 버튼 없음', async () => {
+    renderScreen();
+    expect(await screen.findByRole('heading', { name: '내 예약을 확인해 주세요.' })).toBeInTheDocument();
+    const house = screen.getByRole('article', { name: '가정' }); // r1: homeType house, 매니저 수락
+    expect(house).toHaveTextContent('2026년 11월 1일 (일) 오전 9시');
+    expect(house).toHaveTextContent('배정 완료');
+    expect(house).toHaveTextContent('김미영 매니저');
+    expect(house).toHaveTextContent('11.1 (일) 09:00');
+    expect(house).toHaveTextContent('11.1 (일) 12:00');
+    expect(within(house).getByRole('button', { name: '예약 변경' })).toBeInTheDocument();
+    const studio = screen.getByRole('article', { name: '원룸' }); // r0: 진행 중
+    expect(studio).toHaveTextContent('청소 중');
+    expect(screen.getByRole('article', { name: '가전청소' })).toHaveTextContent('배정 중');
+    expect(screen.queryByRole('button', { name: /결제/ })).toBeNull();
+  });
+
+  it('기한이 지난 예약은 버튼 대신 1:1 문의 안내', async () => {
+    const { __fake } = await import('../../api/http.js');
+    __fake.reservations.push({ id: 'locked', tab: 'upcoming', category: 'store', title: '매장 청소', status: 'scheduled', date: '2030-01-02', time: '10:00', changeable: false, rows: [{ label: '일정', value: '2030년 1월 2일' }, { label: '주소', value: '-' }, { label: '매니저', value: '김미영 매니저' }] });
+    renderScreen();
+    const card = await screen.findByRole('article', { name: '매장' });
+    expect(card).toHaveTextContent('방문 24시간 전이 지나 앱에서는 바꾸거나 취소할 수 없어요.');
+    expect(within(card).queryByRole('button', { name: '예약 취소' })).toBeNull();
+    __fake.reservations.splice(__fake.reservations.findIndex((r) => r.id === 'locked'), 1); // 가짜 서버 상태를 이어 쓰는 아래 테스트의 '예정 8' 건수를 지킨다
+  });
+
   it('녹화가 없는 완료 예약에도 사진 비교 진입점이 있다', async () => {
     const { __fake } = await import('../../api/http.js');
     __fake.reservations.push({ id: 'done-no-video', tab: 'done', category: 'home', title: '사진 확인용 청소', status: 'done', recordingReady: false, rows: [] });
     renderScreen();
     fireEvent.click(await screen.findByRole('tab', { name: '완료' }));
-    const card = screen.getByRole('article', { name: '사진 확인용 청소' });
+    const card = screen.getByRole('article', { name: '가정/원룸' }); // homeType 없는 옛 home 예약
     expect(within(card).queryByRole('button', { name: '녹화 영상 보기' })).toBeNull();
-    fireEvent.click(within(card.parentElement).getByRole('button', { name: '청소 전·후 사진 보기' }));
+    fireEvent.click(within(card).getByRole('button', { name: '청소 전·후 사진 보기' }));
     expect(await screen.findByText('사진 비교 화면')).toBeInTheDocument();
   });
   it('예약 취소는 확인 시트를 거쳐 취소 탭으로 옮기고, 진행 중 예약은 실시간 영상 보기로 간다', async () => {
@@ -60,7 +86,7 @@ describe('Reservations 흐름', () => {
     await http.post('/customer/bookings', { category: 'home', frequency: 'recurring', date: '2026-11-02', time: '10:00', roadAddress: '부산광역시 중앙대로 1' }, { idempotencyKey: 'k' });
     renderScreen();
     expect(await screen.findByRole('tab', { name: '예정 8' })).toBeInTheDocument(); // Figma 예시 2 + 정기 6회차
-    const cards = screen.getAllByRole('article', { name: '가정/원룸 청소' });
+    const cards = screen.getAllByRole('article', { name: '가정/원룸' }); // homeType 을 보내지 않은 예약
     // 예정 탭은 가까운 순: 진행 중(9/19) → r1(11/1) → 정기 1회차(11/2) …
     const seriesCard = cards.find((c) => within(c).queryByText('2026년 11월 2일 (월) 오전 10시'));
     fireEvent.click(within(seriesCard).getByRole('button', { name: '예약 취소' }));

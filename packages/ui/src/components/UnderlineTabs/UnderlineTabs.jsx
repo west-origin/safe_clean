@@ -1,5 +1,6 @@
 // Figma: Reservations › SegmentTabs (2047:1695) — 밑줄형 탭. SegmentTab/Active = Body/Bold text/primary + 2px brand 밑줄, Default = Label/Default text/secondary.
-// 탭 간격 26, 좌우 24/23, 아래 1px border/default. 매니저의 SegmentedControl(알약형)과 모양이 달라 분리.
+// 2026-11-03 사용자 첨부 예약내역 시안으로: 탭이 폭을 똑같이 나눠 갖고, 활성 탭은 브랜드 파랑 글자 + 칸 폭 전체 밑줄. 아래 1px border/default.
+// 매니저의 SegmentedControl(알약형)과 모양이 달라 분리.
 // 고객 앱 예약 목록 화면(Reservations)의 상태 탭이 쓴다. 탭을 고르면 onChange(key) 만 부르고, 어떤 목록을 보일지는 그 화면이 정한다.
 import { cx } from '../../utils/cx.js';
 import styles from './UnderlineTabs.module.css';

@@ -55,6 +55,7 @@ import SocialCircleButton from '../components/SocialCircleButton/index.js';
 import ScheduleAccordion from '../components/ScheduleAccordion/index.js';
 import SwipeCalendar from '../components/SwipeCalendar/index.js';
 import TimeRangeGrid from '../components/TimeRangeGrid/index.js';
+import ReservationTicket from '../components/ReservationTicket/index.js';
 import SectionDivider from '../components/SectionDivider/index.js';
 import Chip from '../components/Chip/index.js';
 import NoticeChip from '../components/NoticeChip/index.js';
@@ -608,6 +609,15 @@ function CustomerGallery() {
               <SocialCircleButton provider="google" label="구글로 로그인" />
               <SocialCircleButton provider="naver" label="네이버로 로그인" />
             </div>
+          </div>
+        </Row>
+        <Row label="ReservationTicket (2026-11-03 시안): 배정 완료 + 변경·취소 / 배정 중 + 기한 안내">
+          <div className={styles.stack}>
+            <ReservationTicket title="가정" badge="assigned" schedule="2026년 11월 20일 (금) 오전 10시" avatar={ASSETS.managerAvatar} manager="김미영 매니저" progress="예약 완료"
+              times={[{ label: '방문 시작', value: '11.20 (금) 10:00' }, { label: '종료 예정', value: '11.20 (금) 13:00' }]}
+              actions={[{ label: '예약 변경', onClick: () => {} }, { label: '예약 취소', onClick: () => {} }]} />
+            <ReservationTicket title="매장" badge="assigning" schedule="2026년 11월 4일 (수) 오후 2시" avatar={ASSETS.managerAvatar} manager="배정 후 알려드려요" progress="예약 완료"
+              times={[{ label: '방문 시작', value: '11.4 (수) 14:00' }]} note="방문 24시간 전이 지나 앱에서는 바꾸거나 취소할 수 없어요. 1:1 문의로 알려주세요." />
           </div>
         </Row>
         <Row label="날짜/시간 (2026-11-03 시안): ScheduleAccordion(닫힘/열림) · SwipeCalendar · TimeRangeGrid(10:00~13:00) · PriceCtaBar caption">

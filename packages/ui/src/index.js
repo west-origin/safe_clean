@@ -71,6 +71,7 @@ export { default as SocialCircleButton } from './components/SocialCircleButton/i
 export { default as ScheduleAccordion } from './components/ScheduleAccordion/index.js';
 export { default as SwipeCalendar } from './components/SwipeCalendar/index.js';
 export { default as TimeRangeGrid, hoursBetween } from './components/TimeRangeGrid/index.js';
+export { default as ReservationTicket } from './components/ReservationTicket/index.js';
 export { default as SectionDivider } from './components/SectionDivider/index.js';
 export { default as Chip } from './components/Chip/index.js';
 export { default as NoticeChip } from './components/NoticeChip/index.js';
