@@ -405,6 +405,16 @@ export const RECURRING_TERM_NOTE = (months) => `정기청소는 매월 같은 �
 /** Booking/Confirm 문구 */
 export const CONFIRM_COPY = { title: '예약내용을\n확인해주세요', description: '아래 내용으로 예약을 진행할게요.\n다시 한번 확인해주세요.' };
 
+/** Booking/Complete 문구 — 2026-11-03 사용자 첨부 '예약 완료' 시안. description 은 사용자가 정한 문구 (시안의 '설레는 여행…' 대신) */
+export const BOOKING_COMPLETE_COPY = {
+  title: '예약 완료',
+  description: '이제, 안심하고 맡기세요.\n실시간으로 확인할 수 있어 더 안심이에요!',
+  orderAmount: '주문 금액',
+  totalAmount: '총 결제 금액',
+  home: '홈으로 가기',
+  detail: '예약상세 보기',
+};
+
 /** Booking/Complete › BookingInfoCard 라벨 (값은 예약 내용에서) */
 export const COMPLETE_ROWS = [ // api/customer.js getCompleteRows 가 그대로 돌려준다. key 로 예약 내용의 값을 찾는다
   { key: 'date', icon: 'calendar', label: '예약일' },
