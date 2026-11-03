@@ -11,6 +11,19 @@
 /** 가입 방법 키. api/customer.js 의 signUpWith 는 받은 method 가 이 목록에 없으면 오류를 던진다 */
 export const SIGN_UP_METHODS = ['kakao', 'google', 'naver', 'phone'];
 
+/** 첫 화면(/signup) 문구 — 2026-11-03 사용자 첨부 로그인 시안 그대로('이메일 아이디 입력' 은 사용자 요청으로 '전화번호를 입력해주세요').
+ *  failed 는 예전 로그인 화면(LoginPhone)과 같은 문구 */
+export const ENTRY_COPY = {
+  phone: '전화번호를 입력해주세요',
+  password: '비밀번호 입력',
+  login: '로그인',
+  findPassword: '비밀번호 찾기',
+  signUp: '회원가입',
+  sns: 'SNS계정으로 간편로그인하세요.',
+  failed: '휴대폰 번호 또는 비밀번호를 확인해주세요.',
+  error: '로그인하지 못했어요. 잠시 후 다시 시도해주세요.',
+};
+
 /** 소셜 로그인은 아직 없다(결정 §13-1). 버튼을 누르면 조용히 전화번호 가입으로 가던 것을 안내로 바꿨다 (사용성 검토 2026-09-22) */
 export const SOCIAL_SIGNUP_COPY = {
   title: '지금은 전화번호로만 가입할 수 있어요',

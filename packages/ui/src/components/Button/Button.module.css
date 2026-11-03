@@ -159,3 +159,24 @@
   outline: 2px solid var(--color-brand-primary);
   outline-offset: 2px;
 }
+
+/* ── Inverse (코드에서 정함, 2026-11-03 첫 화면 시안): 파란 배경 위 흰 알약 버튼, 라벨 brand/primary ── */
+.inverse {
+  height: 56px; /* 시안 원본값 */
+  background: var(--color-surface-default);
+  color: var(--color-brand-primary);
+}
+
+.inverse:active:not(:disabled):not([aria-busy='true']) {
+  background: var(--color-surface-pressed);
+}
+
+.inverse:disabled {
+  background: var(--color-surface-default);
+  color: var(--color-brand-primary); /* 시안처럼 비어 있을 때도 흰 버튼 그대로 (누르면 아무 일 없음) */
+}
+
+/* 흰 바탕이라 스피너는 브랜드 색 (위 .spinner 의 흰색을 덮는다) */
+.inverse .spinner {
+  color: var(--color-brand-primary);
+}

@@ -21,7 +21,7 @@ import styles from './Button.module.css';
 
 /**
  * @param {object} props
- * @param {'primary'|'secondary'|'destructive'|'outline'|'outlineGray'} [props.variant='primary']
+ * @param {'primary'|'secondary'|'destructive'|'outline'|'outlineGray'|'inverse'} [props.variant='primary'] inverse = 파란 배경 위 흰 알약 (고객 앱 첫 화면, 코드에서 정함)
  * @param {import('react').ReactNode} props.children 버튼 라벨
  * @param {boolean} [props.disabled] Disabled 상태. chevron 숨김
  * @param {boolean} [props.loading] Loading 상태: 스피너 + loadingLabel, chevron 제거, 클릭 불가. Figma 는 Primary 에만 Loading variant 가 있지만 다른 variant 도 같은 방식으로 그린다(코드에서 정함 — 탈퇴·취소 버튼의 더블탭 차단)

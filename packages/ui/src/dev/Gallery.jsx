@@ -49,6 +49,9 @@ import ManagerIntro from '../components/ManagerIntro/index.js';
 import OptionCheckRow from '../components/OptionCheckRow/index.js';
 import PaidOptionCard from '../components/PaidOptionCard/index.js';
 import ChoiceCardGroup from '../components/ChoiceCardGroup/index.js';
+import BrandWordmark from '../components/BrandWordmark/index.js';
+import AuthPillField from '../components/AuthPillField/index.js';
+import SocialCircleButton from '../components/SocialCircleButton/index.js';
 import SectionDivider from '../components/SectionDivider/index.js';
 import Chip from '../components/Chip/index.js';
 import NoticeChip from '../components/NoticeChip/index.js';
@@ -589,6 +592,20 @@ function CustomerGallery() {
           <div className={styles.wrapRow}>
             <PaidOptionCard icon={<Icons.OptionKitchenIcon />} label={'주방\n기름때 청소'} price="+50,000원" selected={false} onToggle={() => {}} />
             <PaidOptionCard icon={<Icons.OptionSignboardIcon />} label={'간판·외부\n유리 청소'} price="+35,000원" selected onToggle={() => {}} />
+          </div>
+        </Row>
+        <Row label="첫 화면 (2026-11-03 시안): BrandWordmark · AuthPillField(phone/lock) · Button inverse(기본/비활성) · SocialCircleButton(kakao/google/naver)">
+          <div className={styles.entryMock}>
+            <BrandWordmark />
+            <AuthPillField icon="phone" label="전화번호를 입력해주세요" value="" onChange={() => {}} />
+            <AuthPillField icon="lock" label="비밀번호 입력" type="password" value="" onChange={() => {}} />
+            <Button variant="inverse" chevron={false}>로그인</Button>
+            <Button variant="inverse" chevron={false} disabled>로그인</Button>
+            <div className={styles.inline}>
+              <SocialCircleButton provider="kakao" label="카카오톡으로 로그인" />
+              <SocialCircleButton provider="google" label="구글로 로그인" />
+              <SocialCircleButton provider="naver" label="네이버로 로그인" />
+            </div>
           </div>
         </Row>
         <Row label="ChoiceCardGroup (반려동물: 없음 고름 / 무료주차: 아무것도 안 고름 / 공동현관: 있음 고름)">

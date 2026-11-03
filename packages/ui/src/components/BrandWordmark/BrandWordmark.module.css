@@ -1,0 +1,5 @@
+/* BrandWordmark.jsx 스타일: svg 아래 빈틈 없이, 높이는 viewBox 비율대로 */
+.wordmark {
+  display: block;
+  height: auto;
+}

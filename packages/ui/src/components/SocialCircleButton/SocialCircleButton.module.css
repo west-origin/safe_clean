@@ -1,0 +1,41 @@
+/* SocialCircleButton.jsx 스타일. 시안 원본값: 지름 48 (탭 영역은 --touch-target 이상) */
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button:active {
+  opacity: 0.8;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-text-inverse);
+  outline-offset: 2px;
+}
+
+.button svg {
+  display: block;
+}
+
+.kakao {
+  background: var(--raw-kakao-yellow);
+}
+
+.google {
+  background: var(--color-surface-default);
+}
+
+.naver {
+  background: var(--raw-naver-green);
+}
