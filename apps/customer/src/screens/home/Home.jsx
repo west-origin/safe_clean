@@ -3,6 +3,7 @@ import {
   ScreenLayout,
   ReservationCard,
   ServiceStoreIcon,
+  BrandMarkIcon,
   ServiceHomeIcon,
   ServiceStudioIcon,
   cx,
@@ -16,7 +17,6 @@ import { UPCOMING_HOME_COPY, CHANGE_LOCK_COPY, CHANGE_DEADLINE_HOURS } from '../
 import CustomerFooter from '../CustomerFooter.jsx';
 import { onPushReceived } from '../../push/pushClient.js';
 import { setBookingDraft } from '../booking/bookingDraft.js';
-import BrandMarkIcon from './BrandMarkIcon.jsx';
 import homeArt from '@ansimclean/ui/assets/housing-house@3x.webp';
 import giftArt from '@ansimclean/ui/assets/gift-illustration@3x.webp';
 import HomePromotions from './HomePromotions.jsx';

@@ -1,11 +1,11 @@
 /* 첫 화면(SignUp.jsx) 레이아웃. 2026-11-03 사용자 첨부 로그인 시안 (393 폭 기준으로 환산한 값).
    위에서부터: 로고 → (빈 공간) → 입력칸 2개 · 로그인 · 링크 → (빈 공간) → SNS 안내 + 원 버튼 */
 
-/* 화면 전체 파란 그라데이션 (extra.css 의 --raw-entry-gradient). 글자는 흰색.
+/* 흰 배경 (2026-11-03 사용자 요청 — 파란 배경판은 SignUpBlue). 로고·로그인 버튼이 브랜드 파랑.
    로그인 버튼 라벨은 시안 크기(18)에 맞춰 이 화면에서만 button-label → body-m 크기로 (Home.module.css 와 같은 방식) */
 .screen {
-  background: var(--raw-entry-gradient);
-  color: var(--color-text-inverse);
+  background: var(--color-surface-default);
+  color: var(--color-text-primary);
   --font-size-button-label: var(--font-size-body-m);
 }
 
@@ -19,7 +19,7 @@
 
 .logo {
   margin: 0;
-  color: var(--color-text-inverse);
+  color: var(--color-brand-primary);
 }
 
 /* 입력칸 묶음: 로고 아래 남는 공간의 가운데쯤. 칸 사이 12 */
@@ -34,7 +34,12 @@
 .error {
   margin: 0;
   padding: 0 var(--spacing-4xl);
-  color: var(--color-text-inverse);
+  color: var(--color-status-live);
+}
+
+/* 로그인 버튼: 입력칸과 같은 높이감의 알약 (Primary 기본 64 → 시안 56) */
+.loginButton {
+  height: 56px; /* 시안 원본값 */
 }
 
 /* '비밀번호 찾기 | 회원가입' */
@@ -52,14 +57,14 @@
   padding: 0 var(--spacing-sm);
   border: 0;
   background: none;
-  color: var(--raw-entry-muted);
+  color: var(--color-text-secondary);
   cursor: pointer;
 }
 
 .divider {
   width: 1px;
   height: 16px;
-  background: var(--raw-entry-divider);
+  background: var(--color-border-default);
 }
 
 /* SNS 안내 + 원 버튼: 화면 아래쪽 */
@@ -74,7 +79,7 @@
 
 .snsText {
   margin: 0;
-  color: var(--raw-entry-muted);
+  color: var(--color-text-secondary);
 }
 
 .snsRow {

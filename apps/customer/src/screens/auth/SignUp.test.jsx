@@ -1,5 +1,5 @@
 // 첫 화면(SignUp) 테스트 (2026-11-03 로그인 시안): 로고·입력칸·SNS 버튼이 그려지고,
-// 번호·비밀번호를 넣어야 '로그인' 이 켜지며, 성공하면 홈, 불일치면 문구, '회원가입' 은 약관 동의, SNS 는 안내 시트.
+// 번호·비밀번호가 없으면 '로그인' 이 아무 일도 하지 않고, 성공하면 홈, 불일치면 문구, '회원가입' 은 약관 동의, SNS 는 안내 시트.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -23,17 +23,15 @@ const renderScreen = () =>
 describe('Auth/SignUp (첫 화면)', () => {
   beforeEach(() => localStorage.clear());
 
-  it('로고·입력칸·SNS 버튼이 있고, 번호·비밀번호를 넣어야 로그인이 켜진다', () => {
+  it('로고·입력칸·SNS 버튼이 있고, 번호·비밀번호가 비어 있으면 로그인을 눌러도 그대로다', () => {
     renderScreen();
     expect(screen.getByRole('img', { name: '안심클린' })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('전화번호를 입력해주세요')).toHaveAttribute('type', 'tel');
     expect(screen.getByText('SNS계정으로 간편로그인하세요.')).toBeInTheDocument();
     ['카카오톡으로 로그인', '구글로 로그인', '네이버로 로그인'].forEach((name) => expect(screen.getByRole('button', { name })).toBeInTheDocument());
-    const login = screen.getByRole('button', { name: '로그인' });
-    expect(login).toBeDisabled();
-    fireEvent.change(screen.getByLabelText('전화번호를 입력해주세요'), { target: { value: '010-1234-5678' } });
-    fireEvent.change(screen.getByLabelText('비밀번호 입력'), { target: { value: 'password1' } });
-    expect(login).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: '로그인' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText('홈 화면')).toBeNull();
   });
 
   it('비밀번호가 틀리면 문구를 보이고, 맞으면 다음 화면으로 간다', async () => {

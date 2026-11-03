@@ -1,4 +1,6 @@
-// Figma: Auth/SignUp (69:1089) — 2026-11-03 사용자 첨부 로그인 시안(파란 배경 · 로고 · 입력칸 2개 · 흰 로그인 버튼 · SNS 원 버튼)으로 바꿨다 (Figma 에 없음).
+// Figma: Auth/SignUp (69:1089) — 2026-11-03 사용자 첨부 로그인 시안(로고 · 입력칸 2개 · 로그인 버튼 · SNS 원 버튼) 구조로 바꿨다 (Figma 에 없음).
+// 같은 날 사용자 요청으로 흰 배경 + 로고·로그인 버튼을 브랜드 파랑으로, 로고는 조금 얇게 + 왼쪽에 로고 아이콘.
+// 파란 배경판은 SignUpBlue.jsx 에 보관 (되돌리는 법은 그 파일 맨 위).
 // 고객 앱 첫 화면 (/signup). 예: 온보딩, 로그인 전의 RequireAuth 가 여기로 보낸다 (전부 찾으려면 '/signup' 을 검색한다).
 // 시안의 'kiwiplay' 로고 → '안심클린'(BrandWordmark), '이메일 아이디 입력'(편지봉투) → '전화번호를 입력해주세요'(휴대폰 아이콘),
 // SNS 원 버튼은 카카오·구글·네이버. 문구는 mock.js ENTRY_COPY.
@@ -46,12 +48,13 @@ export default function SignUp() {
     <ScreenLayout noPadding gap="none" className={styles.screen}>
       <div className={styles.body}>
         <h1 className={styles.logo}>
-          <BrandWordmark />
+          <BrandWordmark withMark heavy={false} width={170} />
         </h1>
 
         <div className={styles.form}>
-          <AuthPillField icon="phone" label={COPY.phone} type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <AuthPillField tone="light" icon="phone" label={COPY.phone} type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
           <AuthPillField
+            tone="light"
             icon="lock"
             label={COPY.password}
             type="password"
@@ -62,7 +65,8 @@ export default function SignUp() {
             onKeyDown={(e) => { if (e.key === 'Enter' && canLogin) login.run(); }}
           />
           {message && <p role="alert" className={cx('text-body-s', styles.error)}>{message}</p>}
-          <Button variant="inverse" chevron={false} loading={login.loading} disabled={!phone.trim() || !password} onClick={login.run}>
+          {/* 시안처럼 비어 있어도 파란 버튼 그대로 — 대신 번호·비밀번호가 없으면 눌러도 아무 일이 없다 */}
+          <Button variant="primary" chevron={false} loading={login.loading} onClick={canLogin ? login.run : undefined} className={styles.loginButton}>
             {COPY.login}
           </Button>
           <div className={styles.links}>

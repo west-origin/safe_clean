@@ -1,5 +1,10 @@
-/* BrandWordmark.jsx 스타일: svg 아래 빈틈 없이, 높이는 viewBox 비율대로 */
+/* BrandWordmark.jsx 스타일: (아이콘) + 글자 로고를 가로로, 세로 가운데 */
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
 .wordmark {
   display: block;
-  height: auto;
 }

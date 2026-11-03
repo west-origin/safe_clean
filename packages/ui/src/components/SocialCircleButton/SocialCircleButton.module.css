@@ -34,6 +34,7 @@
 
 .google {
   background: var(--color-surface-default);
+  box-shadow: inset 0 0 0 1px var(--color-border-default); /* 흰 배경에서도 원이 보이게 */
 }
 
 .naver {

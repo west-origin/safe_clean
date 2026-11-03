@@ -1,16 +1,25 @@
 import { useId } from 'react';
 
-/** 기존 앱 아이콘 중앙의 두 기하 문양만 벡터로 옮겼다. 배경·격자·그림자는 없다. */
-export default function BrandMarkIcon() {
+// 안심클린 로고 아이콘 — 기존 앱 아이콘 중앙의 두 기하 문양만 벡터로 옮겼다 (배경을 뺀 '누끼' 모양). 배경·격자·그림자는 없다.
+// 색은 tokens/extra.css 의 --raw-brand-mark-*. 쓰는 곳: 고객 앱 Home 머리글, BrandWordmark(withMark).
+// 2026-11-03 고객 앱 home 폴더에서 공용 UI 로 옮겼다 (첫 화면 로고에도 쓰려고).
+
+/**
+ * @param {object} props
+ * @param {number} [props.size=20] 한 변 크기(px)
+ * @param {string} [props.className]
+ */
+export default function BrandMarkIcon({ size = 20, className }) {
   const gradient = useId();
   return (
     <svg
-      width="20"
-      height="20"
+      width={size}
+      height={size}
       viewBox="234 234 556 556"
       fill="none"
       aria-hidden="true"
       focusable="false"
+      className={className}
     >
       <defs>
         <linearGradient
