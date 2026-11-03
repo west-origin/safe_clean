@@ -2,17 +2,17 @@
 // Figma 에 없어 코드에서 정한 것: 완료·취소 탭 목록과 빈 상태, 예약 변경(→ 날짜/시간 화면 ?edit=), 예약 취소(확인 시트), 진행 중 카드의 "실시간 영상 보기"(소개 화면 Service/Start 를 거치지 않고 바로 /service/live)
 // (코드에서 정함, B3) 정기청소 회차(series)의 취소 시트에는 "이번 회차만 / 정기청소 전체" 선택이 있다 (BACKEND_PLAN.md §9.2-5). 서버가 기한 규칙으로 거부하면 그 문구를 보여준다
 // 2026-11-03 사용자 첨부 예약내역 시안으로 바꿨다: 제목 '내 예약을 확인해 주세요.'(설명 줄 없음), 폭을 나눈 탭, 카드는 ReservationTicket
-//   (서비스 이름 매장·가정·원룸 + 파란 일정 + 배정 알약 / 매니저 사진·이름·진행 상태 / 방문 시작·종료 예정 / 구분선 아래 변경·취소 버튼 또는 기한 안내).
+//   (서비스 이름 매장·가정·원룸 + 파란 일정 + 매칭 알약 / 매니저 사진·이름·진행 상태 / 방문 시작·종료 예정 / 구분선 아래 변경·취소 버튼 또는 기한 안내).
+//   카드 한 장은 ReservationTicketCard.jsx(홈 '다가오는 방문' 과 같이 쓴다). 예정 탭: 매칭 전이면 '매니저님을 매칭 중이에요', 진행 상태 줄 없음.
 //   매니저 사진은 아직 없어 임시 사진(ASSETS.managerAvatar). 카드의 '결제하기' 버튼은 사용자 요청으로 뺐다.
 //   완료 탭(사용자 요청): 배정 알약을 감추고, 시간 칸은 '방문 시간'·'종료 시간' = 매니저가 실제로 시작·완료한 시각(서버 startedAt·endedAt).
 // 고객 앱 '내 예약' 탭 화면 (/reservations). 데이터는 getReservations(GET /customer/reservations) 한 번으로
 // 헤더 문구·탭 목록·예약 목록을 받는다. 각 예약의 tab(어느 탭에 속하는지)·status·rows(카드 행 문구)는 서버가 정해 준다.
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ScreenLayout,
   UnderlineTabs,
-  ReservationTicket,
   EmptyState,
   Sheet,
   Button,
@@ -25,8 +25,6 @@ import {
   cx,
   ActionError,
   showToast,
-  ASSETS,
-  fromDateKey,
 } from '@ansimclean/ui';
 import { getReservations, cancelReservation, getSupportPhone } from '../../api/customer.js';
 import {
@@ -37,49 +35,12 @@ import {
   RESERVATIONS_COPY as COPY,
 } from '../../api/mock.js';
 import CustomerFooter from '../CustomerFooter.jsx';
+import ReservationTicketCard from './ReservationTicketCard.jsx';
 import { onPushReceived } from '../../push/pushClient.js';
 
 import styles from './Reservations.module.css';
 
 const REFRESH_MS = 30_000; // 배정·완료 상태를 화면에 머무는 동안 갱신 (외부 검토 3차)
-const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
-
-/** 카드 이름: 매장·가정·원룸 (home 은 서버 homeType 으로 나눈다. 옛 예약은 '가정/원룸'), 그 밖은 서버 이름. 정기 회차면 서버 이름의 ' · 정기 2/6회' 를 이어 붙인다 */
-function titleOf(r) {
-  const short = r.category === 'home' ? COPY.homeTypes[r.homeType] ?? COPY.categories.home : COPY.categories[r.category] ?? r.title.split(' · ')[0];
-  const series = r.title.split(' · ').slice(1).join(' · ');
-  return series ? `${short} · ${series}` : short;
-}
-
-/** 진행 상태: 취소 / 청소 완료 / 청소 중 / (매니저 수락 + 방문 onTheWayMinutes 분 전부터) 이동 중 / 예약 완료 */
-function progressOf(r, now) {
-  if (r.status === 'cancelled') return COPY.progress.cancelled;
-  if (r.status === 'done') return COPY.progress.done;
-  if (r.status === 'inProgress') return COPY.progress.cleaning;
-  const start = fromDateKey(r.date);
-  if (r.status === 'scheduled' && start && r.time) {
-    const [h, m] = r.time.split(':').map(Number);
-    start.setHours(h, m);
-    if (now >= start.getTime() - COPY.onTheWayMinutes * 60_000) return COPY.progress.onTheWay;
-  }
-  return COPY.progress.booked;
-}
-
-/** '2026-11-20' + '10:00' → '11.20 (금) 10:00' */
-function shortDateTime(date, time) {
-  const d = fromDateKey(date);
-  return d ? `${d.getMonth() + 1}.${d.getDate()} (${WEEKDAY[d.getDay()]}) ${time}` : time;
-}
-
-/** 완료 카드의 시간 칸: 실제 작업 시작·완료('2026-08-03 14:05'). 서버에 값이 없는 칸은 뺀다 */
-function actualTimes(r) {
-  return [
-    { label: COPY.visited, at: r.startedAt },
-    { label: COPY.finished, at: r.endedAt },
-  ]
-    .filter((t) => t.at)
-    .map((t) => ({ label: t.label, value: shortDateTime(...t.at.split(' ')) }));
-}
 
 /** 내 예약 화면: 탭(예정/완료/취소)별 예약 카드 목록 + 카드의 변경·취소·영상 보기 + 취소 확인 시트 */
 export default function Reservations() {
@@ -92,12 +53,6 @@ export default function Reservations() {
   });
   // 기한이 지난 카드에 "N시간 전까지 할 수 있어요" 만 있어 아직 되는 것처럼 읽혔다 → 안 된다는 것과 연락처 (직접 사용 점검 U2). 번호가 없으면 1:1 문의
   const { data: supportPhone } = useAsync(() => getSupportPhone(), []);
-  // '이동 중' 판단에 쓰는 지금 시각 — 1분마다 다시 읽는다 (그리는 중에 Date.now() 를 부르지 않는다)
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
   const [tab, setTab] = useState('upcoming'); // 보고 있는 탭 key: 'upcoming' 예정 | 'done' 완료 | 'cancelled' 취소
   const [cancelId, setCancelId] = useState(null); // 취소 시트를 연 예약 id. null 이면 시트가 닫혀 있다
   const [scope, setScope] = useState('one'); // 정기청소: 'one' 이번 회차만 | 'all' 정기청소 전체
@@ -170,22 +125,9 @@ export default function Reservations() {
                   ]
                 : [];
           return (
-            <ReservationTicket
+            <ReservationTicketCard
               key={r.id}
-              title={titleOf(r)}
-              badge={r.status === 'cancelled' || r.status === 'done' ? undefined : r.status === 'assigning' ? 'assigning' : 'assigned'}
-              schedule={r.rows?.[0]?.value ?? ''}
-              avatar={ASSETS.managerAvatar}
-              manager={r.rows?.find((row) => row.label === '매니저')?.value ?? ''}
-              progress={progressOf(r, now)}
-              times={
-                r.status === 'done'
-                  ? actualTimes(r)
-                  : [
-                      { label: COPY.start, value: shortDateTime(r.date, r.time) },
-                      ...(r.endTime ? [{ label: COPY.end, value: shortDateTime(r.date, r.endTime) }] : []),
-                    ]
-              }
+              reservation={r}
               note={before && !changeable ? CHANGE_LOCK_COPY.card(deadlineHours, supportPhone) : undefined}
               actions={actions}
             />

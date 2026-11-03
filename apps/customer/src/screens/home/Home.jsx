@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router';
 import {
   ScreenLayout,
-  ReservationCard,
   ServiceStoreIcon,
   BrandMarkIcon,
   ServiceHomeIcon,
@@ -13,13 +12,14 @@ import {
   ScreenLoading,
 } from '@ansimclean/ui';
 import { getHome, getNotices, getSupportPhone } from '../../api/customer.js';
-import { UPCOMING_HOME_COPY, CHANGE_LOCK_COPY, CHANGE_DEADLINE_HOURS } from '../../api/mock.js';
+import { UPCOMING_HOME_COPY, CHANGE_LOCK_COPY, CHANGE_DEADLINE_HOURS, RESERVATIONS_COPY } from '../../api/mock.js';
 import CustomerFooter from '../CustomerFooter.jsx';
 import { onPushReceived } from '../../push/pushClient.js';
 import { setBookingDraft } from '../booking/bookingDraft.js';
 import homeArt from '@ansimclean/ui/assets/housing-house@3x.webp';
 import giftArt from '@ansimclean/ui/assets/gift-illustration@3x.webp';
 import HomePromotions from './HomePromotions.jsx';
+import ReservationTicketCard from '../reservations/ReservationTicketCard.jsx';
 import styles from './Home.module.css';
 
 // 기존 예약·실시간 상태 갱신은 새 홈에서도 유지한다.
@@ -69,20 +69,21 @@ export default function Home() {
         {data.upcoming && (
           <section className={styles.section}>
             <h2 className="text-heading-s">{UPCOMING_HOME_COPY.title}</h2>
-            <ReservationCard
-              title={data.upcoming.title}
-              status={data.upcoming.status}
-              rows={data.upcoming.rows}
-              changeable={false}
-              notChangeableNote={
-                locked
-                  ? CHANGE_LOCK_COPY.card(
-                      data.changeDeadlineHours ?? CHANGE_DEADLINE_HOURS,
-                      supportPhone
-                    )
-                  : UPCOMING_HOME_COPY.note
+            {/* 내 예약 화면과 같은 카드 (2026-11-03 사용자 요청). 진행 중이면 실시간 영상 버튼, 그 밖은 안내 한 줄 */}
+            <ReservationTicketCard
+              reservation={data.upcoming}
+              note={
+                data.upcoming.status === 'inProgress'
+                  ? undefined
+                  : locked
+                    ? CHANGE_LOCK_COPY.card(data.changeDeadlineHours ?? CHANGE_DEADLINE_HOURS, supportPhone)
+                    : UPCOMING_HOME_COPY.note
               }
-              onWatch={() => navigate(`/service/live?booking=${data.upcoming.id}`)}
+              actions={
+                data.upcoming.status === 'inProgress'
+                  ? [{ label: RESERVATIONS_COPY.watch, tone: 'brand', onClick: () => navigate(`/service/live?booking=${data.upcoming.id}`) }]
+                  : undefined
+              }
             />
           </section>
         )}

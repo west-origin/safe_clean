@@ -101,11 +101,12 @@ describe('Home 갱신', () => {
     const original = __fake.reservations.find((r) => r.id === 'r1');
     __fake.reservations = __fake.reservations.filter((r) => r.status !== 'inProgress').map((r) => (r.id === 'r1' ? assigning(r) : r));
     renderHome();
-    expect(await screen.findByText('배정 후 알려드려요')).toBeInTheDocument();
+    expect(await screen.findByText('매니저님을 매칭 중이에요')).toBeInTheDocument(); // 서버 '배정 후 알려드려요' 대신 (2026-11-03)
 
     __fake.reservations = __fake.reservations.map((r) => (r.id === 'r1' ? original : r)); // 매니저가 콜을 수락했다
     fireEvent(window, new CustomEvent('ansimclean:push', { detail: {} })); // 앱이 떠 있을 때 온 푸시 (pushClient.js)
     await waitFor(() => expect(screen.getByText('김미영 매니저')).toBeInTheDocument());
-    expect(screen.queryByText('배정 후 알려드려요')).toBeNull();
+    expect(screen.queryByText('매니저님을 매칭 중이에요')).toBeNull();
+    expect(screen.getByText('매칭 완료')).toBeInTheDocument();
   });
 });

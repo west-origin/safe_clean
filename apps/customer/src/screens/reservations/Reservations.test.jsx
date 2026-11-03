@@ -25,27 +25,30 @@ function renderScreen() {
 }
 
 describe('Reservations 흐름', () => {
-  it('2026-11-03 시안: 제목·탭, 카드는 매장·가정·원룸 이름 + 파란 일정 + 배정 알약 + 매니저 + 진행 상태 + 시작·종료, 결제 버튼 없음', async () => {
+  it('2026-11-03 시안: 제목·탭, 카드는 매장·가정·원룸 이름 + 파란 일정 + 매칭 알약 + 매니저 + 진행 상태 + 시작·종료, 결제 버튼 없음', async () => {
     renderScreen();
     expect(await screen.findByRole('heading', { name: '내 예약을 확인해 주세요.' })).toBeInTheDocument();
     const house = screen.getByRole('article', { name: '가정' }); // r1: homeType house, 매니저 수락
     expect(house).toHaveTextContent('2026년 11월 1일 (일) 오전 9시');
-    expect(house).toHaveTextContent('배정 완료');
+    expect(house).toHaveTextContent('매칭 완료');
     expect(house).toHaveTextContent('김미영 매니저');
     expect(house).toHaveTextContent('11.1 (일) 09:00');
     expect(house).toHaveTextContent('11.1 (일) 12:00');
     expect(within(house).getByRole('button', { name: '예약 변경' })).toBeInTheDocument();
     const studio = screen.getByRole('article', { name: '원룸' }); // r0: 진행 중
     expect(studio).toHaveTextContent('청소 중');
-    expect(screen.getByRole('article', { name: '가전청소' })).toHaveTextContent('배정 중');
+    const matching = screen.getByRole('article', { name: '가전청소' }); // 매칭 전: 매칭 중 알약 + 한 가지 문구, 진행 상태 없음
+    expect(matching).toHaveTextContent('매칭 중');
+    expect(matching).toHaveTextContent('매니저님을 매칭 중이에요');
+    expect(matching).not.toHaveTextContent('예약 완료');
     expect(screen.queryByRole('button', { name: /결제/ })).toBeNull();
   });
 
-  it('완료 탭: 배정 알약 없이 실제 방문 시간·종료 시간', async () => {
+  it('완료 탭: 매칭 알약 없이 실제 방문 시간·종료 시간', async () => {
     renderScreen();
     fireEvent.click(await screen.findByRole('tab', { name: '완료' }));
     const card = screen.getByRole('article', { name: '가전청소' }); // r3: startedAt 14:05, endedAt 16:20
-    expect(card).not.toHaveTextContent('배정 완료');
+    expect(card).not.toHaveTextContent('매칭 완료');
     expect(card).toHaveTextContent('방문 시간');
     expect(card).toHaveTextContent('8.3 (월) 14:05');
     expect(card).toHaveTextContent('종료 시간');

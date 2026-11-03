@@ -611,12 +611,12 @@ function CustomerGallery() {
             </div>
           </div>
         </Row>
-        <Row label="ReservationTicket (2026-11-03 시안): 배정 완료 + 변경·취소 / 배정 중 + 기한 안내">
+        <Row label="ReservationTicket (2026-11-03 시안): 매칭 완료 + 변경·취소 / 매칭 중(진행 상태 없음) + 기한 안내">
           <div className={styles.stack}>
             <ReservationTicket title="가정" badge="assigned" schedule="2026년 11월 20일 (금) 오전 10시" avatar={ASSETS.managerAvatar} manager="김미영 매니저" progress="예약 완료"
               times={[{ label: '방문 시작', value: '11.20 (금) 10:00' }, { label: '종료 예정', value: '11.20 (금) 13:00' }]}
               actions={[{ label: '예약 변경', onClick: () => {} }, { label: '예약 취소', onClick: () => {} }]} />
-            <ReservationTicket title="매장" badge="assigning" schedule="2026년 11월 4일 (수) 오후 2시" avatar={ASSETS.managerAvatar} manager="배정 후 알려드려요" progress="예약 완료"
+            <ReservationTicket title="매장" badge="assigning" schedule="2026년 11월 4일 (수) 오후 2시" avatar={ASSETS.managerAvatar} manager="매니저님을 매칭 중이에요"
               times={[{ label: '방문 시작', value: '11.4 (수) 14:00' }]} note="방문 24시간 전이 지나 앱에서는 바꾸거나 취소할 수 없어요. 1:1 문의로 알려주세요." />
           </div>
         </Row>

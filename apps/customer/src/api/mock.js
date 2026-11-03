@@ -162,6 +162,7 @@ export const RESERVATIONS_COPY = {
   title: '내 예약을 확인해 주세요.',
   start: '방문 시작',
   end: '종료 예정',
+  matching: '매니저님을 매칭 중이에요', // 매칭 전 카드의 매니저 줄 (2026-11-03 사용자 요청 — 서버 '배정 후 알려드려요'·'매니저를 찾지 못했어요 …' 대신)
   visited: '방문 시간', // 완료 탭: 실제 작업 시작(startedAt)
   finished: '종료 시간', // 완료 탭: 실제 작업 완료(endedAt)
   homeTypes: { house: '가정', studio: '원룸' },
