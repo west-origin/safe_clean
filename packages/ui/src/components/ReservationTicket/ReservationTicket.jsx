@@ -19,7 +19,7 @@ const BADGES = {
  * @param {'assigning'|'assigned'} [props.badge] 배정 알약. 없으면 안 그린다 (예: 취소된 예약)
  * @param {string} props.schedule 파란 글자 일정 (예: '2026년 11월 20일 (금) 오전 10시')
  * @param {{ src: string, srcSet?: string }} props.avatar 매니저 사진
- * @param {string} props.manager 매니저 이름 줄 (예: '김미영 매니저', 배정 전이면 안내 문구)
+ * @param {string} props.manager 매니저 이름 줄 (예: '김미영 매니저', 배정 전이면 안내 문구 — badge='assigning' 이면 작은 회색 글자)
  * @param {string} props.progress 진행 상태 (예: '예약 완료')
  * @param {{ label: string, value: string }[]} [props.times] 아래 두 칸 (예: 시작·종료)
  * @param {string} [props.note] 구분선 아래 안내 한 줄
@@ -47,7 +47,8 @@ export default function ReservationTicket({ title, badge, schedule, avatar, mana
       <div className={styles.manager}>
         <img className={styles.avatar} src={avatar.src} srcSet={avatar.srcSet} width={56} height={56} alt="" />
         <div className={styles.managerText}>
-          <p className={cx('text-heading-s', styles.managerName)}>{manager}</p>
+          {/* 배정 전이면 이름 대신 서버 안내(예: '매니저를 찾지 못했어요 · …')라 길다 — 작은 회색 글자로 */}
+          <p className={cx(badge === 'assigning' ? 'text-body-default' : 'text-heading-s', badge === 'assigning' ? styles.managerPending : styles.managerName)}>{manager}</p>
           <p className={cx('text-body-s', styles.progress)}>{progress}</p>
         </div>
       </div>

@@ -77,6 +77,11 @@
   color: var(--color-text-primary);
 }
 
+.managerPending {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
 .progress {
   color: var(--color-text-secondary);
 }
