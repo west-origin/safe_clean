@@ -1,5 +1,5 @@
 /* 서비스 주기 화면(BookingFrequency.jsx) 레이아웃. 2026-10-31 사용자 첨부 시안 (393 폭 기준으로 환산한 값).
-   제목 블록 → 서비스 주기 → 회색 띠 → '정기 서비스는?' 가로 카드. "다음" 은 ScreenLayout 의 stickyCta */
+   제목 블록 → 서비스 주기. "다음" 은 ScreenLayout 의 stickyCta */
 .body {
   display: flex;
   flex-direction: column;
@@ -35,42 +35,4 @@
   display: flex;
   flex-direction: column;
   gap: 14px; /* 시안 원본값 */
-}
-
-/* 회색 띠: 카드 아래 24 */
-.divider {
-  margin-top: var(--spacing-4xl);
-}
-
-/* '정기 서비스는?' : 띠 아래 30, 제목 ↔ 카드 24 */
-.faq {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-4xl);
-  margin-top: 30px; /* 시안 원본값 */
-}
-
-.faqTitle {
-  padding: 0 var(--spacing-4xl);
-}
-
-/* 가로로 미는 카드 줄. 손을 떼면 카드 시작점에 붙는다 */
-.faqTrack {
-  display: flex;
-  gap: var(--spacing-xl);
-  overflow-x: auto;
-  padding: 0 var(--spacing-4xl);
-  scroll-padding: 0 var(--spacing-4xl);
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-}
-
-.faqTrack::-webkit-scrollbar {
-  display: none;
-}
-
-/* 카드 폭 306 (시안 원본값). 화면이 좁으면 옆 카드가 살짝 보이게 85% */
-.faqCard {
-  flex: 0 0 min(306px, 85%);
-  scroll-snap-align: start;
 }

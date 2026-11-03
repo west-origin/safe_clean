@@ -275,29 +275,41 @@ export const NOTES_COPY = {
 };
 
 /** Booking/NotesRequests 문구 — 2026-11-01 사용자 첨부 시안 그대로. 무료주차 문항·요청사항 칸 안내·안내 문구는 사용자 요청으로 추가(코드에서 정함).
+ *  2026-11-03 사용자 요청: 반려동물은 있음/없음 두 가지, 공동현관 비밀번호(있음/없음 → 있음이면 입력칸)·현관 비밀번호(입력 필수) 추가, 요청사항 칸 예시 삭제.
  *  questions 의 key 는 초안 noticeAnswers 의 키, options 의 key 는 고른 값. chipKey: 서버 주의사항 칩 중 이 답이면 같이 보낼 key */
 export const NOTES_SCREEN_COPY = {
   title: '매니저님 방문 시 참고해야 할\n정보를 선택해 주세요.',
   description: ['선택된 내용은 서비스에 필요한 ', '필수정보', ' 입니다.\n서비스 가격에 영향을 미치지 않습니다.'],
   questions: [
-    { key: 'pet', title: '반려동물', description: '함께 생활하는 경우 꼭 체크해주세요.', chipKey: 'pet', chipWhen: ['dog', 'cat', 'other'],
-      options: [{ key: 'dog', label: '강아지' }, { key: 'cat', label: '고양이' }, { key: 'other', label: '기타' }, { key: 'none', label: '없음' }] },
+    { key: 'pet', title: '반려동물', description: '함께 생활하는 경우 꼭 체크해주세요.', chipKey: 'pet', chipWhen: ['yes'],
+      options: [{ key: 'yes', label: '있음' }, { key: 'no', label: '없음' }] },
     { key: 'baby', title: '영유아(7세 이하)', short: '영유아', description: '함께 생활하는 경우 꼭 체크해주세요.', chipKey: 'baby', chipWhen: ['yes'],
       options: [{ key: 'yes', label: '있음' }, { key: 'no', label: '없음' }] },
     { key: 'parking', title: '무료주차', description: '매니저님 차량의 무료주차 가능 여부를 알려주세요.',
       options: [{ key: 'free', label: '가능' }, { key: 'none', label: '불가능' }, { key: 'unknown', label: '모름' }] },
   ],
+  /** 비밀번호 두 칸 (코드에서 정함, 2026-11-03 사용자 요청). 공동현관은 있음/없음 → 있음일 때만 입력칸, 현관은 처음부터 입력칸(필수) */
+  buildingDoor: {
+    title: '공동현관 비밀번호',
+    description: '공동현관 비밀번호가 있는 경우 알려주세요.',
+    options: [{ key: 'yes', label: '있음' }, { key: 'no', label: '없음' }],
+    placeholder: '공동현관 비밀번호를 입력해주세요',
+  },
+  frontDoor: {
+    title: '현관 비밀번호',
+    description: '매니저님이 들어가실 수 있도록 꼭 입력해주세요.',
+    placeholder: '현관 비밀번호를 입력해주세요',
+  },
   requestTitle: '주의사항/요청사항',
   requestDescription: '매니저님께 미리 알려주실 내용이 있다면 적어주세요.',
-  requestPlaceholder: '예) 현관 비밀번호는 방문 전날 알려드릴게요.\n안방은 청소하지 않아도 돼요.',
-  /** 안 고른 항목 이름들 → 빨간 안내 ('반려동물·무료주차를 선택해 주세요.') — 마지막 글자 받침에 따라 을/를 */
-  missing: (names) => {
+  /** 안 고른 항목 이름들 → 빨간 안내 ('반려동물·무료주차를 선택해 주세요.') — 마지막 글자 받침에 따라 을/를. verb 로 '입력해' 도 쓴다 */
+  missing: (names, verb = '선택해') => {
     const last = names[names.length - 1] ?? '';
     const code = last.charCodeAt(last.length - 1) - 0xac00;
     const josa = code >= 0 && code < 11172 && code % 28 !== 0 ? '을' : '를';
-    return `${names.join('·')}${josa} 선택해 주세요.`;
+    return `${names.join('·')}${josa} ${verb} 주세요.`;
   },
-  /** 고른 답 한 줄 — 예약 요청사항 맨 앞에 붙어 매니저에게 간다 ('반려동물: 강아지 · 영유아: 없음 · 무료주차: 불가능') */
+  /** 고른 답 한 줄 — 예약 요청사항 맨 앞에 붙어 매니저에게 간다 ('반려동물: 있음 · 영유아: 없음 · 무료주차: 불가능'). 비밀번호는 넣지 않는다 */
   summaryPrefix: '[방문 참고] ',
 };
 
@@ -375,14 +387,12 @@ export const SCHEDULE_PRICE = { standardHours: 2, maxHours: 8, hourly: 20800, re
 
 /** Booking/Frequency 문구 — 2026-10-31 사용자 첨부 시안 그대로 (Figma 에 없음).
  *  description 은 카테고리별(지금은 시안에 있는 home 만), labels 는 FREQUENCY_OPTIONS 의 표시 이름을 이 화면에서만 바꾼다(확인 화면 등은 그대로),
- *  recurringBenefit 은 정기 카드 설명 [앞, 강조(브랜드 밑줄), 뒤], faqs 는 '정기 서비스는?' 카드 질문 (시안에 보이는 1장 — 나머지·답변은 TODO) */
+ *  recurringBenefit 은 정기 카드 설명 [앞, 강조(브랜드 밑줄), 뒤] — 뒤 문구는 2026-11-03 사용자 요청으로 '전용 혜택' → '10%할인' */
 export const FREQUENCY_SCREEN_COPY = {
   title: '기본 청소',
   description: { home: '거실, 주방, 화장실 등 집 전반을 청소합니다. 옵션으로 세탁, 창틀, 베란다를 선택할 수 있어요.' },
   labels: { recurring: '정기', oneTime: '1회' },
-  recurringBenefit: ['매 회차 2% 자동 할인 +', '청연 VIP 라운지', ' 전용 혜택'],
-  faqTitle: '정기 서비스는?',
-  faqs: ['정기 청소 이용 시 매니저님께 요청사항을 전달할 수 있나요?'],
+  recurringBenefit: ['매 회차 2% 자동 할인 +', '청연 VIP 라운지', ' 10%할인'],
 };
 
 export const RECURRING_TERM_NOTE = (months) => `정기청소는 매월 같은 날짜·같은 시간에 한 번씩, ${months}개월 동안 ${months}회 방문해요. 주말에도 선택한 날짜를 유지해요. 회차마다 따로 변경·취소할 수 있어요.`;

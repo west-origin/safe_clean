@@ -3,10 +3,11 @@
 // 예약 플로우 1단계. 정기청소 / 1회 청소 중 하나를 골라 예약 초안(sessionStorage)에 둔다.
 // 카테고리 라벨·배너 종류는 서버(GET /catalog/categories/{c}), 주기 설명 문구와 정기청소 회차 수(seriesTermMonths)는 confirm-copy 에서 받는다.
 // 주기 목록 자체는 서버에 묻지 않는 앱 고정값이다 (getFrequencyOptions → mock.js FREQUENCY_OPTIONS).
-// 2026-10-31 사용자 첨부 시안으로 바꿨다: 단계 점 대신 뒤로가기만('청소 범위' 버튼은 사용자 요청으로 뺐다), '기본 청소' 제목·설명, 카드형 라디오(브랜드 색), '정기 서비스는?' 질문 카드,
-//   하단 고정 '다음'. 시안에 없는 회차 안내(InfoNote)·날짜/시간 선택 섹션·프로모션 배너는 다른 화면에서 쓸 예정이라 지우지 않고 hidden 으로 숨겼다.
+// 2026-10-31 사용자 첨부 시안으로 바꿨다: 단계 점 대신 뒤로가기만('청소 범위' 버튼은 사용자 요청으로 뺐다), '기본 청소' 제목·설명, 카드형 라디오(브랜드 색),
+//   하단 고정 '다음'. ('정기 서비스는?' 질문 카드는 2026-11-03 사용자 요청으로 뺐다.)
+//   시안에 없는 회차 안내(InfoNote)·날짜/시간 선택 섹션·프로모션 배너는 다른 화면에서 쓸 예정이라 지우지 않고 hidden 으로 숨겼다.
 import { Navigate, useNavigate, useParams } from 'react-router';
-import { ScreenLayout, NavBar, RadioOption, SelectField, PromoBanner, InfoNote, FaqCard, SectionDivider, Button, cx, useAsync, ScreenError, ScreenLoading } from '@ansimclean/ui';
+import { ScreenLayout, NavBar, RadioOption, SelectField, PromoBanner, InfoNote, Button, cx, useAsync, ScreenError, ScreenLoading } from '@ansimclean/ui';
 import { getBookingCategory, getFrequencyOptions, getConfirmCopy, saveBookingStep } from '../../api/customer.js';
 import { RECURRING_TERM_NOTE, SERIES_TERM_MONTHS, FREQUENCY_SCREEN_COPY as COPY } from '../../api/mock.js';
 import { useBookingDraft, formatDateTime } from './bookingDraft.js';
@@ -14,7 +15,7 @@ import common from './booking.module.css';
 import { useReturnTo } from './useReturnTo.js';
 import styles from './BookingFrequency.module.css';
 
-/** 서비스 주기 선택 화면. 제목·설명 + 주기 카드 라디오 + '정기 서비스는?' 질문 카드 + 하단 "다음" (날짜/시간 칸·프로모션 배너는 숨김) */
+/** 서비스 주기 선택 화면. 제목·설명 + 주기 카드 라디오 + 하단 "다음" (날짜/시간 칸·프로모션 배너는 숨김) */
 export default function BookingFrequency() {
   const navigate = useNavigate();
   const { category } = useParams();
@@ -106,17 +107,6 @@ export default function BookingFrequency() {
           {/* 서버가 준 promo 가 'recurring' 이면 정기청소 배너, 그 밖에는 혜택 알약만 있는 모양 */}
           {info.promo === 'recurring' ? <PromoBanner /> : <PromoBanner variant="benefits" />}
         </div>
-
-        <SectionDivider className={styles.divider} />
-
-        <section className={styles.faq} aria-labelledby="frequency-faq-title">
-          <h2 id="frequency-faq-title" className={cx('text-heading-s', common.sectionTitle, styles.faqTitle)}>{COPY.faqTitle}</h2>
-          <div className={styles.faqTrack}>
-            {COPY.faqs.map((q) => (
-              <FaqCard key={q} question={q} className={styles.faqCard} />
-            ))}
-          </div>
-        </section>
       </div>
     </ScreenLayout>
   );

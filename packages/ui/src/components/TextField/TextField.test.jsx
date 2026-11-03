@@ -69,6 +69,12 @@ describe('TextField', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('올바른 값을 입력해주세요');
   });
 
+  it('hideLabel 이면 라벨은 .sr-only 로 숨지만 입력칸 이름으로는 남는다', () => {
+    render(<TextField label="현관 비밀번호" hideLabel />);
+    expect(screen.getByLabelText('현관 비밀번호')).toBeInTheDocument();
+    expect(screen.getByText('현관 비밀번호')).toHaveClass('sr-only');
+  });
+
   it('CSS 가 Focused=:focus-within, Error=status/live, 터치 타겟 토큰을 쓰고 하드코딩 색이 없다', () => {
     expect(css).toMatch(/\.inputBox:focus-within \{[^}]*border-color: var\(--color-brand-primary\)/);
     expect(css).toMatch(/\.error \.inputBox[^{]*\{[^}]*border-color: var\(--color-status-live\)/);

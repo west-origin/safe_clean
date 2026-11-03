@@ -48,7 +48,7 @@ import PriceCtaBar from '../components/PriceCtaBar/index.js';
 import ManagerIntro from '../components/ManagerIntro/index.js';
 import OptionCheckRow from '../components/OptionCheckRow/index.js';
 import PaidOptionCard from '../components/PaidOptionCard/index.js';
-import CircleChoiceGroup from '../components/CircleChoiceGroup/index.js';
+import ChoiceCardGroup from '../components/ChoiceCardGroup/index.js';
 import SectionDivider from '../components/SectionDivider/index.js';
 import Chip from '../components/Chip/index.js';
 import NoticeChip from '../components/NoticeChip/index.js';
@@ -591,10 +591,11 @@ function CustomerGallery() {
             <PaidOptionCard icon={<Icons.OptionSignboardIcon />} label={'간판·외부\n유리 청소'} price="+35,000원" selected onToggle={() => {}} />
           </div>
         </Row>
-        <Row label="CircleChoiceGroup (반려동물: 없음 고름 / 무료주차: 아무것도 안 고름)">
+        <Row label="ChoiceCardGroup (반려동물: 없음 고름 / 무료주차: 아무것도 안 고름 / 아이콘 없음: 있음 고름)">
           <div className={styles.stack}>
-            <CircleChoiceGroup label="반려동물" value="none" onChange={() => {}} options={[{ key: 'dog', label: '강아지', icon: <Icons.AnswerDogIcon /> }, { key: 'cat', label: '고양이', icon: <Icons.AnswerCatIcon /> }, { key: 'other', label: '기타', icon: <Icons.AnswerBirdIcon /> }, { key: 'none', label: '없음', icon: <Icons.AnswerCatIcon dashed /> }]} />
-            <CircleChoiceGroup label="무료주차" onChange={() => {}} options={[{ key: 'free', label: '가능', icon: <Icons.AnswerParkingIcon /> }, { key: 'none', label: '불가능', icon: <Icons.AnswerNoParkingIcon /> }, { key: 'unknown', label: '모름', icon: <Icons.AnswerUnknownIcon /> }]} />
+            <ChoiceCardGroup label="반려동물" value="no" onChange={() => {}} options={[{ key: 'yes', label: '있음', icon: <Icons.AnswerDogIcon /> }, { key: 'no', label: '없음', icon: <Icons.AnswerDogIcon outline /> }]} />
+            <ChoiceCardGroup label="무료주차" onChange={() => {}} options={[{ key: 'free', label: '가능', icon: <Icons.AnswerParkingIcon /> }, { key: 'none', label: '불가능', icon: <Icons.AnswerParkingIcon outline /> }, { key: 'unknown', label: '모름', icon: <Icons.AnswerUnknownIcon /> }]} />
+            <ChoiceCardGroup label="공동현관 비밀번호" value="yes" onChange={() => {}} options={[{ key: 'yes', label: '있음' }, { key: 'no', label: '없음' }]} />
           </div>
         </Row>
         <Row label="ManagerIntro">

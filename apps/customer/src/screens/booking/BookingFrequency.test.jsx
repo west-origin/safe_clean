@@ -44,7 +44,7 @@ describe('Booking/Frequency', () => {
     __fake.seriesTermMonths = 6; // 이 파일은 가짜 서버 상태를 이어 쓰므로 되돌린다
   });
 
-  // 2026-10-31 시안: '기본 청소' 카드형 주기 + '정기 서비스는?'. 날짜/시간 선택 섹션은 지우지 않고 hidden 으로 숨긴다
+  // 2026-10-31 시안: '기본 청소' 카드형 주기 ('정기 서비스는?' 카드는 2026-11-03 뺐다). 날짜/시간 선택 섹션은 지우지 않고 hidden 으로 숨긴다
   it('시안 화면을 그리고 날짜/시간 선택 섹션은 숨긴다', async () => {
     render(
       <MemoryRouter initialEntries={['/booking/home/frequency']}>
@@ -55,7 +55,8 @@ describe('Booking/Frequency', () => {
     );
     expect(await screen.findByRole('heading', { name: '기본 청소' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /정기/ })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('heading', { name: '정기 서비스는?' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /청연 VIP 라운지 10%할인/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '정기 서비스는?' })).toBeNull();
     expect(screen.queryByRole('heading', { name: '날짜/시간 선택' })).toBeNull(); // hidden 안이라 접근성 트리에서 빠진다
     expect(screen.getByText('날짜/시간 선택').closest('[hidden]')).not.toBeNull();
   });

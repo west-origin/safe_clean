@@ -64,7 +64,7 @@ export { default as PriceCtaBar } from './components/PriceCtaBar/index.js';
 export { default as ManagerIntro } from './components/ManagerIntro/index.js';
 export { default as OptionCheckRow } from './components/OptionCheckRow/index.js';
 export { default as PaidOptionCard } from './components/PaidOptionCard/index.js';
-export { default as CircleChoiceGroup } from './components/CircleChoiceGroup/index.js';
+export { default as ChoiceCardGroup } from './components/ChoiceCardGroup/index.js';
 export { default as SectionDivider } from './components/SectionDivider/index.js';
 export { default as Chip } from './components/Chip/index.js';
 export { default as NoticeChip } from './components/NoticeChip/index.js';

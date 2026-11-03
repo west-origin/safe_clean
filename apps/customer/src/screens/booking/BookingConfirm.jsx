@@ -106,7 +106,7 @@ export default function BookingConfirm() {
               <SummaryItem icon={ASSETS.confirmIcons.options} title="선택 옵션" value={CONFIRM_EMPTY_COPY.options} onEdit={() => go('options')} />
             )}
             {draft.noticeSummary ? (
-              // 주의사항 화면의 답 한 줄 (2026-11-01) — 예: '반려동물: 강아지 · 영유아: 없음 · 무료주차: 불가능'
+              // 주의사항 화면의 답 한 줄 (2026-11-01) — 예: '반려동물: 있음 · 영유아: 없음 · 무료주차: 불가능'
               <SummaryItem icon={ASSETS.confirmIcons.notes} title="주의사항" value={draft.noticeSummary.replace(/^\[[^\]]*\]\s*/, '')} onEdit={() => go('notes')} />
             ) : chosenNotices.length > 0 ? (
               <SummaryItem icon={ASSETS.confirmIcons.notes} title="주의사항" onEdit={() => go('notes')}>
