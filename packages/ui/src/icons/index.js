@@ -33,6 +33,7 @@ export { default as AnswerDogIcon } from './AnswerDogIcon.jsx';
 export { default as AnswerBabyIcon } from './AnswerBabyIcon.jsx';
 export { default as AnswerParkingIcon } from './AnswerParkingIcon.jsx';
 export { default as AnswerUnknownIcon } from './AnswerUnknownIcon.jsx';
+export { default as AnswerDoorIcon } from './AnswerDoorIcon.jsx';
 export { default as ChevronRightSmallIcon } from './ChevronRightSmallIcon.jsx';
 export { default as BadgeNewIcon } from './BadgeNewIcon.jsx';
 export { default as BadgeScheduledIcon } from './BadgeScheduledIcon.jsx';

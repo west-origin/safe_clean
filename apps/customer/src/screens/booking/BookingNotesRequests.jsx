@@ -2,6 +2,7 @@
 // 2026-11-01 사용자 첨부 '매니저님 방문 시 참고해야 할 정보를 선택해 주세요.' 시안으로 바꿨다 (Figma 에 없음):
 //   반려동물(있음·없음) / 영유아(있음·없음) / 무료주차(가능·불가능·모름) 를 카드로 하나씩 고르고, 맨 아래 주의사항·요청사항 입력칸.
 //   2026-11-03 사용자 요청: 카드형(첨부 시안) + 매장 아이콘 같은 플랫 컬러 아이콘('없음'·'불가능'은 같은 그림의 검정 선만),
+//   (같은 날 다시) 아이콘은 홈 매장·가정·원룸 아이콘과 같은 플랫 형식 + 연회색 원. 없음은 회색 면, 무료주차 불가능·공동현관 없음은 금지 표시.
 //   공동현관 비밀번호(있음·없음 → 있음이면 입력칸)·현관 비밀번호(처음부터 입력칸) 두 칸 추가, 요청사항 칸 예시 삭제.
 //   처음엔 아무것도 안 골라져 있고, 하나라도 안 고르거나 필요한 비밀번호가 비어 있으면 "다음" 이 꺼지고 아래에 작은 빨간 안내가 보인다.
 //   비밀번호는 초안(doorCodes)에만 두고 서버로 보내지 않는다 — 요청사항은 수락 전 콜 상세에도 보여서 여러 매니저에게 노출된다.
@@ -13,7 +14,7 @@
 // 칩 목록·요청사항 칸 문구는 서버(GET /catalog/categories/{c}/notice-chips), 그 밖의 문구는 mock.js NOTES_SCREEN_COPY.
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ScreenLayout, NavBar, SectionDivider, ChoiceCardGroup, TextField, TextArea, PriceCtaBar, Sheet, Button, cx, useAsync, ScreenError, ScreenLoading, AnswerDogIcon, AnswerBabyIcon, AnswerParkingIcon, AnswerUnknownIcon } from '@ansimclean/ui';
+import { ScreenLayout, NavBar, SectionDivider, ChoiceCardGroup, TextField, TextArea, PriceCtaBar, Sheet, Button, cx, useAsync, ScreenError, ScreenLoading, AnswerDogIcon, AnswerBabyIcon, AnswerParkingIcon, AnswerUnknownIcon, AnswerDoorIcon } from '@ansimclean/ui';
 import { getNoticeChips, saveBookingStep } from '../../api/customer.js';
 import { INPUT_LIMITS, NOTES_SCREEN_COPY as COPY, OPTIONS_COPY, SCHEDULE_COPY, SCHEDULE_PRICE } from '../../api/mock.js';
 import { useBookingDraft } from './bookingDraft.js';
@@ -23,9 +24,10 @@ import styles from './BookingNotesRequests.module.css';
 
 // 선택지 key → 그림 (문항 key 별)
 const ICONS = {
-  pet: { yes: <AnswerDogIcon />, no: <AnswerDogIcon outline /> },
-  baby: { yes: <AnswerBabyIcon />, no: <AnswerBabyIcon outline /> },
-  parking: { free: <AnswerParkingIcon />, none: <AnswerParkingIcon outline />, unknown: <AnswerUnknownIcon /> },
+  pet: { yes: <AnswerDogIcon />, no: <AnswerDogIcon muted /> },
+  baby: { yes: <AnswerBabyIcon />, no: <AnswerBabyIcon muted /> },
+  parking: { free: <AnswerParkingIcon />, none: <AnswerParkingIcon prohibited />, unknown: <AnswerUnknownIcon /> },
+  buildingDoor: { yes: <AnswerDoorIcon />, no: <AnswerDoorIcon prohibited /> },
 };
 const DOOR_CODE_LIMIT = 30; // 비밀번호 칸 글자 수 상한 (코드에서 정함 — '*1234#' 꼴이면 충분)
 const SUMMARY_LIMIT = 80; // 요청사항 앞에 붙는 답 한 줄 자리 — 서버 요청사항 한도(INPUT_LIMITS.request)에서 뺀다
@@ -126,7 +128,7 @@ export default function BookingNotesRequests() {
             <h2 id="notes-building-door" className={cx('text-heading-s', common.pageTitle)}>{COPY.buildingDoor.title}</h2>
             <p className={cx('text-body-default', styles.hint)}>{COPY.buildingDoor.description}</p>
           </div>
-          <ChoiceCardGroup label={COPY.buildingDoor.title} options={COPY.buildingDoor.options} value={doorCodes.building} onChange={(key) => setDoorCodes({ building: key })} />
+          <ChoiceCardGroup label={COPY.buildingDoor.title} options={COPY.buildingDoor.options.map((o) => ({ ...o, icon: ICONS.buildingDoor[o.key] }))} value={doorCodes.building} onChange={(key) => setDoorCodes({ building: key })} />
           {doorCodes.building === 'yes' && (
             <TextField label={COPY.buildingDoor.title} hideLabel placeholder={COPY.buildingDoor.placeholder} value={doorCodes.buildingCode ?? ''} onChange={(e) => setDoorCodes({ buildingCode: e.target.value })} maxLength={DOOR_CODE_LIMIT} autoComplete="off" />
           )}

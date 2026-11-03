@@ -54,10 +54,6 @@ export default function BookingFrequency() {
     navigate(back.next(`/booking/${category}/address`));
   };
 
-  // 정기 카드 설명: '청연 VIP 라운지' 만 브랜드 색 밑줄(<em>, RadioOption 이 그린다)
-  const [benefitBefore, benefitEm, benefitAfter] = COPY.recurringBenefit;
-  const recurringDescription = <>{benefitBefore}<br /><em>{benefitEm}</em>{benefitAfter}</>;
-
   return (
     <ScreenLayout
       noPadding
@@ -83,7 +79,7 @@ export default function BookingFrequency() {
                 key={o.key}
                 variant="card"
                 label={COPY.labels[o.key] ?? o.label}
-                description={o.key === 'recurring' ? recurringDescription : undefined}
+                description={o.key === 'recurring' ? COPY.recurringBenefit : undefined}
                 selected={frequency === o.key}
                 onSelect={() => update({ frequency: o.key })}
               />

@@ -55,7 +55,8 @@ describe('Booking/Frequency', () => {
     );
     expect(await screen.findByRole('heading', { name: '기본 청소' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /정기/ })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: /청연 VIP 라운지 10%할인/ })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /10%할인/ })).toBeInTheDocument();
+    expect(screen.queryByText(/청연 VIP 라운지/)).toBeNull(); // 2026-11-03: '10%할인' 만 남김
     expect(screen.queryByRole('heading', { name: '정기 서비스는?' })).toBeNull();
     expect(screen.queryByRole('heading', { name: '날짜/시간 선택' })).toBeNull(); // hidden 안이라 접근성 트리에서 빠진다
     expect(screen.getByText('날짜/시간 선택').closest('[hidden]')).not.toBeNull();

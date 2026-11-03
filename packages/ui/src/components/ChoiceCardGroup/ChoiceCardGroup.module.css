@@ -42,7 +42,13 @@
   box-shadow: inset 0 0 0 1.5px var(--color-brand-primary);
 }
 
-/* 아이콘 칸: svg 아래 빈틈 없이 */
+/* 아이콘 칸: 홈 서비스 버튼과 같은 연회색 원(64) 가운데에 아이콘 (2026-11-03 사용자 첨부 시안) */
 .icon {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-subtle);
 }

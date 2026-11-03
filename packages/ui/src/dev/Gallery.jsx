@@ -565,7 +565,7 @@ function CustomerGallery() {
         </Row>
         <Row label="variant=card (서비스 주기 시안, 설명 안 <em> = 브랜드 밑줄)">
           <div role="radiogroup" aria-label="카드 예시" className={styles.stack}>
-            <RadioOption variant="card" label="정기" description={<>매 회차 2% 자동 할인 +<br /><em>청연 VIP 라운지</em> 전용 혜택</>} selected={radio === 'a'} onSelect={() => setRadio('a')} />
+            <RadioOption variant="card" label="정기" description="10%할인" selected={radio === 'a'} onSelect={() => setRadio('a')} />
             <RadioOption variant="card" label="1회" selected={radio === 'b'} onSelect={() => setRadio('b')} />
           </div>
         </Row>
@@ -591,11 +591,11 @@ function CustomerGallery() {
             <PaidOptionCard icon={<Icons.OptionSignboardIcon />} label={'간판·외부\n유리 청소'} price="+35,000원" selected onToggle={() => {}} />
           </div>
         </Row>
-        <Row label="ChoiceCardGroup (반려동물: 없음 고름 / 무료주차: 아무것도 안 고름 / 아이콘 없음: 있음 고름)">
+        <Row label="ChoiceCardGroup (반려동물: 없음 고름 / 무료주차: 아무것도 안 고름 / 공동현관: 있음 고름)">
           <div className={styles.stack}>
-            <ChoiceCardGroup label="반려동물" value="no" onChange={() => {}} options={[{ key: 'yes', label: '있음', icon: <Icons.AnswerDogIcon /> }, { key: 'no', label: '없음', icon: <Icons.AnswerDogIcon outline /> }]} />
-            <ChoiceCardGroup label="무료주차" onChange={() => {}} options={[{ key: 'free', label: '가능', icon: <Icons.AnswerParkingIcon /> }, { key: 'none', label: '불가능', icon: <Icons.AnswerParkingIcon outline /> }, { key: 'unknown', label: '모름', icon: <Icons.AnswerUnknownIcon /> }]} />
-            <ChoiceCardGroup label="공동현관 비밀번호" value="yes" onChange={() => {}} options={[{ key: 'yes', label: '있음' }, { key: 'no', label: '없음' }]} />
+            <ChoiceCardGroup label="반려동물" value="no" onChange={() => {}} options={[{ key: 'yes', label: '있음', icon: <Icons.AnswerDogIcon /> }, { key: 'no', label: '없음', icon: <Icons.AnswerDogIcon muted /> }]} />
+            <ChoiceCardGroup label="무료주차" onChange={() => {}} options={[{ key: 'free', label: '가능', icon: <Icons.AnswerParkingIcon /> }, { key: 'none', label: '불가능', icon: <Icons.AnswerParkingIcon prohibited /> }, { key: 'unknown', label: '모름', icon: <Icons.AnswerUnknownIcon /> }]} />
+            <ChoiceCardGroup label="공동현관 비밀번호" value="yes" onChange={() => {}} options={[{ key: 'yes', label: '있음', icon: <Icons.AnswerDoorIcon /> }, { key: 'no', label: '없음', icon: <Icons.AnswerDoorIcon prohibited /> }]} />
           </div>
         </Row>
         <Row label="ManagerIntro">

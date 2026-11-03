@@ -387,12 +387,12 @@ export const SCHEDULE_PRICE = { standardHours: 2, maxHours: 8, hourly: 20800, re
 
 /** Booking/Frequency 문구 — 2026-10-31 사용자 첨부 시안 그대로 (Figma 에 없음).
  *  description 은 카테고리별(지금은 시안에 있는 home 만), labels 는 FREQUENCY_OPTIONS 의 표시 이름을 이 화면에서만 바꾼다(확인 화면 등은 그대로),
- *  recurringBenefit 은 정기 카드 설명 [앞, 강조(브랜드 밑줄), 뒤] — 뒤 문구는 2026-11-03 사용자 요청으로 '전용 혜택' → '10%할인' */
+ *  recurringBenefit 은 정기 카드 설명 — 2026-11-03 사용자 요청으로 '10%할인' 만 남겼다 */
 export const FREQUENCY_SCREEN_COPY = {
   title: '기본 청소',
   description: { home: '거실, 주방, 화장실 등 집 전반을 청소합니다. 옵션으로 세탁, 창틀, 베란다를 선택할 수 있어요.' },
   labels: { recurring: '정기', oneTime: '1회' },
-  recurringBenefit: ['매 회차 2% 자동 할인 +', '청연 VIP 라운지', ' 10%할인'],
+  recurringBenefit: '10%할인',
 };
 
 export const RECURRING_TERM_NOTE = (months) => `정기청소는 매월 같은 날짜·같은 시간에 한 번씩, ${months}개월 동안 ${months}회 방문해요. 주말에도 선택한 날짜를 유지해요. 회차마다 따로 변경·취소할 수 있어요.`;
