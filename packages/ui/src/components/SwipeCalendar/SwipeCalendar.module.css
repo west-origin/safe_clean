@@ -1,7 +1,8 @@
 /* SwipeCalendar.jsx 스타일. 달 한 장 = 상자 폭 100%, 가로로 한 장씩 멈춘다. 날짜 칸 원 40 (탭 영역은 칸 높이 44) */
 .track {
   display: flex;
-  align-items: flex-start; /* 짧은 달(5주) 아래에 긴 달(6주) 높이만큼 빈칸이 생기지 않게 */
+  align-items: flex-start; /* 달마다 제 높이 — 상자 높이는 JSX 가 지금 보이는 달에 맞춘다 */
+  transition: height var(--duration-fast);
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
