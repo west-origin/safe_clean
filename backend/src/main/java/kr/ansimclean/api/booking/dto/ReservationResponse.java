@@ -11,8 +11,10 @@ import java.util.UUID;
  * 고객 홈의 다가오는 예약(customer/dto/HomeResponse.upcoming). 필드를 바꾸면 그 응답들이 모두 바뀐다.
  * tab = "upcoming" 또는 "done" 또는 "cancelled", status = "assigning"·"scheduled"·"inProgress"·"done"·"cancelled" 중 하나,
  * date = "YYYY-MM-DD", time = "HH:mm", category = 카테고리 키, title = 카드 제목.
+ * homeType = 가정/원룸 청소의 종류 "house"·"studio"(다른 카테고리·옛 예약은 null), endTime = 방문 끝 시각 "HH:mm"(서울, ends_at = 시작 + 소요 시간) (2026-11-03).
  * rows = 카드 안의 줄(label·value): 일정·주소·매니저, 매니저 소개가 있으면 한 줄 더.
  */
-public record ReservationResponse(UUID id, String tab, String category, String title, String status, String date, String time, boolean series, boolean recordingReady, boolean changeable, List<Row> rows) {
+public record ReservationResponse(UUID id, String tab, String category, String title, String status, String date, String time, boolean series, boolean recordingReady, boolean changeable, List<Row> rows,
+                                  String homeType, String endTime) {
     public record Row(String label, String value) {}
 }

@@ -12,7 +12,9 @@ import java.util.List;
 // 검사 표시: @NotBlank = 빈 값 금지, @Pattern = 정규식과 일치해야 함, @Size = 길이·개수 상한, @Valid = 안쪽 Repair 도 검사.
 // 어기면 400 VALIDATION 이고, message 가 한국어면 그 문구가 응답 message 로 그대로 나간다 (GlobalExceptionHandler).
 // 칸: category = 카테고리 키(수리는 "repair"), freeOptions·paidOptions = 고른 옵션 키, notices = 현장 주의사항 키,
-// request = 요청 사항 자유 입력, repairType = 수리 종류 키(수리 예약만), repair = 수리 상세, saveAddress = 새 주소를 내 주소 목록에 남길지.
+// request = 요청 사항 자유 입력, repairType = 수리 종류 키(수리 예약만), repair = 수리 상세, saveAddress = 새 주소를 내 주소 목록에 남길지,
+// homeType = 가정/원룸 청소(category=home)의 종류 "house"(가정) 또는 "studio"(원룸) — 다른 카테고리면 무시, 없으면(옛 앱) null (2026-11-03, BookingService.homeType),
+// durationHours = 고객이 고른 청소 시간(시작~종료, 2~8시간) — 수리면 무시, 없으면 카테고리 기본 소요. 금액에는 영향 없음 (2026-11-03, BookingService.durationMinutes).
 /** POST /customer/bookings (+ Idempotency-Key). 앱 초안(bookingDraft) 그대로 */
 public record CreateBookingRequest(@NotBlank String category,
                                    @Pattern(regexp = "recurring|oneTime", message = "frequency 는 recurring 또는 oneTime 이에요") String frequency,
@@ -26,7 +28,9 @@ public record CreateBookingRequest(@NotBlank String category,
                                    @Size(max = 1000) String request,
                                    @Size(max = 30) String repairType,
                                    @Valid Repair repair,
-                                   Boolean saveAddress) {
+                                   Boolean saveAddress,
+                                   @Size(max = 20) String homeType,
+                                   Integer durationHours) {
     /** 수리 예약(category=repair) 의 가전·증상·상세·사진. 가전·증상은 앱 카탈로그의 표시 문구 그대로 + 키(applianceKey/symptomKey, 통계·매칭용, 선택) */
     public record Repair(@Size(max = 40) String appliance, @Size(max = 60) String symptom, @Size(max = 40) String applianceKey, @Size(max = 40) String symptomKey, @Size(max = 1000) String detail,
                          @Size(max = 5, message = "사진은 5장까지 첨부할 수 있어요") List<@Size(max = 300) String> photos) {

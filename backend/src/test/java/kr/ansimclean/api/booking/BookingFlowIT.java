@@ -191,6 +191,42 @@ class BookingFlowIT {
         assertThat(reservations()).hasSize(1); // 다시 취소해도 카드가 늘거나 바뀌지 않는다
     }
 
+    // 가정/원룸 구분과 고른 청소 시간 (2026-11-03): 생성 → 상세 → 목록 카드까지 실제 DB(V059 home_type 칸·check 제약)로.
+    // 1회 예약만 만든다 — 정기청소를 만드는 테스트는 dispatchDue 수를 세는 아래 하나뿐이어야 한다
+    @Test
+    void 원룸_청소_5시간_예약은_제목_homeType_끝_시각이_따라온다() throws Exception {
+        String studio = "{\"category\":\"home\",\"homeType\":\"studio\",\"durationHours\":5,\"frequency\":\"oneTime\",\"date\":\"2026-09-17\",\"time\":\"10:00\"," +
+                "\"roadAddress\":\"서울특별시 강남구 테헤란로 123\",\"freeOptions\":[],\"paidOptions\":[],\"notices\":[]}";
+        String created = mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON).content(studio))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.homeType").value("studio")).andExpect(jsonPath("$.serviceLabel").value("원룸 청소"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String id = json.readTree(created).get("id").asString();
+        mvc.perform(get("/api/v1/customer/bookings/" + id).header("Authorization", auth)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.homeType").value("studio")).andExpect(jsonPath("$.serviceLabel").value("원룸 청소"));
+
+        JsonNode card = reservations().get(0);
+        assertThat(card.get("title").asString()).isEqualTo("원룸 청소");
+        assertThat(card.get("homeType").asString()).isEqualTo("studio");
+        assertThat(card.get("endTime").asString()).isEqualTo("15:00"); // 10:00 + 고른 5시간 (카탈로그 기본 3시간이 아니라)
+
+        // 시간을 고르지 않은 옛 앱 본문: homeType null → 카탈로그 이름, 끝 시각은 기본 3시간
+        mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content(body("oneTime", "2026-09-18", "10:00", List.of())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.homeType").isEmpty()).andExpect(jsonPath("$.serviceLabel").value("가정/원룸 청소"));
+        JsonNode older = reservations().get(0); // starts_at 내림차순 — 9/18 이 먼저
+        assertThat(older.get("homeType").isNull()).isTrue();
+        assertThat(older.get("endTime").asString()).isEqualTo("13:00");
+
+        // 모르는 종류·범위 밖 시간은 400
+        mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content(studio.replace("\"studio\"", "\"villa\"")))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.message").value("알 수 없는 청소 종류예요"));
+        mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content(studio.replace("\"durationHours\":5", "\"durationHours\":9")))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.message").value("청소 시간은 2~8시간 중에서 골라 주세요"));
+    }
+
     // 방문일이 지나도 매니저가 없어 시스템(StaleBookingCleaner, 매일 03:10)이 먼저 취소한 예약에 고객 취소를 보내면 409 INVALID_STATE.
     // 고객이 취소한 적이 없으니 위의 재시도(200)처럼 '취소됐어요' 로 답하지 않는다 (자체 점검 #58). 실제 DB 의 cancel_reason 으로 가른다
     @Test

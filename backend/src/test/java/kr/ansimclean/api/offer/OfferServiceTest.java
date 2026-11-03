@@ -185,7 +185,7 @@ class OfferServiceTest {
     // 시·도는 "서울특별시", 시군구는 null 인 예약 → 매니저의 시·도가 같으면 후보, 다르면 아니다
     @Test
     void 시군구가_없는_예약은_시도만_비교한다() {
-        Booking noSigungu = Booking.create(CUSTOMER, null, "home", "oneTime", LocalDate.of(2026, 9, 17), LocalTime.of(10, 0), "서울 어딘가", null, "서울특별시", null,
+        Booking noSigungu = Booking.create(CUSTOMER, null, "home", null, "oneTime", LocalDate.of(2026, 9, 17), LocalTime.of(10, 0), "서울 어딘가", null, "서울특별시", null,
                 List.of(), List.of(), List.of(), null, null, TestBookings.QUOTE, NOW);
         assertThat(OfferService.inArea(manager(A, "서울특별시 강남구", "서울특별시"), noSigungu)).isTrue();
         assertThat(OfferService.inArea(manager(B, "부산광역시 해운대구", "부산광역시"), noSigungu)).isFalse();

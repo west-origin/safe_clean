@@ -124,6 +124,7 @@ public class BookingService implements ManagerWorkLookup {
         LocalTime time = parseTime(req.time());
         requireBookableSchedule(req.category(), date, time, clock.today());
         List<CatalogOption> options = catalog.requireOptions(req.category(), distinct(req.freeOptions()), distinct(req.paidOptions()));
+        durationMinutes(req.category(), req.durationHours()); // 고른 청소 시간 검사만 (생성과 같은 오류를 확인 화면에서 먼저). 금액은 시간과 관계없다
         PriceQuote q = pricing.quote(req.category(), req.frequency(), options);
         List<LocalDate> dates = "recurring".equals(req.frequency()) ? seriesDates(date) : List.of(date); // 정기청소면 회차 날짜 전부, 1회면 그날 하나
         long total = q.total() * dates.size(); // 총액 = 회당 금액 × 회차 수
@@ -171,7 +172,8 @@ public class BookingService implements ManagerWorkLookup {
         List<String> paidOptions = distinct(req.paidOptions());
         List<CatalogOption> options = catalog.requireOptions(req.category(), freeOptions, paidOptions);
         catalog.requireNoticeKeys(req.category(), req.notices());
-        PriceQuote quote = pricing.quote(req.category(), req.frequency(), options); // 회당 금액·수수료·소요 시간 — 아래에서 모든 회차 행에 그대로 고정한다
+        String homeType = homeType(req.category(), req.homeType()); // 가정/원룸 중 어느 쪽인가 (home 만, 아니면 null)
+        PriceQuote quote = withDuration(pricing.quote(req.category(), req.frequency(), options), durationMinutes(req.category(), req.durationHours())); // 회당 금액·수수료·소요 시간 — 아래에서 모든 회차 행에 그대로 고정한다(고른 청소 시간이 있으면 그 시간, 금액은 카탈로그 그대로)
         Instant now = clock.now();
         String road = req.roadAddress().trim();
         String detail = blankToNull(req.detailAddress());
@@ -190,7 +192,7 @@ public class BookingService implements ManagerWorkLookup {
         }
         List<Booking> visits = new ArrayList<>();
         for (LocalDate d : dates) {
-            Booking b = Booking.create(customerId, seriesId, req.category(), req.frequency(), d, time, road, detail,
+            Booking b = Booking.create(customerId, seriesId, req.category(), homeType, req.frequency(), d, time, road, detail,
                     region.sido(), region.sigungu(), freeOptions, paidOptions, req.notices(), request, blankToNull(req.repairType()), quote, now);
             if ("repair".equals(req.category()) && req.repair() != null) {
                 b.describeRepair(blankToNull(req.repair().appliance()), blankToNull(req.repair().symptom()), blankToNull(req.repair().applianceKey()), blankToNull(req.repair().symptomKey()),
@@ -206,7 +208,7 @@ public class BookingService implements ManagerWorkLookup {
         startAssigning(visits.get(0), customerId, null);
         if (req.saveAddress()) profiles.rememberAddress(customerId, road, detail);
         // 결제는 별도 CheckoutService에서 고객 동작으로 시작한다. 예약 생성은 청구하지 않고 unpaid로 둔다.
-        return BookingMapper.toBooking(visits.get(0), category.getLabel(), unassignedLabel(visits.get(0)), visits); // 후보가 없어 바로 매칭 실패했으면 실패 안내 (목록과 같게)
+        return BookingMapper.toBooking(visits.get(0), categoryLabel(category.getLabel(), visits.get(0)), unassignedLabel(visits.get(0)), visits); // 후보가 없어 바로 매칭 실패했으면 실패 안내 (목록과 같게)
     }
 
     // 부르는 곳 예: doCreate(첫 회차), BookingSeriesService.dispatchDue(매일 09:00 정기 회차).
@@ -233,7 +235,7 @@ public class BookingService implements ManagerWorkLookup {
         // 그 밖에는 배정 전·매칭 실패 문구(unassignedLabel). 이 응답을 쓰는 곳 예: 고객 앱 예약 완료 화면(다시 열거나 새로고침할 때)
         Map<UUID, String> names = b.getManagerId() == null ? Map.of() : profiles.namesOf(List.of(b.getManagerId()));
         String cleaner = BookingMapper.managerLabel(b, names, unassignedLabel(b));
-        return BookingMapper.toBooking(b, catalog.requireCategory(b.getCategoryKey()).getLabel(), cleaner, visits);
+        return BookingMapper.toBooking(b, categoryLabel(catalog.requireCategory(b.getCategoryKey()).getLabel(), b), cleaner, visits);
     }
 
     /**
@@ -281,18 +283,59 @@ public class BookingService implements ManagerWorkLookup {
     }
 
     /**
-     * 카드 제목. 정기청소 회차면 "가정/원룸 청소 · 정기 2/6회" — 같은 이름의 카드가 7장 늘어서
+     * 카드 제목 = categoryLabel(가정/원룸 청소는 종류가 있으면 "가정 청소"·"원룸 청소"). 정기청소 회차면 "가정 청소 · 정기 2/6회" — 같은 이름의 카드가 7장 늘어서
      * 어느 것이 정기청소의 몇 번째 방문인지 알 수 없었다 (전체 점검 G2). 순번은 방문일 순, 취소된 회차도 센다(6회 약속 기준)
      * @param seriesVisits 시리즈별 회차 캐시 — 한 응답 안에서 시리즈당 한 번만 읽는다
      */
     private String title(Booking b, Map<UUID, List<Booking>> seriesVisits) {
-        String label = catalog.requireCategory(b.getCategoryKey()).getLabel();
+        String label = categoryLabel(catalog.requireCategory(b.getCategoryKey()).getLabel(), b);
         if (b.getSeriesId() == null) return label;
         List<Booking> visits = seriesVisits.computeIfAbsent(b.getSeriesId(), bookings::findBySeriesIdOrderByServiceDate);
         for (int i = 0; i < visits.size(); i++) {
             if (visits.get(i).getId().equals(b.getId())) return label + " · 정기 " + (i + 1) + "/" + visits.size() + "회";
         }
         return label;
+    }
+
+    // 가정/원룸 청소(home)의 종류 → 표시 이름. 고객 앱 홈의 '가정'·'원룸' 버튼 (2026-11-03 사용자 요청)
+    static final String HOME_CATEGORY = "home";
+    static final Map<String, String> HOME_TYPE_LABELS = Map.of("house", "가정 청소", "studio", "원룸 청소");
+
+    /**
+     * 예약 요청의 homeType 검사. home 이 아니면 무시하고 null, home 인데 비었으면(옛 앱) null,
+     * house·studio 가 아니면 VALIDATION. 정기청소는 이 값 하나를 모든 회차 행에 똑같이 넣는다(doCreate)
+     */
+    static String homeType(String category, String homeType) {
+        if (!HOME_CATEGORY.equals(category)) return null;
+        String v = blankToNull(homeType);
+        if (v == null) return null;
+        if (!HOME_TYPE_LABELS.containsKey(v)) throw ApiException.validation("알 수 없는 청소 종류예요");
+        return v;
+    }
+
+    /** 고객이 고를 수 있는 청소 시간(시작~종료) 범위, 시간 단위 (2026-11-03 사용자 요청 — 앱 시간 선택 2~8시간) */
+    static final int MIN_DURATION_HOURS = 2;
+    static final int MAX_DURATION_HOURS = 8;
+
+    /**
+     * 예약 요청의 durationHours 검사 → 소요 시간(분). 수리면 무시(null), 없으면 null(카테고리 기본 소요 그대로),
+     * 2~8 이 아니면 VALIDATION. 정기청소는 이 값 하나가 견적에 들어가 모든 회차 행에 똑같이 고정된다(doCreate)
+     */
+    static Integer durationMinutes(String category, Integer durationHours) {
+        if ("repair".equals(category) || durationHours == null) return null;
+        if (durationHours < MIN_DURATION_HOURS || durationHours > MAX_DURATION_HOURS) throw ApiException.validation("청소 시간은 2~8시간 중에서 골라 주세요");
+        return durationHours * 60;
+    }
+
+    /** 견적의 소요 시간만 바꾼 복사본 — 금액·수수료는 그대로 (가격은 카탈로그 기준). minutes 가 null 이면 원래 견적 */
+    static PriceQuote withDuration(PriceQuote q, Integer minutes) {
+        return minutes == null ? q : new PriceQuote(q.base(), q.options(), q.total(), q.platformFee(), minutes);
+    }
+
+    /** 카테고리 표시 이름. home 예약에 종류가 있으면 "가정 청소"·"원룸 청소", 없으면(옛 예약) 카탈로그 이름("가정/원룸 청소") 그대로 */
+    static String categoryLabel(String catalogLabel, Booking b) {
+        if (!HOME_CATEGORY.equals(b.getCategoryKey()) || b.getHomeType() == null) return catalogLabel;
+        return HOME_TYPE_LABELS.getOrDefault(b.getHomeType(), catalogLabel);
     }
 
     /**

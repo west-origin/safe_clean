@@ -106,7 +106,7 @@ class BookingControllerTest {
         UUID bookingId = UUID.randomUUID();
         // eq("k-1"): 헤더의 멱등 키가 두 번째 인자로 넘어왔을 때만 이 응답을 준다 — 안 넘어오면 mock 이 null 을 돌려줘 아래 확인이 실패한다
         when(bookings.create(eq(id), eq("k-1"), any())).thenReturn(new BookingResponse(bookingId, "home", "oneTime", "2026-11-02", "10:00", "주소", null,
-                "가정/원룸 청소", "배정 후 알려드려요", false, false, false, null, List.of(new BookingResponse.Visit(bookingId, "2026-11-02", "2026년 11월 2일 (월)")), "80,000원", 80000, "80,000원"));
+                "가정/원룸 청소", "배정 후 알려드려요", false, false, false, null, List.of(new BookingResponse.Visit(bookingId, "2026-11-02", "2026년 11월 2일 (월)")), "80,000원", 80000, "80,000원", null));
         String body = "{\"category\":\"home\",\"frequency\":\"oneTime\",\"date\":\"2026-11-02\",\"time\":\"10:00\",\"roadAddress\":\"주소\",\"freeOptions\":[],\"paidOptions\":[],\"notices\":[]}";
         mvc.perform(post("/api/v1/customer/bookings").header("Authorization", "Bearer c").header("Idempotency-Key", "k-1").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
@@ -143,7 +143,7 @@ class BookingControllerTest {
         UUID id = customer("c");
         UUID bookingId = UUID.randomUUID();
         when(series.cancelWhole(eq(id), eq(bookingId), any())).thenReturn(new ReservationResponse(bookingId, "cancelled", "home", "가정/원룸 청소", "cancelled",
-                "2026-11-02", "10:00", true, false, false, List.of()));
+                "2026-11-02", "10:00", true, false, false, List.of(), null, null));
         mvc.perform(post("/api/v1/customer/reservations/" + bookingId + "/cancel").header("Authorization", "Bearer c")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"wholeSeries\":true}"))
                 .andExpect(status().isOk())
@@ -167,6 +167,52 @@ class BookingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reservations").isArray())
                 .andExpect(jsonPath("$.changeDeadlineHours").value(24)); // 잠긴 카드·취소 시트 문구의 기한 시간 (문제 목록 25번)
+    }
+
+    // 모르는 칸은 무시한다(400 이 아니다) — 앱이 서버보다 먼저 새 칸을 보내도 예약이 깨지지 않는다 (2026-11-03 확인).
+    // application.yml 에 Jackson 설정이 없고 Jackson 3 기본값이 FAIL_ON_UNKNOWN_PROPERTIES = false 다
+    @Test
+    void 모르는_칸이_있는_본문도_받는다() throws Exception {
+        UUID id = customer("c");
+        when(bookings.quote(any())).thenReturn(new QuoteResponse(new QuoteResponse.PerVisit(80000, 0, 80000, "80,000원", "80,000원", null),
+                List.of(), 1, 80000, "80,000원", null, null));
+        mvc.perform(post("/api/v1/customer/bookings/quote").header("Authorization", "Bearer c").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"category\":\"home\",\"date\":\"2026-11-02\",\"time\":\"10:00\",\"someFutureField\":\"x\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/customer/bookings").header("Authorization", "Bearer c").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"category\":\"home\",\"date\":\"2026-11-02\",\"time\":\"10:00\",\"roadAddress\":\"주소\",\"someFutureField\":1}"))
+                .andExpect(status().isOk());
+        verify(bookings).create(eq(id), eq(null), any());
+    }
+
+    // 가정/원룸 구분 (2026-11-03): 생성 본문의 homeType 이 서비스까지 가고, 응답의 homeType·endTime 이 JSON 에 그 이름으로 나간다
+    @Test
+    void homeType_은_생성_본문에서_받고_응답에_homeType_endTime_으로_나간다() throws Exception {
+        UUID id = customer("c");
+        UUID bookingId = UUID.randomUUID();
+        when(bookings.create(eq(id), eq("k-2"), any())).thenReturn(new BookingResponse(bookingId, "home", "oneTime", "2026-11-02", "10:00", "주소", null,
+                "원룸 청소", "배정 후 알려드려요", false, false, false, null, List.of(new BookingResponse.Visit(bookingId, "2026-11-02", "2026년 11월 2일 (월)")), "80,000원", 80000, "80,000원", "studio"));
+        String body = "{\"category\":\"home\",\"homeType\":\"studio\",\"durationHours\":5,\"frequency\":\"oneTime\",\"date\":\"2026-11-02\",\"time\":\"10:00\",\"roadAddress\":\"주소\"}";
+        mvc.perform(post("/api/v1/customer/bookings").header("Authorization", "Bearer c").header("Idempotency-Key", "k-2").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.homeType").value("studio"))
+                .andExpect(jsonPath("$.serviceLabel").value("원룸 청소"));
+        ArgumentCaptor<kr.ansimclean.api.booking.dto.CreateBookingRequest> req = ArgumentCaptor.forClass(kr.ansimclean.api.booking.dto.CreateBookingRequest.class);
+        verify(bookings).create(eq(id), eq("k-2"), req.capture());
+        assertThat(req.getValue().homeType()).isEqualTo("studio");
+        assertThat(req.getValue().durationHours()).isEqualTo(5); // 고른 청소 시간 — 서비스가 duration_minutes 로 고정한다
+
+        // 목록 카드: homeType 과 끝 시각 endTime("HH:mm"). 옛 예약(homeType 없음)은 null 로 칸이 있다
+        when(bookings.reservations(id)).thenReturn(new kr.ansimclean.api.booking.dto.ReservationsResponse(null, null, List.of(
+                new ReservationResponse(bookingId, "upcoming", "home", "원룸 청소", "assigning", "2026-11-02", "10:00", false, false, true, List.of(), "studio", "13:00"),
+                new ReservationResponse(UUID.randomUUID(), "upcoming", "home", "가정/원룸 청소", "assigning", "2026-11-03", "09:00", false, false, true, List.of(), null, "12:00")), 24));
+        mvc.perform(get("/api/v1/customer/reservations").header("Authorization", "Bearer c"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reservations[0].homeType").value("studio"))
+                .andExpect(jsonPath("$.reservations[0].endTime").value("13:00"))
+                .andExpect(jsonPath("$.reservations[0].title").value("원룸 청소"))
+                .andExpect(jsonPath("$.reservations[1].homeType").doesNotExist() /* null 값 — 키는 있지만 값이 null */)
+                .andExpect(jsonPath("$.reservations[1].endTime").value("12:00"));
     }
 
     @Test

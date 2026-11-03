@@ -24,7 +24,7 @@ public final class TestBookings {
     public static Booking requested(UUID customerId, LocalDate date, LocalTime time) {
         // 인자 순서: 고객, 시리즈(없음), 카테고리, 주기, 날짜, 시각, 주소·상세, 시·도, 시군구,
         // 무료 옵션, 유료 옵션, 주의사항, 요청 문구, 수리 종류(없음), 견적, 생성 시각
-        return Booking.create(customerId, null, "home", "oneTime", date, time, ROAD, "3층", "서울특별시", "강남구",
+        return Booking.create(customerId, null, "home", null, "oneTime", date, time, ROAD, "3층", "서울특별시", "강남구",
                 List.of("dishes"), List.of("pet"), List.of("pet"), "잘 부탁드려요", null, QUOTE, Instant.parse("2026-09-15T05:00:00Z"));
     }
 
@@ -38,7 +38,7 @@ public final class TestBookings {
     /** 정기청소 회차(seriesId 있음), 배정됨 */
     public static Booking scheduledSeries(UUID customerId, UUID managerId, UUID seriesId, LocalDate date, LocalTime time) {
         // requested() 와 같은 값에 seriesId 와 주기 'recurring' 만 다르다
-        Booking b = Booking.create(customerId, seriesId, "home", "recurring", date, time, ROAD, "3층", "서울특별시", "강남구",
+        Booking b = Booking.create(customerId, seriesId, "home", null, "recurring", date, time, ROAD, "3층", "서울특별시", "강남구",
                 List.of("dishes"), List.of("pet"), List.of("pet"), "잘 부탁드려요", null, QUOTE, Instant.parse("2026-09-15T05:00:00Z"));
         b.beginAssigning();
         b.assign(managerId, Instant.parse("2026-09-15T05:00:00Z"));

@@ -28,12 +28,13 @@ public final class BookingMapper {
         // 일정 행: 오늘 진행 중(in_progress·paused)인 작업만 "오늘 오후 2시", 나머지는 "2026년 11월 1일 (일) 오전 9시" 형식
         boolean today = BookingStatus.ACTIVE.contains(b.getStatus()) && b.getServiceDate().equals(todaySeoul);
         String schedule = today ? "오늘 " + KoreanFormat.timeKo(b.getServiceTime()) : KoreanFormat.dateTimeLong(b.getServiceDate(), b.getServiceTime());
-        // 인자 순서 = ReservationResponse 필드 순서: id, tab, category, title, status, date, time, series, recordingReady, changeable, rows.
+        // 인자 순서 = ReservationResponse 필드 순서: id, tab, category, title, status, date, time, series, recordingReady, changeable, rows, homeType, endTime.
         // changeable = 시작 전 상태이고 변경·취소 기한 안인가. false 면 고객 앱 예약 카드가 변경·취소 버튼 대신 안내 문구를 보인다
         return new ReservationResponse(b.getId(), tab(b.getStatus()), b.getCategoryKey(), categoryLabel, status(b.getStatus()),
                 b.getServiceDate().toString(), KoreanFormat.hhmm(b.getServiceTime()), b.getSeriesId() != null, recordingReady,
                 BookingStatus.BEFORE_START.contains(b.getStatus()) && b.isBeforeDeadline(now, deadlineHours),
-                rows(schedule, b.getRoadAddress(), manager, b.getManagerId() == null ? null : managerIntros.get(b.getManagerId())));
+                rows(schedule, b.getRoadAddress(), manager, b.getManagerId() == null ? null : managerIntros.get(b.getManagerId())),
+                b.getHomeType(), KoreanFormat.clock(b.getEndsAt())); // endTime = 끝 시각(서울) "13:00" — 일정 변경하면 ends_at 도 같이 옮겨진다
     }
 
     /**
@@ -70,7 +71,7 @@ public final class BookingMapper {
         return new BookingResponse(b.getId(), b.getCategoryKey(), b.getFrequency(), b.getServiceDate().toString(), KoreanFormat.hhmm(b.getServiceTime()),
                 b.getRoadAddress(), b.getDetailAddress(), categoryLabel, cleaner, b.getManagerId() != null, b.getMatchingFailedAt() != null,
                 b.getStatus() == BookingStatus.CANCELLED, b.getSeriesId(), visitRows,
-                KoreanFormat.won(b.getTotalAmount()), total, KoreanFormat.won(total));
+                KoreanFormat.won(b.getTotalAmount()), total, KoreanFormat.won(total), b.getHomeType());
     }
 
     /** 예약 상태 → 카드가 들어갈 탭 키: done / cancelled / 그 밖은 upcoming(예정) */

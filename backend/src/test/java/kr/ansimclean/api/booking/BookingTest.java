@@ -27,7 +27,7 @@ class BookingTest {
 
     /** 9/22(화) 14:00 부산 1회 예약, 막 만든 상태(requested) */
     static Booking booking() {
-        return Booking.create(CUSTOMER, null, "home", "oneTime", DATE, LocalTime.of(14, 0), "부산광역시 중앙대로 2127-23", "802동 203호",
+        return Booking.create(CUSTOMER, null, "home", null, "oneTime", DATE, LocalTime.of(14, 0), "부산광역시 중앙대로 2127-23", "802동 203호",
                 "부산광역시", null, List.of("dishes"), List.of("fridge"), List.of("pet"), "잘 부탁드려요", null, QUOTE, CREATED);
     }
 

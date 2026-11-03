@@ -64,7 +64,7 @@ class QuoteTest {
     // 1회 견적: 방문 1개(날짜 문구 포함), 총액 = 1회 금액, 결제 안내는 설정 문구 그대로
     @Test
     void 일회_견적은_방문_1개와_1회_금액() {
-        QuoteResponse q = service.quote(new QuoteRequest("home", "oneTime", "2026-11-02", "10:00", List.of(), List.of()));
+        QuoteResponse q = service.quote(new QuoteRequest("home", "oneTime", "2026-11-02", "10:00", List.of(), List.of(), null));
         assertThat(q.perVisit().label()).isEqualTo("100,000원");
         assertThat(q.visits()).hasSize(1);
         assertThat(q.visits().get(0).label()).isEqualTo("2026년 11월 2일 (월)");
@@ -76,7 +76,7 @@ class QuoteTest {
     @Test
     void 정기_견적은_매월_같은_날짜_6회차와_총액() {
         // 2026-11-02 부터 매월 1회 6회. 2027-01-02 토요일도 날짜를 유지한다.
-        QuoteResponse q = service.quote(new QuoteRequest("home", "recurring", "2026-11-02", "10:00", List.of("dishes"), List.of("fridge")));
+        QuoteResponse q = service.quote(new QuoteRequest("home", "recurring", "2026-11-02", "10:00", List.of("dishes"), List.of("fridge"), null));
         assertThat(q.visits()).extracting(QuoteResponse.Visit::date).containsExactly("2026-11-02", "2026-12-02", "2027-01-02", "2027-02-02", "2027-03-02", "2027-04-02");
         assertThat(q.visitsPlanned()).isEqualTo(6);
         assertThat(q.perVisit().total()).isEqualTo(85000);
@@ -97,19 +97,19 @@ class QuoteTest {
     // 주말도 견적 가능. 최소 예약 간격·운영 시간대·날짜 형식 제한은 유지한다.
     @Test
     void 주말은_허용하고_과거와_슬롯_밖은_SLOT_UNAVAILABLE() {
-        assertThat(service.quote(new QuoteRequest("home", "oneTime", "2026-11-01", "10:00", List.of(), List.of())).visits().get(0).date()).isEqualTo("2026-11-01");
-        assertThatThrownBy(() -> service.quote(new QuoteRequest("home", "oneTime", "2026-09-15", "10:00", List.of(), List.of()))) // 오늘
+        assertThat(service.quote(new QuoteRequest("home", "oneTime", "2026-11-01", "10:00", List.of(), List.of(), null)).visits().get(0).date()).isEqualTo("2026-11-01");
+        assertThatThrownBy(() -> service.quote(new QuoteRequest("home", "oneTime", "2026-09-15", "10:00", List.of(), List.of(), null))) // 오늘
                 .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
-        assertThatThrownBy(() -> service.quote(new QuoteRequest("home", "oneTime", "2026-09-16", "10:30", List.of(), List.of()))) // 슬롯 밖
+        assertThatThrownBy(() -> service.quote(new QuoteRequest("home", "oneTime", "2026-09-16", "10:30", List.of(), List.of(), null))) // 슬롯 밖
                 .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
-        assertThatThrownBy(() -> service.quote(new QuoteRequest("home", "oneTime", "2026-13-01", "10:00", List.of(), List.of())))
+        assertThatThrownBy(() -> service.quote(new QuoteRequest("home", "oneTime", "2026-13-01", "10:00", List.of(), List.of(), null)))
                 .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.VALIDATION);
     }
 
     // 오늘(9/15) 다음 날 9/16(수) 10:00 은 예약 가능한 가장 이른 날이다
     @Test
     void 내일은_된다() {
-        QuoteResponse q = service.quote(new QuoteRequest("home", "oneTime", "2026-09-16", "10:00", List.of(), List.of()));
+        QuoteResponse q = service.quote(new QuoteRequest("home", "oneTime", "2026-09-16", "10:00", List.of(), List.of(), null));
         assertThat(q.visits().get(0).date()).isEqualTo("2026-09-16");
     }
 }

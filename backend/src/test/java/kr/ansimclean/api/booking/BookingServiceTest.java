@@ -3,6 +3,7 @@ package kr.ansimclean.api.booking;
 import kr.ansimclean.api.booking.dto.BookingResponse;
 import kr.ansimclean.api.booking.dto.CancelRequest;
 import kr.ansimclean.api.booking.dto.CreateBookingRequest;
+import kr.ansimclean.api.booking.dto.QuoteRequest;
 import kr.ansimclean.api.booking.dto.ReservationResponse;
 import kr.ansimclean.api.booking.dto.ScheduleChangeRequest;
 import kr.ansimclean.api.catalog.AppSettingsService;
@@ -56,10 +57,77 @@ class BookingServiceTest {
     @Test
     void 주말에_시작하는_정기청소도_선택한_날짜로_생성한다() {
         CreateBookingRequest weekend = new CreateBookingRequest("home", "recurring", "2026-09-19", "10:00", "서울특별시 강남구 테헤란로 123", "3층",
-                List.of(), List.of(), List.of(), null, null, null, false);
+                List.of(), List.of(), List.of(), null, null, null, false, null, null);
         BookingResponse result = service.create(CUSTOMER, "weekend-series", weekend);
         assertThat(result.visits()).extracting(BookingResponse.Visit::date)
                 .containsExactly("2026-09-19", "2026-10-19", "2026-11-19", "2026-12-19", "2027-01-19", "2027-02-19");
+    }
+
+    /** 가정/원룸 청소 요청 — homeType·durationHours 만 바꾼다 (2026-11-03) */
+    static CreateBookingRequest homeRequest(String frequency, String homeType, Integer durationHours) {
+        return new CreateBookingRequest("home", frequency, "2026-11-02", "10:00", "서울특별시 강남구 테헤란로 123", "3층",
+                List.of(), List.of(), List.of(), null, null, null, false, homeType, durationHours);
+    }
+
+    // 정기청소 6회차 모두 첫 회차와 같은 homeType·청소 시간을 갖고, 응답 serviceLabel 은 "원룸 청소". 금액은 카탈로그 그대로
+    @Test
+    void 정기청소는_모든_회차에_homeType_과_고른_청소_시간을_고정한다() {
+        BookingResponse res = service.create(CUSTOMER, "k-studio", homeRequest("recurring", "studio", 5));
+        assertThat(res.homeType()).isEqualTo("studio");
+        assertThat(res.serviceLabel()).isEqualTo("원룸 청소");
+        ArgumentCaptor<Booking> saved = ArgumentCaptor.forClass(Booking.class);
+        verify(bookings, times(6)).save(saved.capture());
+        assertThat(saved.getAllValues()).extracting(Booking::getHomeType).containsOnly("studio");
+        assertThat(saved.getAllValues()).extracting(Booking::getDurationMinutes).containsOnly(300);
+        assertThat(saved.getAllValues()).extracting(Booking::getTotalAmount).containsOnly(QUOTE.total()); // 시간을 골라도 금액은 그대로
+        Booking first = saved.getAllValues().get(0);
+        assertThat(first.getEndsAt()).isEqualTo(first.getStartsAt().plusSeconds(5 * 3600));
+    }
+
+    @Test
+    void homeType_은_home_에서만_받고_모르는_값은_400() {
+        assertThatThrownBy(() -> service.create(CUSTOMER, "k-bad", homeRequest("oneTime", "villa", null)))
+                .isInstanceOf(ApiException.class).hasMessage("알 수 없는 청소 종류예요").extracting("code").isEqualTo(ErrorCode.VALIDATION);
+        verify(bookings, never()).save(any());
+        assertThat(BookingService.homeType("office", "studio")).isNull(); // 다른 카테고리는 무시
+        assertThat(BookingService.homeType("home", null)).isNull(); // 옛 앱
+        assertThat(BookingService.homeType("home", " house ")).isEqualTo("house");
+        // 옛 예약(homeType 없음)은 카탈로그 이름 그대로, 종류가 있으면 "가정 청소"
+        BookingResponse old = service.create(CUSTOMER, "k-old", homeRequest("oneTime", null, null));
+        assertThat(old.homeType()).isNull();
+        assertThat(old.serviceLabel()).isEqualTo("가정/원룸 청소");
+        assertThat(service.create(CUSTOMER, "k-house", homeRequest("oneTime", "house", null)).serviceLabel()).isEqualTo("가정 청소");
+    }
+
+    @Test
+    void 청소_시간은_2에서_8시간이고_없으면_카탈로그_소요_수리는_무시() {
+        for (int bad : new int[] { 1, 9 }) {
+            assertThatThrownBy(() -> service.create(CUSTOMER, "k-" + bad, homeRequest("oneTime", "house", bad)))
+                    .isInstanceOf(ApiException.class).hasMessage("청소 시간은 2~8시간 중에서 골라 주세요").extracting("code").isEqualTo(ErrorCode.VALIDATION);
+        }
+        assertThatThrownBy(() -> service.quote(new QuoteRequest("home", "oneTime", "2026-11-02", "10:00", null, null, 9)))
+                .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.VALIDATION); // 견적도 같은 검사
+        assertThat(BookingService.durationMinutes("home", 2)).isEqualTo(120);
+        assertThat(BookingService.durationMinutes("home", 8)).isEqualTo(480);
+        assertThat(BookingService.durationMinutes("home", null)).isNull();
+        assertThat(BookingService.durationMinutes("repair", 20)).isNull(); // 수리는 무시
+        service.create(CUSTOMER, "k-default", homeRequest("oneTime", "house", null));
+        ArgumentCaptor<Booking> saved = ArgumentCaptor.forClass(Booking.class);
+        verify(bookings).save(saved.capture());
+        assertThat(saved.getValue().getDurationMinutes()).isEqualTo(QUOTE.durationMinutes()); // 없으면 카탈로그 소요(180분)
+    }
+
+    // 카드 제목: 종류가 있으면 "원룸 청소 · 정기 n/6회", endTime 은 끝 시각(10:00 + 180분)
+    @Test
+    void 예약_카드는_homeType_제목과_끝_시각을_준다() {
+        Booking b = Booking.create(CUSTOMER, null, "home", "studio", "oneTime", LocalDate.of(2026, 11, 2), LocalTime.of(10, 0), "서울특별시 강남구 테헤란로 123", null,
+                "서울특별시", "강남구", List.of(), List.of(), List.of(), null, null, QUOTE, CLOCK.now());
+        when(bookings.findByIdAndCustomerId(b.getId(), CUSTOMER)).thenReturn(Optional.of(b));
+        ReservationResponse card = service.reservation(CUSTOMER, b.getId());
+        assertThat(card.title()).isEqualTo("원룸 청소");
+        assertThat(card.homeType()).isEqualTo("studio");
+        assertThat(card.endTime()).isEqualTo("13:00");
+        assertThat(service.get(CUSTOMER, b.getId()).homeType()).isEqualTo("studio");
     }
 
     @Test
@@ -93,10 +161,10 @@ class BookingServiceTest {
     @Test
     void 청소_생성과_견적은_3시간_미만이면_거부하고_저장하지_않는다() {
         CreateBookingRequest early = new CreateBookingRequest("home", "oneTime", "2026-09-15", "16:00", "서울특별시 강남구 테헤란로 123", "3층",
-                List.of(), List.of(), List.of(), null, null, null, false);
+                List.of(), List.of(), List.of(), null, null, null, false, null, null);
         assertThatThrownBy(() -> service.create(CUSTOMER, "early", early))
                 .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
-        assertThatThrownBy(() -> service.quote(new kr.ansimclean.api.booking.dto.QuoteRequest("home", "oneTime", "2026-09-15", "16:00", List.of(), List.of())))
+        assertThatThrownBy(() -> service.quote(new kr.ansimclean.api.booking.dto.QuoteRequest("home", "oneTime", "2026-09-15", "16:00", List.of(), List.of(), null)))
                 .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
         verify(bookings, never()).save(any());
     }
@@ -163,7 +231,7 @@ class BookingServiceTest {
     /** 생성 요청: 11/2(월) 10:00 가정 청소, 무료 옵션 dishes, 주의사항 pet, 요청사항은 앞뒤 공백 포함(저장 때 잘리는지 본다), 주소 저장 */
     static CreateBookingRequest request(String frequency) {
         return new CreateBookingRequest("home", frequency, "2026-11-02", "10:00", "서울특별시 강남구 테헤란로 123", "3층",
-                List.of("dishes"), List.of(), List.of("pet"), " 잘 부탁드려요 ", null, null, true);
+                List.of("dishes"), List.of(), List.of("pet"), " 잘 부탁드려요 ", null, null, true, null, null);
     }
 
     // 매칭 중 예약에 실패 표시를 하고 상세(get)를 부른다. 약속(11/2)이 멀어 자동 재매칭이 아직 볼 수 있으므로
@@ -215,7 +283,7 @@ class BookingServiceTest {
     @Test
     void 같은_옵션_key_가_두_번_오면_검증_가격_저장_전부_한_번으로_본다() {
         CreateBookingRequest req = new CreateBookingRequest("home", "oneTime", "2026-11-02", "10:00", "서울특별시 강남구 테헤란로 123", null,
-                List.of("dishes", "dishes"), List.of("fridge", "fridge"), List.of(), null, null, null, false);
+                List.of("dishes", "dishes"), List.of("fridge", "fridge"), List.of(), null, null, null, false, null, null);
         service.create(CUSTOMER, "key", req);
 
         verify(catalog).requireOptions("home", List.of("dishes"), List.of("fridge")); // 한도 검사도 중복 제거 뒤
@@ -235,7 +303,7 @@ class BookingServiceTest {
         List<String> mine = List.of(CUSTOMER + "/a.jpg", CUSTOMER + "/a.jpg", CUSTOMER + "/b.jpg"); // 중복은 한 번
         CreateBookingRequest req = new CreateBookingRequest("repair", "oneTime", "2026-11-02", "10:00", "서울특별시 강남구 테헤란로 123", "604동 1002호",
                 List.of(), List.of(), List.of("parking", "elevator"), "방문 10분 전에 연락 부탁드려요.", "appliance",
-                new CreateBookingRequest.Repair("냉장고", "냉장이 잘 안 돼요", "fridge", "cooling", "냉장실 온도가 올라가요", mine), false);
+                new CreateBookingRequest.Repair("냉장고", "냉장이 잘 안 돼요", "fridge", "cooling", "냉장실 온도가 올라가요", mine), false, null, null);
         service.create(CUSTOMER, "key", req);
 
         ArgumentCaptor<Booking> saved = ArgumentCaptor.forClass(Booking.class);
@@ -253,12 +321,12 @@ class BookingServiceTest {
         assertThat(b.requestLines()).containsExactly("가전: 냉장고", "증상: 냉장이 잘 안 돼요", "냉장실 온도가 올라가요", "사진 2장 첨부", "방문 10분 전에 연락 부탁드려요."); // 기사가 보는 요청사항
 
         CreateBookingRequest theirs = new CreateBookingRequest("repair", "oneTime", "2026-11-03", "10:00", "서울특별시 강남구 테헤란로 123", null,
-                List.of(), List.of(), List.of(), null, "appliance", new CreateBookingRequest.Repair("냉장고", null, null, null, null, List.of(UUID.randomUUID() + "/x.jpg")), false);
+                List.of(), List.of(), List.of(), null, "appliance", new CreateBookingRequest.Repair("냉장고", null, null, null, null, List.of(UUID.randomUUID() + "/x.jpg")), false, null, null);
         assertThatThrownBy(() -> service.create(CUSTOMER, "key2", theirs)).isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.VALIDATION);
 
         // 수리는 1회만 — frequency 를 비우면 recurring 으로 채워지므로 시리즈가 생기지 않게 거부한다 (검수 3차)
         CreateBookingRequest recurring = new CreateBookingRequest("repair", null, "2026-11-03", "10:00", "서울특별시 강남구 테헤란로 123", null,
-                List.of(), List.of(), List.of(), null, "appliance", new CreateBookingRequest.Repair("냉장고", null, null, null, null, List.of()), false);
+                List.of(), List.of(), List.of(), null, "appliance", new CreateBookingRequest.Repair("냉장고", null, null, null, null, List.of()), false, null, null);
         assertThatThrownBy(() -> service.create(CUSTOMER, "key3", recurring)).isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.VALIDATION);
         verify(seriesRepo, never()).save(any());
     }
@@ -343,7 +411,7 @@ class BookingServiceTest {
     @Test
     void 무료_옵션_초과와_모르는_key_는_카탈로그가_VALIDATION_으로_막는다() {
         when(catalog.requireOptions(eq("home"), eq(List.of("a", "b", "c")), anyList())).thenThrow(ApiException.validation("무료 옵션은 2개까지 고를 수 있어요"));
-        CreateBookingRequest req = new CreateBookingRequest("home", "oneTime", "2026-11-02", "10:00", "서울특별시 강남구 테헤란로 123", null, List.of("a", "b", "c"), List.of(), List.of(), null, null, null, false);
+        CreateBookingRequest req = new CreateBookingRequest("home", "oneTime", "2026-11-02", "10:00", "서울특별시 강남구 테헤란로 123", null, List.of("a", "b", "c"), List.of(), List.of(), null, null, null, false, null, null);
         assertThatThrownBy(() -> service.create(CUSTOMER, null, req)).isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.VALIDATION);
         verify(bookings, never()).save(any());
     }
@@ -353,14 +421,14 @@ class BookingServiceTest {
         // doThrow(…).when(가짜).메서드(…) = 돌려줄 값이 없는(void) 메서드가 예외를 던지게 정한다
         org.mockito.Mockito.doThrow(ApiException.validation(RepairPhotoService.PHOTO_EXPIRED)).when(photoUploads).attach(eq(CUSTOMER), anyList());
         CreateBookingRequest req = new CreateBookingRequest("repair", "oneTime", "2026-11-02", "10:00", "서울특별시 강남구 테헤란로 123", null,
-                List.of(), List.of(), List.of(), null, "appliance", new CreateBookingRequest.Repair("냉장고", null, null, null, null, List.of(CUSTOMER + "/old.jpg")), false);
+                List.of(), List.of(), List.of(), null, "appliance", new CreateBookingRequest.Repair("냉장고", null, null, null, null, List.of(CUSTOMER + "/old.jpg")), false, null, null);
         assertThatThrownBy(() -> service.create(CUSTOMER, null, req)).isInstanceOf(ApiException.class).hasMessage(RepairPhotoService.PHOTO_EXPIRED);
         verify(dispatcher, never()).dispatch(any(), any()); // 트랜잭션 안에서 던져 예약은 롤백된다
     }
 
     @Test
     void 시도를_읽을_수_없는_주소는_받지_않는다() { // 직접 사용 점검 U1 — "강남대로 396" 은 매칭 후보가 0명이라 영영 배정되지 않았다
-        CreateBookingRequest req = new CreateBookingRequest("home", "oneTime", "2026-11-02", "10:00", "강남대로 396", "101동", List.of(), List.of(), List.of(), null, null, null, false);
+        CreateBookingRequest req = new CreateBookingRequest("home", "oneTime", "2026-11-02", "10:00", "강남대로 396", "101동", List.of(), List.of(), List.of(), null, null, null, false, null, null);
         assertThatThrownBy(() -> service.create(CUSTOMER, null, req)).isInstanceOf(ApiException.class)
                 .hasMessage(kr.ansimclean.api.profile.AddressRegion.MISSING_SIDO).extracting("code").isEqualTo(ErrorCode.VALIDATION);
         verify(bookings, never()).save(any());
@@ -387,7 +455,7 @@ class BookingServiceTest {
      * 매니저 이름 조회는 무엇을 물어도 'MANAGER → 김미영' 한 줄짜리 표를 돌려준다 (다른 매니저 id 는 이름이 없다)
      */
     Booking existing(BookingStatus status, UUID seriesId, LocalDate date) {
-        Booking b = Booking.create(CUSTOMER, seriesId, "home", "oneTime", date, LocalTime.of(10, 0), "서울특별시 강남구 테헤란로 123", null,
+        Booking b = Booking.create(CUSTOMER, seriesId, "home", null, "oneTime", date, LocalTime.of(10, 0), "서울특별시 강남구 테헤란로 123", null,
                 "서울특별시", "강남구", List.of(), List.of(), List.of(), null, null, QUOTE, CLOCK.now());
         if (status != BookingStatus.REQUESTED) b.beginAssigning();
         if (status == BookingStatus.SCHEDULED) b.assign(MANAGER, CLOCK.now());
@@ -659,7 +727,7 @@ class BookingServiceTest {
     void 예약은_오늘부터_booking_horizon_days_안의_날짜만() { // 전체 재점검 B1 — 10년 뒤 예약도 만들어지고 오퍼가 나갔다
         // 오늘(9/15)부터 1년 뒤 — 예약 가능 기간(60일) 밖이라 SLOT_UNAVAILABLE 이고 저장하지 않는다
         CreateBookingRequest far = new CreateBookingRequest("home", "oneTime", "2027-09-15", "10:00", "서울특별시 강남구 테헤란로 123", "3층",
-                List.of(), List.of(), List.of(), null, null, null, false);
+                List.of(), List.of(), List.of(), null, null, null, false, null, null);
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.create(CUSTOMER, "k-far", far))
                 .isInstanceOf(kr.ansimclean.api.common.error.ApiException.class).extracting("code").isEqualTo(kr.ansimclean.api.common.error.ErrorCode.SLOT_UNAVAILABLE);
         verify(bookings, never()).save(any());

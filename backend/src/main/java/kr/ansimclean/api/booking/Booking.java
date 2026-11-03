@@ -49,6 +49,10 @@ public class Booking {
     @Column(name = "category_key", columnDefinition = "text", nullable = false)
     private String categoryKey;
 
+    /** 가정/원룸 청소(category_key = home)의 종류 — "house"(가정) 또는 "studio"(원룸) (V059, 2026-11-03). 다른 카테고리·옛 앱 예약이면 null. 카드 제목이 쓴다(BookingService.title) */
+    @Column(name = "home_type", columnDefinition = "text")
+    private String homeType;
+
     // "oneTime"(1회) 또는 "recurring"(정기청소) — DB check 제약이 두 값만 허용한다
     @Column(columnDefinition = "text", nullable = false)
     private String frequency;
@@ -231,7 +235,7 @@ public class Booking {
     protected Booking() {}
 
     /** 생성 직후 상태는 requested. 매칭을 시작하면 beginAssigning() */
-    public static Booking create(UUID customerId, UUID seriesId, String categoryKey, String frequency, LocalDate date, LocalTime time,
+    public static Booking create(UUID customerId, UUID seriesId, String categoryKey, String homeType, String frequency, LocalDate date, LocalTime time,
                                  String roadAddress, String detailAddress, String sido, String sigungu,
                                  List<String> freeOptions, List<String> paidOptions, List<String> notices, String request, String repairType,
                                  PriceQuote quote, Instant now) {
@@ -241,6 +245,7 @@ public class Booking {
         b.customerId = customerId;
         b.seriesId = seriesId;
         b.categoryKey = categoryKey;
+        b.homeType = homeType; // 정기청소는 회차마다 같은 값을 넘긴다 (doCreate 가 한 요청으로 모든 회차를 만든다)
         b.frequency = frequency;
         b.serviceDate = date;
         b.serviceTime = time;
@@ -275,6 +280,7 @@ public class Booking {
     public UUID getCustomerId() { return customerId; }
     public UUID getManagerId() { return managerId; }
     public String getCategoryKey() { return categoryKey; }
+    public String getHomeType() { return homeType; }
     public String getFrequency() { return frequency; }
     public LocalDate getServiceDate() { return serviceDate; }
     public LocalTime getServiceTime() { return serviceTime; }

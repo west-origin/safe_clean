@@ -62,7 +62,7 @@ class BookingSeriesServiceTest {
         // 매월 1회 × 6개월 (사용자 결정 2026-09-22)
         series = BookingSeries.create(CUSTOMER, "home", LocalDate.of(2026, 11, 2), LocalTime.of(10, 0), 6, "주소", null, List.of(), List.of(), List.of(), null, NOW);
         for (LocalDate d : series.visitDates()) {
-            visits.add(Booking.create(CUSTOMER, series.getId(), "home", "recurring", d, LocalTime.of(10, 0), "주소", null, null, null,
+            visits.add(Booking.create(CUSTOMER, series.getId(), "home", null, "recurring", d, LocalTime.of(10, 0), "주소", null, null, null,
                     List.of(), List.of(), List.of(), null, null, new PriceQuote(80000, 0, 80000, 8000, 180), NOW));
         }
         when(seriesRepo.findById(series.getId())).thenReturn(Optional.of(series));

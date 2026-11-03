@@ -23,7 +23,7 @@ class BookingMapperTest {
 
     /** 테스트용 예약 한 건 (seriesId 가 있으면 정기 회차). 금액 80,000 · 수수료 8,000 · 3시간 */
     static Booking booking(LocalDate date, LocalTime time, UUID seriesId) {
-        return Booking.create(UUID.randomUUID(), seriesId, "home", seriesId == null ? "oneTime" : "recurring", date, time, "부산광역시 중앙대로 2127-23", null,
+        return Booking.create(UUID.randomUUID(), seriesId, "home", null, seriesId == null ? "oneTime" : "recurring", date, time, "부산광역시 중앙대로 2127-23", null,
                 "부산광역시", null, List.of(), List.of(), List.of(), null, null, new PriceQuote(80000, 0, 80000, 8000, 180), Instant.EPOCH);
     }
 
