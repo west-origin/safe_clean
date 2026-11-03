@@ -52,6 +52,9 @@ import ChoiceCardGroup from '../components/ChoiceCardGroup/index.js';
 import BrandWordmark from '../components/BrandWordmark/index.js';
 import AuthPillField from '../components/AuthPillField/index.js';
 import SocialCircleButton from '../components/SocialCircleButton/index.js';
+import ScheduleAccordion from '../components/ScheduleAccordion/index.js';
+import SwipeCalendar from '../components/SwipeCalendar/index.js';
+import TimeRangeGrid from '../components/TimeRangeGrid/index.js';
 import SectionDivider from '../components/SectionDivider/index.js';
 import Chip from '../components/Chip/index.js';
 import NoticeChip from '../components/NoticeChip/index.js';
@@ -605,6 +608,20 @@ function CustomerGallery() {
               <SocialCircleButton provider="google" label="구글로 로그인" />
               <SocialCircleButton provider="naver" label="네이버로 로그인" />
             </div>
+          </div>
+        </Row>
+        <Row label="날짜/시간 (2026-11-03 시안): ScheduleAccordion(닫힘/열림) · SwipeCalendar · TimeRangeGrid(10:00~13:00) · PriceCtaBar caption">
+          <div className={styles.stack}>
+            <ScheduleAccordion icon="calendar" label="23일(월)" open={false} onToggle={() => {}}>
+              <SwipeCalendar months={[{ year: 2026, month: 11 }, { year: 2026, month: 12 }]} value="2026-11-23" onChange={() => {}} />
+            </ScheduleAccordion>
+            <ScheduleAccordion icon="calendar" label="방문 일" open onToggle={() => {}}>
+              <SwipeCalendar months={[{ year: 2026, month: 11 }, { year: 2026, month: 12 }]} value="2026-11-23" onChange={() => {}} todayKey="2026-11-03" isDisabled={(d) => d < new Date(2026, 10, 3)} />
+            </ScheduleAccordion>
+            <ScheduleAccordion icon="clock" label="방문 시간" open onToggle={() => {}}>
+              <TimeRangeGrid times={['09:00', '10:00', '11:00', '12:00', '13:00', '14:00']} start="10:00" end="13:00" onChange={() => {}} />
+            </ScheduleAccordion>
+            <PriceCtaBar priceLabel="62,400원" caption="총 결제금액"><Button variant="primary" chevron={false}>다음</Button></PriceCtaBar>
           </div>
         </Row>
         <Row label="ChoiceCardGroup (반려동물: 없음 고름 / 무료주차: 아무것도 안 고름 / 공동현관: 있음 고름)">

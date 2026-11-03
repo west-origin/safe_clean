@@ -37,6 +37,7 @@ export { default as AnswerDoorIcon } from './AnswerDoorIcon.jsx';
 export { default as AuthPhoneIcon } from './AuthPhoneIcon.jsx';
 export { default as AuthLockIcon } from './AuthLockIcon.jsx';
 export { default as BrandMarkIcon } from './BrandMarkIcon.jsx';
+export { default as AccordionChevronIcon } from './AccordionChevronIcon.jsx';
 export { default as ChevronRightSmallIcon } from './ChevronRightSmallIcon.jsx';
 export { default as BadgeNewIcon } from './BadgeNewIcon.jsx';
 export { default as BadgeScheduledIcon } from './BadgeScheduledIcon.jsx';

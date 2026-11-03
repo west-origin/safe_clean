@@ -1,0 +1,81 @@
+/* SwipeCalendar.jsx 스타일. 달 한 장 = 상자 폭 100%, 가로로 한 장씩 멈춘다. 날짜 칸 원 40 (탭 영역은 칸 높이 44) */
+.track {
+  display: flex;
+  align-items: flex-start; /* 짧은 달(5주) 아래에 긴 달(6주) 높이만큼 빈칸이 생기지 않게 */
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.track::-webkit-scrollbar {
+  display: none;
+}
+
+.month {
+  display: flex;
+  flex: 0 0 100%;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  scroll-snap-align: start;
+}
+
+.monthTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: var(--spacing-2xs);
+}
+
+.weekday {
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.day {
+  justify-self: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sunday {
+  color: var(--raw-sunday);
+}
+
+.day:active:not(:disabled) {
+  background: var(--color-surface-pressed);
+}
+
+.day:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+/* 지난 날·고를 수 없는 날: 세로 달력과 같은 연한 색 */
+.day:disabled {
+  color: var(--raw-date-past);
+  cursor: default;
+}
+
+.day.sunday:disabled {
+  color: var(--raw-sunday-muted);
+}
+
+/* 고른 날: 브랜드 색 원 + 흰 글자 */
+.day.selected {
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+}

@@ -1,0 +1,50 @@
+/* ScheduleAccordion.jsx 스타일. 2026-11-03 사용자 첨부 시안: 흰 카드(회색 1px 테두리 + 옅은 그림자), 머리줄 높이 64, 안쪽 여백 20 */
+.box {
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--color-border-disabled), var(--raw-home-card-shadow);
+  background: var(--color-surface-default);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  width: 100%;
+  min-height: 64px; /* 시안 원본값 (터치 높이 44 이상) */
+  margin: 0;
+  padding: 0 var(--spacing-3xl);
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.header:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+  border-radius: var(--radius-md);
+}
+
+.icon {
+  display: flex;
+  color: var(--color-text-primary);
+}
+
+.label {
+  flex: 1 1 auto;
+}
+
+.chevron {
+  flex-shrink: 0;
+  transition: transform var(--duration-fast);
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.panel {
+  padding: 0 var(--spacing-3xl) var(--spacing-3xl);
+}

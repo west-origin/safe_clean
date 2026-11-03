@@ -12,6 +12,10 @@
   align-items: flex-start;
 }
 
+.caption {
+  color: var(--color-text-secondary);
+}
+
 .amount {
   color: var(--color-text-primary);
 }

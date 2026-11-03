@@ -9,11 +9,14 @@ export function bookingAvailability(slots, date, time, category, horizonFrom, no
   const beforeLead = (key, value) => cleaning && isWithinHours(key, value, hours, now);
   const outsideDates = notBookableWithin(slots?.bookableDays, horizonFrom, { allowToday: cleaning, allowWeekends: true, now });
   const isDateDisabled = (day) => outsideDates(day) || (cleaning && times.every((value) => beforeLead(toDateKey(day), value) || slots?.unavailable?.includes(value)));
-  const isTimeDisabled = (value) => !date || beforeLead(date, value) || Boolean(slots?.unavailable?.includes(value));
+  // 다른 날(아직 초안에 넣기 전)에 그 시간이 되는지 — 날짜/시간 화면이 날짜를 바꿀 때 시작 시간을 남길지 정한다
+  const isTimeDisabledOn = (key, value) => !key || beforeLead(key, value) || Boolean(slots?.unavailable?.includes(value));
+  const isTimeDisabled = (value) => isTimeDisabledOn(date, value);
   const day = fromDateKey(date);
   return {
     isDateDisabled,
     isTimeDisabled,
+    isTimeDisabledOn,
     canContinue: Boolean(day && time && times.includes(time) && !isDateDisabled(day) && !isTimeDisabled(time)),
   };
 }

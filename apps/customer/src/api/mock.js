@@ -372,26 +372,22 @@ export const SCHEDULE_COPY = {
   title: '날짜/시간을 선택해 주세요.',
   intro: '교육받은 매니저님이 방문합니다.',
   introLink: '어떤 교육을 받나요?',
-  timeSection: '시간',
   duration: '서비스 시간',
   date: '방문 일',
   time: '방문 시간',
-  change: '변경',
-  choose: '선택',
   detail: '자세히',
-  durationNote: (h) => `표준시간은 ${h}시간 입니다.`,
   confirm: '확인',
   dateTitle: '방문일을 선택해주세요.',
   timeTitle: '방문 시간을 선택해 주세요.',
   am: '오전',
   pm: '오후',
   detailTitle: '예상 금액',
-  detailRows: (h, hourly, discount) => [
-    ['서비스 시간', `${h}시간`],
-    ['시간당 금액', `${hourly.toLocaleString('ko-KR')}원`],
-    ...(discount ? [['정기 할인', `-${discount.toLocaleString('ko-KR')}원`]] : []),
-  ],
   detailNote: '최종 금액은 예약 확인 화면에서 옵션과 함께 계산돼요.',
+  /** 2026-11-03 날짜/시간 화면 펼침 상자(코드에서 정함 — 사용자 요청 '시작·종료 시간 선택', '총 결제금액') */
+  timeHint: '청소 시작 시간과 종료 시간을 차례로 선택해 주세요.',
+  endHint: (start) => `${start} 시작 · 종료 시간을 선택해 주세요.`,
+  range: (start, end, hours) => `${start} ~ ${end} (${hours}시간)`,
+  total: '총 결제금액',
 };
 /** Booking/Options 문구 — 2026-11-01 사용자 첨부 시안 그대로 ('청소 범위' 는 사용자 요청으로 뺐다) */
 export const OPTIONS_COPY = { title: '옵션을\n선택해 주세요.', free: '무료 선택', paid: '유료 추가', paidDetail: '유료 옵션' };
