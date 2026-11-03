@@ -127,6 +127,8 @@ class BookingServiceTest {
         assertThat(card.title()).isEqualTo("원룸 청소");
         assertThat(card.homeType()).isEqualTo("studio");
         assertThat(card.endTime()).isEqualTo("13:00");
+        assertThat(card.startedAt()).isNull(); // 시작 전 — 완료 탭의 실제 방문·종료 시각은 아직 없다
+        assertThat(card.endedAt()).isNull();
         assertThat(service.get(CUSTOMER, b.getId()).homeType()).isEqualTo("studio");
     }
 

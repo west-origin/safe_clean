@@ -41,6 +41,18 @@ describe('Reservations 흐름', () => {
     expect(screen.queryByRole('button', { name: /결제/ })).toBeNull();
   });
 
+  it('완료 탭: 배정 알약 없이 실제 방문 시간·종료 시간', async () => {
+    renderScreen();
+    fireEvent.click(await screen.findByRole('tab', { name: '완료' }));
+    const card = screen.getByRole('article', { name: '가전청소' }); // r3: startedAt 14:05, endedAt 16:20
+    expect(card).not.toHaveTextContent('배정 완료');
+    expect(card).toHaveTextContent('방문 시간');
+    expect(card).toHaveTextContent('8.3 (월) 14:05');
+    expect(card).toHaveTextContent('종료 시간');
+    expect(card).toHaveTextContent('8.3 (월) 16:20');
+    expect(card).not.toHaveTextContent('방문 시작');
+  });
+
   it('기한이 지난 예약은 버튼 대신 1:1 문의 안내', async () => {
     const { __fake } = await import('../../api/http.js');
     __fake.reservations.push({ id: 'locked', tab: 'upcoming', category: 'store', title: '매장 청소', status: 'scheduled', date: '2030-01-02', time: '10:00', changeable: false, rows: [{ label: '일정', value: '2030년 1월 2일' }, { label: '주소', value: '-' }, { label: '매니저', value: '김미영 매니저' }] });

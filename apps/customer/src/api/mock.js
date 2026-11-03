@@ -152,7 +152,7 @@ export const RESERVATIONS = [
   { id: 'r2', tab: 'upcoming', category: 'appliance', title: '가전청소', status: 'assigning', date: '2026-11-14', time: '14:00', endTime: '16:00', rows: [{ label: '일정', value: '2026년 11월 14일 (토) 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '배정 후 알려드려요' }] },
   // 아래 3건은 Figma 에 없음 — 진행 중(Service/Start 진입점)·완료·취소 탭을 채우려고 코드에서 정함
   { id: 'r0', tab: 'upcoming', category: 'home', homeType: 'studio', title: '원룸 청소', status: 'inProgress', date: '2026-09-19', time: '14:00', endTime: '16:00', rows: [{ label: '일정', value: '오늘 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
-  { id: 'r3', tab: 'done', category: 'appliance', title: '가전청소', status: 'done', date: '2026-08-03', time: '14:00', endTime: '16:00', rows: [{ label: '일정', value: '2026년 8월 3일 (월) 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
+  { id: 'r3', tab: 'done', category: 'appliance', title: '가전청소', status: 'done', date: '2026-08-03', time: '14:00', endTime: '16:00', startedAt: '2026-08-03 14:05', endedAt: '2026-08-03 16:20', rows: [{ label: '일정', value: '2026년 8월 3일 (월) 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
   { id: 'r4', tab: 'cancelled', category: 'office', title: '사무실 청소', status: 'cancelled', date: '2026-07-20', time: '10:00', endTime: '13:00', rows: [{ label: '일정', value: '2026년 7월 20일 (월) 오전 10시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '배정 전 취소' }] },
 ];
 
@@ -162,6 +162,8 @@ export const RESERVATIONS_COPY = {
   title: '내 예약을 확인해 주세요.',
   start: '방문 시작',
   end: '종료 예정',
+  visited: '방문 시간', // 완료 탭: 실제 작업 시작(startedAt)
+  finished: '종료 시간', // 완료 탭: 실제 작업 완료(endedAt)
   homeTypes: { house: '가정', studio: '원룸' },
   categories: { store: '매장', home: '가정/원룸' },
   progress: { booked: '예약 완료', onTheWay: '이동 중', cleaning: '청소 중', done: '청소 완료', cancelled: '예약 취소' },

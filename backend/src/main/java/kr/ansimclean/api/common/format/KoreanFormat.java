@@ -26,6 +26,7 @@ public final class KoreanFormat {
     private static final String[] WEEKDAY = { "일", "월", "화", "수", "목", "금", "토" }; // 칸 번호 = weekdayIndex (일요일 0)
     private static final String[] WEEKDAY_LONG = { "일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일" };
     private static final DateTimeFormatter HHMM = DateTimeFormatter.ofPattern("HH:mm"); // 24시간제 두 자리 (09:05)
+    private static final DateTimeFormatter DATE_TIME_KEY = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"); // 앱이 날짜·시각으로 나눠 읽는다
     private static final Pattern LOCAL_PHONE = Pattern.compile("^\\d{8}$"); // 010 을 뺀 숫자 8자리
     private static final Pattern E164_KR_MOBILE = Pattern.compile("^\\+8210\\d{8}$"); // 국제 형식 +82 10 + 8자리
 
@@ -175,6 +176,11 @@ public final class KoreanFormat {
     /** → "14:32" */
     public static String clock(Instant at) {
         return AppClock.toSeoul(at).format(HHMM);
+    }
+
+    /** → "2026-11-04 14:32" (서울). null 이면 null — 아직 일어나지 않은 시각 칸 */
+    public static String dateTimeKey(Instant at) {
+        return at == null ? null : AppClock.toSeoul(at).format(DATE_TIME_KEY);
     }
 
     /** → "14:02 - 17:25" */

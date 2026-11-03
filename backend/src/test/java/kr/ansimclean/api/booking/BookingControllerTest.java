@@ -143,7 +143,7 @@ class BookingControllerTest {
         UUID id = customer("c");
         UUID bookingId = UUID.randomUUID();
         when(series.cancelWhole(eq(id), eq(bookingId), any())).thenReturn(new ReservationResponse(bookingId, "cancelled", "home", "가정/원룸 청소", "cancelled",
-                "2026-11-02", "10:00", true, false, false, List.of(), null, null));
+                "2026-11-02", "10:00", true, false, false, List.of(), null, null, null, null));
         mvc.perform(post("/api/v1/customer/reservations/" + bookingId + "/cancel").header("Authorization", "Bearer c")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"wholeSeries\":true}"))
                 .andExpect(status().isOk())
@@ -204,8 +204,8 @@ class BookingControllerTest {
 
         // 목록 카드: homeType 과 끝 시각 endTime("HH:mm"). 옛 예약(homeType 없음)은 null 로 칸이 있다
         when(bookings.reservations(id)).thenReturn(new kr.ansimclean.api.booking.dto.ReservationsResponse(null, null, List.of(
-                new ReservationResponse(bookingId, "upcoming", "home", "원룸 청소", "assigning", "2026-11-02", "10:00", false, false, true, List.of(), "studio", "13:00"),
-                new ReservationResponse(UUID.randomUUID(), "upcoming", "home", "가정/원룸 청소", "assigning", "2026-11-03", "09:00", false, false, true, List.of(), null, "12:00")), 24));
+                new ReservationResponse(bookingId, "upcoming", "home", "원룸 청소", "assigning", "2026-11-02", "10:00", false, false, true, List.of(), "studio", "13:00", null, null),
+                new ReservationResponse(UUID.randomUUID(), "upcoming", "home", "가정/원룸 청소", "assigning", "2026-11-03", "09:00", false, false, true, List.of(), null, "12:00", null, null)), 24));
         mvc.perform(get("/api/v1/customer/reservations").header("Authorization", "Bearer c"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reservations[0].homeType").value("studio"))

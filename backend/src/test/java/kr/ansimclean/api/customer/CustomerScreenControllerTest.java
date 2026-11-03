@@ -75,7 +75,7 @@ class CustomerScreenControllerTest {
         ManagerMvc.manager(jwtDecoder, resolver, "m");
         when(screens.home(customer)).thenReturn(new HomeResponse(json.readTree("[{\"id\":\"s1\"}]"),
                 new kr.ansimclean.api.booking.dto.ReservationResponse(UUID.randomUUID(), "upcoming", "home", "가정/원룸 청소", "scheduled", "2026-09-24", "11:00", false, false, true,
-                        java.util.List.of(new kr.ansimclean.api.booking.dto.ReservationResponse.Row("일정", "2026년 9월 24일 (목) 오전 11시")), null, null), 24));
+                        java.util.List.of(new kr.ansimclean.api.booking.dto.ReservationResponse.Row("일정", "2026년 9월 24일 (목) 오전 11시")), null, null, null, null), 24));
         when(screens.repair()).thenReturn(new RepairResponse(json.readTree("{\"title\":\"수리\"}")));
         when(screens.settings(customer)).thenReturn(new SettingsResponse(json.readTree("{\"title\":\"설정\"}"),
                 new SettingsProfile("김하늘", "010-1234-5678", null), json.readTree("[]"), Map.of("push", true, "marketing", false)));

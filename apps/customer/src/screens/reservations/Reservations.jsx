@@ -4,6 +4,7 @@
 // 2026-11-03 사용자 첨부 예약내역 시안으로 바꿨다: 제목 '내 예약을 확인해 주세요.'(설명 줄 없음), 폭을 나눈 탭, 카드는 ReservationTicket
 //   (서비스 이름 매장·가정·원룸 + 파란 일정 + 배정 알약 / 매니저 사진·이름·진행 상태 / 방문 시작·종료 예정 / 구분선 아래 변경·취소 버튼 또는 기한 안내).
 //   매니저 사진은 아직 없어 임시 사진(ASSETS.managerAvatar). 카드의 '결제하기' 버튼은 사용자 요청으로 뺐다.
+//   완료 탭(사용자 요청): 배정 알약을 감추고, 시간 칸은 '방문 시간'·'종료 시간' = 매니저가 실제로 시작·완료한 시각(서버 startedAt·endedAt).
 // 고객 앱 '내 예약' 탭 화면 (/reservations). 데이터는 getReservations(GET /customer/reservations) 한 번으로
 // 헤더 문구·탭 목록·예약 목록을 받는다. 각 예약의 tab(어느 탭에 속하는지)·status·rows(카드 행 문구)는 서버가 정해 준다.
 import { useEffect, useState } from 'react';
@@ -68,6 +69,16 @@ function progressOf(r, now) {
 function shortDateTime(date, time) {
   const d = fromDateKey(date);
   return d ? `${d.getMonth() + 1}.${d.getDate()} (${WEEKDAY[d.getDay()]}) ${time}` : time;
+}
+
+/** 완료 카드의 시간 칸: 실제 작업 시작·완료('2026-08-03 14:05'). 서버에 값이 없는 칸은 뺀다 */
+function actualTimes(r) {
+  return [
+    { label: COPY.visited, at: r.startedAt },
+    { label: COPY.finished, at: r.endedAt },
+  ]
+    .filter((t) => t.at)
+    .map((t) => ({ label: t.label, value: shortDateTime(...t.at.split(' ')) }));
 }
 
 /** 내 예약 화면: 탭(예정/완료/취소)별 예약 카드 목록 + 카드의 변경·취소·영상 보기 + 취소 확인 시트 */
@@ -162,15 +173,19 @@ export default function Reservations() {
             <ReservationTicket
               key={r.id}
               title={titleOf(r)}
-              badge={r.status === 'cancelled' ? undefined : r.status === 'assigning' ? 'assigning' : 'assigned'}
+              badge={r.status === 'cancelled' || r.status === 'done' ? undefined : r.status === 'assigning' ? 'assigning' : 'assigned'}
               schedule={r.rows?.[0]?.value ?? ''}
               avatar={ASSETS.managerAvatar}
               manager={r.rows?.find((row) => row.label === '매니저')?.value ?? ''}
               progress={progressOf(r, now)}
-              times={[
-                { label: COPY.start, value: shortDateTime(r.date, r.time) },
-                ...(r.endTime ? [{ label: COPY.end, value: shortDateTime(r.date, r.endTime) }] : []),
-              ]}
+              times={
+                r.status === 'done'
+                  ? actualTimes(r)
+                  : [
+                      { label: COPY.start, value: shortDateTime(r.date, r.time) },
+                      ...(r.endTime ? [{ label: COPY.end, value: shortDateTime(r.date, r.endTime) }] : []),
+                    ]
+              }
               note={before && !changeable ? CHANGE_LOCK_COPY.card(deadlineHours, supportPhone) : undefined}
               actions={actions}
             />

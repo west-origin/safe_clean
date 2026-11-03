@@ -60,6 +60,8 @@ class KoreanFormatTest {
         assertThat(KoreanFormat.untilExpiry(now.minusSeconds(1), now)).isEqualTo("만료됨");
         assertThat(KoreanFormat.sinceLabel(Instant.parse("2026-09-15T05:32:00Z"), "부터 중단됨")).isEqualTo("14:32부터 중단됨");
         assertThat(KoreanFormat.clockRange(Instant.parse("2026-09-15T05:02:00Z"), Instant.parse("2026-09-15T08:25:00Z"))).isEqualTo("14:02 - 17:25");
+        assertThat(KoreanFormat.dateTimeKey(Instant.parse("2026-11-03T15:05:00Z"))).isEqualTo("2026-11-04 00:05"); // 서울 날짜로 넘어간다
+        assertThat(KoreanFormat.dateTimeKey(null)).isNull();
         assertThat(KoreanFormat.noticeDate(Instant.parse("2026-09-09T15:00:00Z"))).isEqualTo("2026.09.10"); // 서울 자정
         assertThat(KoreanFormat.liveStartedAt(Instant.parse("2025-09-11T05:32:00Z"))).isEqualTo("2025. 09. 11. 14:32");
     }
