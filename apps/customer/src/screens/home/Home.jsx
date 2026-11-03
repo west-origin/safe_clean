@@ -67,7 +67,7 @@ export default function Home() {
           </button>
         </section>
         {data.upcoming && (
-          <section className={styles.section}>
+          <section className={cx(styles.section, styles.upcoming)}>
             <h2 className="text-heading-s">{UPCOMING_HOME_COPY.title}</h2>
             {/* 내 예약 화면과 같은 카드 (2026-11-03 사용자 요청). 진행 중이면 실시간 영상 버튼, 그 밖은 안내 한 줄 */}
             <ReservationTicketCard
