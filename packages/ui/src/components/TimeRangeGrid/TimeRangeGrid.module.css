@@ -1,21 +1,33 @@
-/* TimeRangeGrid.jsx 스타일. 2026-11-03 사용자 첨부 시안: 한 줄 3칸, 칸 사이 12·줄 사이 12, 흰 알약 + 회색 1px 테두리.
-   고른 칸 색은 시안의 보라 대신 앱 브랜드 파랑 (사용자 요청) */
+/* TimeRangeGrid.jsx 스타일. 2026-11-03 사용자 첨부 달력 기간 선택 시안: 한 줄 3칸, 칸 사이 틈 없음, 칸 높이 48.
+   고른 시작·종료 칸만 브랜드 파랑 상자(둥글기는 '다음' 버튼과 같은 --radius-sm), 그 사이는 옅은 파랑 띠.
+   종료까지 고르면 둥근 곳은 맨 바깥(시작 상자 왼쪽, 종료 상자 오른쪽)만, 띠와 닿는 쪽과 띠 자체는 곧은 선 (사용자 요청) */
 .grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--spacing-lg);
+  row-gap: 0; /* 줄 사이도 붙여 띠가 끊기지 않게 */
 }
 
+/* 칸 하나 = 띠를 그리는 바탕 */
+.cell {
+  display: flex;
+}
+
+.bandFull {
+  background: var(--color-brand-subtle);
+}
+
+
+/* 시간 글자 버튼: 테두리·바탕 없이 */
 .chip {
+  flex: 1 1 auto;
   min-height: var(--touch-target);
   height: 48px; /* 시안 원본값 */
   margin: 0;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-pill);
-  box-shadow: inset 0 0 0 1px var(--color-border-default);
-  background: var(--color-surface-default);
-  color: var(--color-text-primary);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -26,7 +38,7 @@
 
 .chip:focus-visible {
   outline: 2px solid var(--color-brand-primary);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .chip:disabled {
@@ -34,17 +46,27 @@
   cursor: default;
 }
 
-/* 시작·종료: 브랜드 파랑 + 흰 글자 */
+/* 시작·종료: 파란 상자 + 흰 글자 */
 .edge,
 .edge:active:not(:disabled) {
-  box-shadow: none;
   background: var(--color-brand-primary);
   color: var(--color-text-inverse);
 }
 
-/* 시작과 종료 사이: 옅은 브랜드 색 */
+/* 종료까지 고른 시작·종료 상자: 띠 쪽 모서리는 곧게 */
+.rangeStart,
+.rangeStart:active:not(:disabled) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.rangeEnd,
+.rangeEnd:active:not(:disabled) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* 사이 칸: 띠 위 글자 (바탕은 칸의 띠) */
 .inside {
-  box-shadow: inset 0 0 0 1px var(--color-brand-primary);
-  background: var(--color-brand-subtle);
-  color: var(--color-brand-primary);
+  color: var(--color-text-primary);
 }

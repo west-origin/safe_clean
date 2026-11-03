@@ -1,5 +1,8 @@
-// (코드에서 정함) 청소 시작·종료 시간 고르기 — 2026-11-03 사용자 첨부 시안의 '시간 선택' 알약 칸(한 줄 3칸).
-// 첫 번째로 누른 시간이 시작, 그 뒤 시간을 누르면 종료. 시작·종료 칸은 브랜드 색으로 채우고 그 사이 칸은 옅은 브랜드 색.
+// (코드에서 정함) 청소 시작·종료 시간 고르기 — 2026-11-03 사용자 첨부 시안의 '시간 선택'(한 줄 3칸).
+// 같은 날 사용자 요청으로 달력 기간 선택처럼 바꿨다: 칸마다 테두리 없이 글자만, 시작·종료 칸만 파란 상자('다음' 버튼과 같은 둥글기),
+// 시작부터 종료까지는 옅은 파란 띠로 이어진다 (칸 사이 틈 없이, 곧은 선). 둥근 곳은 시작 상자 왼쪽·종료 상자 오른쪽뿐.
+// 띠는 칸을 감싼 <div>(cell)가, 파란 상자는 안의 <button> 이 그린다.
+// 첫 번째로 누른 시간이 시작, 그 뒤 시간을 누르면 종료.
 // 종료까지 고른 뒤 다시 누르거나, 시작보다 앞(같은) 시간을 누르면 그 시간이 새 시작이 된다.
 // 시작을 고른 동안 종료 후보는 minHours~maxHours 안의 시간만 켜진다. 시작으로 못 고르는 시간(지난 시간·막힌 시간)은 isStartDisabled 로 끈다.
 // 쓰는 곳: 고객 앱 BookingSchedule '방문 시간' 상자.
@@ -37,18 +40,20 @@ export default function TimeRangeGrid({ times, start, end, onChange, isStartDisa
         const edge = t === start || t === end;
         const inside = start && end && minutesOf(t) > minutesOf(start) && minutesOf(t) < minutesOf(end);
         const role = t === start ? ' 시작' : t === end ? ' 종료' : '';
+        const ranged = Boolean(start && end); // 종료까지 골랐으면 시작·종료 상자가 띠와 이어진다
         return (
-          <button
-            key={t}
-            type="button"
-            className={cx('text-body-default', styles.chip, edge && styles.edge, inside && styles.inside)}
-            disabled={disabled}
-            aria-pressed={Boolean(edge || inside)}
-            aria-label={`${t}${role}`}
-            onClick={() => pick(t)}
-          >
-            {t}
-          </button>
+          <div key={t} className={cx(styles.cell, inside && styles.bandFull)}>
+            <button
+              type="button"
+              className={cx('text-body-m', styles.chip, edge && styles.edge, inside && styles.inside, ranged && t === start && styles.rangeStart, ranged && t === end && styles.rangeEnd)}
+              disabled={disabled}
+              aria-pressed={Boolean(edge || inside)}
+              aria-label={`${t}${role}`}
+              onClick={() => pick(t)}
+            >
+              {t}
+            </button>
+          </div>
         );
       })}
     </div>
