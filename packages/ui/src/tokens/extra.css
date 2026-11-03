@@ -51,12 +51,8 @@
   --raw-link: #00aaff; /* Auth/SignUp "로그인하기" */
 }
 
-/* 고객 앱 첫 화면(로그인, /signup) 원본색 — 2026-11-03 사용자 첨부 시안(파란 그라데이션 로그인 화면)에서 뽑음. 소셜 색은 각 회사 로그인 버튼 가이드 색 */
+/* 고객 앱 첫 화면(로그인, /signup)의 소셜 원 버튼 색 — 각 회사 로그인 버튼 가이드 색 (2026-11-03) */
 :root {
-  --raw-entry-gradient: linear-gradient(180deg, #3eabff 0%, #0a80ff 100%); /* 첫 화면 배경 (위 하늘색 → 아래 파랑) */
-  --raw-entry-field: rgb(255 255 255 / 16%); /* AuthPillField 반투명 흰 바탕 */
-  --raw-entry-muted: rgb(255 255 255 / 75%); /* 입력칸 안내 글·아래 링크·SNS 안내 */
-  --raw-entry-divider: rgb(255 255 255 / 40%); /* '비밀번호 찾기 | 회원가입' 사이 세로선 */
   --raw-kakao-yellow: #fee500; /* SocialCircleButton kakao 바탕·글자 */
   --raw-kakao-brown: #3c1e1e; /* SocialCircleButton kakao 말풍선 */
   --raw-naver-green: #03c75a; /* SocialCircleButton naver 바탕 */

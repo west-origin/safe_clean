@@ -594,13 +594,12 @@ function CustomerGallery() {
             <PaidOptionCard icon={<Icons.OptionSignboardIcon />} label={'간판·외부\n유리 청소'} price="+35,000원" selected onToggle={() => {}} />
           </div>
         </Row>
-        <Row label="첫 화면 (2026-11-03 시안): BrandWordmark · AuthPillField(phone/lock) · Button inverse(기본/비활성) · SocialCircleButton(kakao/google/naver)">
+        <Row label="첫 화면 (2026-11-03 시안): BrandWordmark(withMark) · AuthPillField(phone/lock) · Button primary · SocialCircleButton(kakao/google/naver)">
           <div className={styles.entryMock}>
-            <BrandWordmark />
+            <BrandWordmark withMark />
             <AuthPillField icon="phone" label="전화번호를 입력해주세요" value="" onChange={() => {}} />
             <AuthPillField icon="lock" label="비밀번호 입력" type="password" value="" onChange={() => {}} />
-            <Button variant="inverse" chevron={false}>로그인</Button>
-            <Button variant="inverse" chevron={false} disabled>로그인</Button>
+            <Button variant="primary" chevron={false}>로그인</Button>
             <div className={styles.inline}>
               <SocialCircleButton provider="kakao" label="카카오톡으로 로그인" />
               <SocialCircleButton provider="google" label="구글로 로그인" />

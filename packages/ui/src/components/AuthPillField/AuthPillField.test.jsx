@@ -20,11 +20,6 @@ describe('AuthPillField', () => {
     expect(onChange).toHaveBeenCalled();
   });
 
-  it('tone="light" 는 light 클래스', () => {
-    const { container } = render(<AuthPillField icon="phone" label="전화번호" tone="light" />);
-    expect(container.firstChild.className).toMatch(/light/);
-  });
-
   it('터치 높이 토큰을 쓴다', () => {
     expect(css).toMatch(/min-height:\s*var\(--touch-target\)/);
   });

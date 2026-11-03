@@ -1,7 +1,7 @@
 /* 첫 화면(SignUp.jsx) 레이아웃. 2026-11-03 사용자 첨부 로그인 시안 (393 폭 기준으로 환산한 값).
    위에서부터: 로고 → (빈 공간) → 입력칸 2개 · 로그인 · 링크 → (빈 공간) → SNS 안내 + 원 버튼 */
 
-/* 흰 배경 (2026-11-03 사용자 요청 — 파란 배경판은 SignUpBlue). 로고·로그인 버튼이 브랜드 파랑.
+/* 흰 배경 (2026-11-03 사용자 요청). 로고·로그인 버튼이 브랜드 파랑.
    로그인 버튼 라벨은 시안 크기(18)에 맞춰 이 화면에서만 button-label → body-m 크기로 (Home.module.css 와 같은 방식) */
 .screen {
   background: var(--color-surface-default);
@@ -18,6 +18,9 @@
 }
 
 .logo {
+  display: flex;
+  justify-content: center; /* 아이콘 + 글자 묶음을 가로 가운데에 */
+  align-self: stretch;
   margin: 0;
   color: var(--color-brand-primary);
 }

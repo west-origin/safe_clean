@@ -134,7 +134,7 @@
   justify-content: space-around;
 }
 
-/* 첫 화면(파란 배경)용 견본(AuthPillField·inverse 버튼·BrandWordmark·SocialCircleButton)의 바탕 */
+/* 첫 화면(흰 배경)용 견본(AuthPillField·BrandWordmark·SocialCircleButton)의 바탕 */
 .entryMock {
   display: flex;
   flex-direction: column;
@@ -142,6 +142,6 @@
   gap: var(--spacing-lg);
   padding: var(--spacing-4xl);
   border-radius: var(--radius-md);
-  background: var(--raw-entry-gradient);
-  color: var(--color-text-inverse);
+  background: var(--color-surface-default);
+  color: var(--color-brand-primary);
 }
