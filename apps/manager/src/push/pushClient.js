@@ -153,6 +153,12 @@ export async function initPush({ onOpen, plugin, platform } = {}) {
  * 권한을 받았으면 true, 아니면 false. 중간에 던진 오류는 initPush 가 잡는다.
  */
 async function start({ onOpen, plugin, platform }) {
+  // Android 는 google-services.json(Firebase 설정) 없이 register() 를 부르면 앱이 통째로 죽는다(FirebaseApp is not initialized).
+  // 파일이 있는지는 빌드 때 vite.config.js 가 VITE_ANDROID_PUSH 로 넣어 준다. 없으면 플러그인을 부르지 않고 '등록 실패' 로 둔다 (2026-11-04)
+  if (!plugin && (platform ?? Capacitor.getPlatform()) === 'android' && import.meta.env.VITE_ANDROID_PUSH !== 'true') {
+    setPermissionState('error');
+    return false;
+  }
   // 테스트는 대역 plugin 을 쓰고, 실제 앱은 여기서 플러그인을 동적 import(필요할 때 불러오기)한다
   const push = plugin ?? (await import('@capacitor/push-notifications')).PushNotifications;
   pushPlugin = push; // 로그아웃 때 등록 해제(unregister)·다음 로그인 때 다시 등록(register)에 쓴다

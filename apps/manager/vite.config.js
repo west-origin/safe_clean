@@ -5,6 +5,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { cspPlugin } from '../../scripts/vite-csp-plugin.js';
 import { createRequire } from 'node:module';
+import { existsSync } from 'node:fs';
 // 이 설정 파일은 ES 모듈이라 require 가 없다. createRequire 로 require 를 만들어 package.json(JSON)을 읽는다.
 
 const { version } = createRequire(import.meta.url)('./package.json'); // package.json 의 version. 고객 앱 설정 화면 '버전 정보' 용 설정을 그대로 둔 것 (검증 검토)
@@ -21,7 +22,12 @@ export default defineConfig(({ mode }) => {
   return {
   // define: 코드 안의 import.meta.env.VITE_APP_VERSION 을 버전 문자열로 바꿔 넣는다 (개발 서버·빌드 모두)
   // (지금 apps/manager/src 에는 이 값을 읽는 코드가 없다. 고객 앱은 설정 화면의 버전 표시에 쓴다)
-  define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(version) },
+  // VITE_ANDROID_PUSH: android/app/google-services.json 이 있을 때만 'true' — 없으면 Android 앱이 푸시 등록에서 죽으므로 pushClient.js 가 건너뛴다.
+  // 파일을 넣고 다시 빌드(cap:sync)하면 저절로 켜진다
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(version),
+    'import.meta.env.VITE_ANDROID_PUSH': JSON.stringify(String(existsSync(new URL('./android/app/google-services.json', import.meta.url)))),
+  },
   // react(): JSX 변환 + 개발 중 화면 즉시 갱신. cspPlugin(): 빌드 때만 index.html 에 CSP 를 넣는다
   plugins: [react(), cspPlugin()],
   server: { port: 5174 }, // .claude/launch.json 의 manager 와 같은 포트. 가짜 서버 모드(dev:manager:mock)는 --port 5176 으로 띄운다
