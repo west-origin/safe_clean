@@ -3,7 +3,7 @@
 ## 배너·공지 관리 (2026-11-12 사용자 요청 — 결정 `rbac.md` §15-20~24)
 매니저 앱에서 어드민이 고객 앱 홈 혜택 배너 이미지와 공지를 올리면 고객 앱에 반영. 4회차로 나눈다.
 - [x] 결정 기록: 어드민 화면은 매니저 앱 안 배너·공지 관리만, MFA(aal2) 필수 유지, 배너 = 이미지·대체 문구·게시 기간·순서, 공지는 화면 열 때 갱신·대상 선택·수정·삭제
-- [ ] 1회차: R2(역할 4개·매니저 상태) → R4(Actor·AccessPolicy·aal2, `X-Admin-Token` 폐지)
+- [x] 1회차: R2(역할 4개·매니저 상태) → R4(Actor·AccessPolicy·aal2, `X-Admin-Token` 폐지) — 상세는 아래 RBAC 절
 - [ ] 2회차: 어드민 MFA 로그인(매니저 앱 6자리 → 관리자 홈) + R3(활동 이력 표·불변 트리거. 앱 전용 DB 계정 분리는 배포 때)
 - [ ] 3회차: 어드민 공지 API(대상·등록·수정·삭제, 활동 이력) + 매니저 앱 공지 관리 화면
 - [ ] 4회차: `home_banners` 표·비공개 버킷·서명 URL·어드민 배너 API + 매니저 앱 배너 관리 화면 + 고객 앱 배너 서버 연결
@@ -15,7 +15,8 @@
 - [x] R0 사양 문서: `backend/docs/rbac.md` 신설, `BACKEND_PLAN.md` §3-8·§13-27·§15, `CLAUDE.md` §11-8.
 - [x] R1 V064: public 기본 권한에서 anon·authenticated 제거(표·시퀀스·함수, 함수는 PUBLIC 전역 기본값까지), 기존 표·시퀀스·우리 함수 권한 회수, `set_updated_at` search_path 고정. `flyway_schema_history` 는 RLS 대신 권한 회수 유지(사용자 결정). 검증: `scripts/verify-rbac-v064.mjs` 로 PGlite 에 Supabase 기본 권한을 재현하고 V001~V064 를 차례로 실행 — V063 까지는 새 DB 에서 표 74·시퀀스 2·함수 6 건이 앱 키에 열림(테스트 DB 는 예전에 손으로 회수돼 있었음), V064 뒤 기존·새 객체 모두 0건, RLS 꺼진 표는 flyway 이력뿐, 트리거 동작·재실행 확인. **IT 미실행**(Docker 없음). 테스트 서버(`safe_clean_test`) 미적용 — 다음 배포 때 Flyway 가 적용한다.
 - [x] R2 V065(배너·공지 관리 1회차): `profiles.role` 에 `regional_manager`·`admin`, `manager_profiles.status`(pending·active·suspended·dormant·withdrawn) + `status_changed_at`, 데이터 이전(탈퇴 → withdrawn, approved → active, 나머지 pending) 뒤 `approved` 칸 삭제. 코드: `Roles.isManagerRole`(지역 매니저 = 매니저 업무 전부 — `/manager/**`·탈퇴·파기·알림 키·바디캠 등록), `Roles.appOf`(지역 매니저는 매니저 앱 로그인·비밀번호 재설정), `ManagerProfile` 은 status 로(이름 `isApproved` 는 그대로 = active). 어드민은 앱 탈퇴 금지(FORBIDDEN), 매니저 앱 비밀번호 로그인은 아직 LOGIN_FAILED(MFA 로그인은 2회차). 검증: `scripts/verify-rbac-v065.mjs`(PGlite, V001~V065 + 이전 데이터), 단위·슬라이스 테스트. **IT 미실행**(Docker 없음). 테스트 서버 미적용
-- [ ] R3~R19 (`rbac.md` §14)
+- [x] R4(배너·공지 관리 1회차): `CurrentUser` = Actor(역할·가입 완료·매니저 상태·MFA). **1분 캐시(`CurrentUserCache`) 제거** → `DbCurrentUserResolver` 가 요청마다 DB(§1-4). `JwtToCurrentUserConverter`: JWT `aal=aal2` 면 `MFA_AAL2` 권한, 퇴사(withdrawn) 매니저는 `WITHDRAWN_MANAGER`(GET `/manager/settlements/**` 만). `SecurityConfig`: `/admin/**` = `ROLE_ADMIN` ∧ `MFA_AAL2`. `AccessPolicy.require(actor, action, resource)` 신설 — 기존 관리자 API 5개(작업 강제 완료·바디캠 등록·재매칭·패널티 면제·문의 답변)를 어드민 + MFA 로 옮김(기본 거부). `X-Admin-Token`·`AdminAuth`·`AdminTokenFilter`·`app.admin.token` 삭제. 운영자 curl 은 `runbook.md` "어드민 계정과 토큰"(Supabase MFA challenge·verify 로 aal2 JWT). 검증: 단위·슬라이스(AccessPolicy·SecurityConfig·관리자 컨트롤러 4개), IT 3개(Matching·PenaltyWaive·JobFlow)는 `ItSupport.adminWithMfa` 로 고쳤지만 **IT 미실행**(Docker 없음). 테스트 서버 미배포 — Cloud Run 의 `ADMIN_TOKEN` 시크릿은 더 이상 읽지 않는다(다음 배포 때 지워도 됨)
+- [ ] R3·R5~R19 (`rbac.md` §14)
 - [ ] 알아둘 것: 작업 트리에 이전 작업(소셜 로그인·첫 1회 청소, V060~V063 등)이 커밋되지 않은 채 남아 있다. RBAC 커밋은 자기 변경분만 담는다.
 
 ## 첫 1회 청소 — 번호 + 주소 대조 (2026-11-11 사용자 요청)

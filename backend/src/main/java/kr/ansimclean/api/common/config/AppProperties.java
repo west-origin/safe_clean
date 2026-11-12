@@ -12,7 +12,7 @@ import java.util.List;
 // 그 밖의 app.* 는 여기 없고 따로 읽는다 (예: app.sms 는 SmsProperties, app.otp.salt 는 OtpService 의 @Value).
 /** application.yml 의 app.* (값은 환경변수에서 온다 — BACKEND_PLAN.md §12) */
 @ConfigurationProperties(prefix = "app")
-public record AppProperties(Cors cors, Supabase supabase, Livekit livekit, Storage storage, Admin admin) {
+public record AppProperties(Cors cors, Supabase supabase, Livekit livekit, Storage storage) {
     // mode 는 어느 게이트웨이 빈을 쓸지도 정한다: cloud → LiveKitCloudGateway, logging(또는 설정 자체가 없음) → LoggingLiveKitGateway.
     // 빈 선택은 두 클래스의 @ConditionalOnProperty 가 설정 원문으로 한다 — 아래 간결 생성자의 기본값은 빈 선택에 쓰이지 않는다.
     // muteConfirm*: mute·unmute 명령 뒤 트랙 상태가 정말 바뀌었는지 LiveService.setMuted 가 몇 번·몇 ms 간격으로 다시 읽는지
@@ -63,8 +63,6 @@ public record AppProperties(Cors cors, Supabase supabase, Livekit livekit, Stora
         }
     }
 
-    /** 관리자 전용 엔드포인트(/admin/**)의 토큰 (§13-20). 비어 있으면 관리자 API 가 닫힌다 */
-    public record Admin(String token) {} // AdminAuth 가 X-Admin-Token 헤더와 비교한다
 
     /** 브라우저 앱이 이 서버를 부를 수 있는 출처(origin) 목록. CorsConfig 가 쓰고 ProductionGuard 가 운영 값인지 검사한다 */
     public record Cors(List<String> allowedOrigins) {

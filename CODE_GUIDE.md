@@ -119,7 +119,7 @@ backend         서버 (Java 21 + Spring Boot). DB 는 Supabase Postgres
 - DB 구조는 `backend/src/main/resources/db/migration/V번호__이름.sql` 로만 바꾼다(Flyway). **이미 커밋된 파일은 한 글자도 고치지 않는다** — 고치면 서버가 켜질 때 체크섬 검사에서 멈춘다. 되돌리기도 새 번호로 한다.
 
 ### 3-11. 권한
-- `SecurityConfig`: `/customer/**` 는 고객, `/manager/**` 는 매니저만. 운영자 API(`/admin/**`)는 `X-Admin-Token` 헤더로 확인한다.
+- `SecurityConfig`: `/customer/**` 는 고객, `/manager/**` 는 매니저만. 어드민 API(`/admin/**`)는 역할 `admin` + MFA(aal2) 토큰만(`backend/docs/rbac.md` §2.1). 작업별 권한은 `AccessPolicy.require(actor, action, resource)` 한 곳에서 판단한다.
 - 그 위에 Service 가 "이 예약이 이 사람 것인가" 를 한 번 더 확인한다.
 
 ### 3-12. 서버 테스트

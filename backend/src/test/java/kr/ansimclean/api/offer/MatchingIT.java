@@ -54,16 +54,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // 통합 테스트(CODE_GUIDE.md 3-12). HTTP 포트는 열지 않고 MockMvc(AutoConfigureMockMvc)로 컨트롤러부터 DB 까지 실제 코드를 탄다.
 // ServiceConnection = Testcontainers 가 띄운 Postgres 16 의 주소를 스프링 DB 설정으로 넣는다.
 // 이 클래스가 바꿔 끼우는 것: 시계(MutableClock — 테스트가 옮긴다), JwtDecoder(가짜 — ItSupport 가 토큰을 사용자로 풀리게 정한다),
-// 운영자 토큰(TestPropertySource 로 app.admin.token 설정). test 프로필에서는 스케줄러가 꺼져 있어(SchedulingConfig),
+// 어드민 API 는 ItSupport.adminWithMfa(어드민 + aal2 토큰)로 부른다. test 프로필에서는 스케줄러가 꺼져 있어(SchedulingConfig),
 // 만료·자동 재매칭은 스케줄러 시각을 기다리지 않고 OfferService 를 직접 부른다.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers
 @ActiveProfiles("test")
 @Import(MatchingIT.FixedClock.class)
-@org.springframework.test.context.TestPropertySource(properties = "app.admin.token=" + MatchingIT.ADMIN)
 class MatchingIT {
-    static final String ADMIN = "it-admin"; // 테스트 전용 운영자 토큰 값 — 위 설정과 X-Admin-Token 헤더에 같이 쓴다
+    /** 어드민 + MFA 세션 사용자 (rbac.md §2.1 — 예전 X-Admin-Token 자리). 데이터 정리(resetUserData) 뒤에도 쓰도록 부를 때마다 만든다 */
+    private ItSupport.User admin() {
+        return ItSupport.adminWithMfa(profiles, jwtDecoder);
+    }
 
     // Container + static = 이 클래스의 테스트 전체가 DB 컨테이너 하나를 같이 쓴다 (그래서 setUp 에서 데이터를 비운다)
     @Container
@@ -383,7 +385,7 @@ class MatchingIT {
         assertThat(fallback.isPreferred()).isFalse();
     }
 
-    // SQL 로 '3회차까지 다 쓰고 실패' 상태를 만든 뒤 운영자 재매칭: 토큰 헤더가 없으면 401, 있으면 200 + a·b 두 명에게
+    // SQL 로 '3회차까지 다 쓰고 실패' 상태를 만든 뒤 어드민 재매칭: 로그인이 없으면 401, 매니저 토큰이면 403, 어드민 + MFA 면 200 + a·b 두 명에게
     // 4회차 콜, 예약의 실패 표시(matching_failed_at)는 지워진다
     @Test
     void 매칭_실패로_멈춘_예약은_운영자가_다시_매칭하면_새_회차로_후보에게_간다() throws Exception { // 자체 점검 #5
@@ -391,7 +393,8 @@ class MatchingIT {
         jdbc.update("update bookings set matching_failed_at = now(), dispatch_round = 3 where id = ?", z); // 회차를 다 썼다고 치고
         jdbc.update("update offers set status = 'expired' where booking_id = ?", z);
         mvc.perform(post("/api/v1/admin/bookings/" + z + "/redispatch")).andExpect(status().isUnauthorized());
-        mvc.perform(post("/api/v1/admin/bookings/" + z + "/redispatch").header("X-Admin-Token", ADMIN))
+        mvc.perform(post("/api/v1/admin/bookings/" + z + "/redispatch").header("Authorization", a.bearer())).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/admin/bookings/" + z + "/redispatch").header("Authorization", admin().bearer()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.offered").value(2));
         assertThat(offers.findByBookingId(z).stream().filter(Offer::isPending).map(Offer::getRound)).containsOnly(4);
         assertThat(jdbc.queryForObject("select matching_failed_at is null from bookings where id = ?", Boolean.class, z)).isTrue();

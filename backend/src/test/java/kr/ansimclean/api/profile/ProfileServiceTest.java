@@ -39,7 +39,6 @@ class ProfileServiceTest {
     CustomerHousingRepository housing = mock(CustomerHousingRepository.class);
     NotificationSettingRepository notifications = mock(NotificationSettingRepository.class);
     ManagerProfileRepository managerProfiles = mock(ManagerProfileRepository.class);
-    CurrentUserCache cache = mock(CurrentUserCache.class);
     AppSettingsService settings = mock(AppSettingsService.class);
     ProfileService service;
     Profile profile;
@@ -52,7 +51,7 @@ class ProfileServiceTest {
      */
     @BeforeEach
     void setUp() {
-        service = new ProfileService(profiles, addresses, housing, notifications, managerProfiles, cache, settings, new AppClock(Clock.fixed(NOW, AppClock.ZONE)));
+        service = new ProfileService(profiles, addresses, housing, notifications, managerProfiles, settings, new AppClock(Clock.fixed(NOW, AppClock.ZONE)));
         profile = Profile.create(MANAGER, "manager", "김매니저", null, "01012345678");
         manager = ManagerProfile.create(MANAGER, NOW);
         manager.approve(List.of("서울특별시 강남구"), "서울특별시", LocalDate.of(2024, 1, 1), NOW);
@@ -63,6 +62,21 @@ class ProfileServiceTest {
 
     // ManagerProfile.withdraw 를 직접 부른다. ReflectionTestUtils.setField/getField = private 필드에 값을 넣고 읽는 테스트 도구
     // (교육 이수·신원 확인 시각은 공개 설정 메서드가 없어 이렇게 채운다). 탈퇴 뒤 교육 '[]', 신원·시도 null, 승인 해제를 본다
+    // 요청마다 DB 에서 읽는 CurrentUser(rbac.md §1-4): 매니저·지역 매니저는 계정 상태를 같이 싣고, 다른 역할은 null
+    @Test
+    void currentUser_는_매니저_계정_상태를_같이_읽는다() {
+        java.util.UUID id = java.util.UUID.randomUUID();
+        Profile m = Profile.create(id, "regional_manager", "김지역", null, "+821011112222");
+        when(profiles.findByIdAndDeletedAtIsNull(id)).thenReturn(java.util.Optional.of(m));
+        ManagerProfile mp = ManagerProfile.create(id, NOW);
+        when(managerProfiles.findById(id)).thenReturn(java.util.Optional.of(mp));
+        assertThat(service.currentUser(id)).get().extracting(kr.ansimclean.api.common.security.CurrentUser::managerStatus).isEqualTo(ManagerProfile.PENDING);
+
+        java.util.UUID cid = java.util.UUID.randomUUID();
+        when(profiles.findByIdAndDeletedAtIsNull(cid)).thenReturn(java.util.Optional.of(Profile.create(cid, "customer", "고객", null, "+821033334444")));
+        assertThat(service.currentUser(cid)).get().extracting(kr.ansimclean.api.common.security.CurrentUser::managerStatus).isNull();
+    }
+
     @Test
     void 매니저가_탈퇴하면_계좌_지역과_함께_신원_교육_보험_기록도_비운다() { // 동의 '매니저 탈퇴 시까지' (자체 점검 후속 검토)
         org.springframework.test.util.ReflectionTestUtils.setField(manager, "education", "[{\"label\":\"기본 청소 교육\",\"completedOn\":\"2024-03-01\"}]");
@@ -138,7 +152,6 @@ class ProfileServiceTest {
         assertThat(manager.getAccountNumberMasked()).isNull();
         assertThat(profile.getDeletedAt()).isEqualTo(NOW);
         verify(addresses).deleteByCustomerId(MANAGER);
-        verify(cache).evict(MANAGER);
     }
 
     // 준비: 이 고객의 기본 주소 '집'(200초 전)과 '회사'(100초 전), 다른 고객의 주소 하나.
@@ -162,7 +175,6 @@ class ProfileServiceTest {
         verify(addresses).delete(home);
         verify(addresses).flush(); // 부분 유니크 인덱스 — 삭제가 먼저 반영돼야 다음 기본 주소를 켤 수 있다
         assertThat(office.isDefault()).isTrue();
-        verify(cache).evict(customer);
     }
 
     // 조회: 저장된 행은 call=false 하나뿐 → 나머지 키는 기본값(marketing 만 꺼짐, 그 밖은 켜짐)으로 채운다.
@@ -279,7 +291,6 @@ class ProfileServiceTest {
         assertThat(res.roadAddress()).isEqualTo("서울 강남구 테헤란로 1");
         assertThat(service.updateAddress(customer, home.getId(), new kr.ansimclean.api.profile.dto.UpdateAddressRequest(" ", "")).label()).isEqualTo("기타");
         assertThat(home.getDetailAddress()).isNull();
-        verify(cache, org.mockito.Mockito.atLeastOnce()).evict(customer);
 
         UUID stranger = UUID.randomUUID();
         when(addresses.findById(stranger)).thenReturn(Optional.of(Address.create(UUID.randomUUID(), "남의 집", "서울 강남구 테헤란로 3", null, true, NOW)));

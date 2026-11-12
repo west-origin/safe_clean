@@ -20,8 +20,7 @@ class ProductionGuardTest {
         return new AppProperties(new AppProperties.Cors(List.of(origins.split(","))),
                 new AppProperties.Supabase("https://x.supabase.co", "service-role", "jwks", null),
                 new AppProperties.Livekit(livekitMode, "wss://x.livekit.cloud", "key", "secret", null, null),
-                new AppProperties.Storage("https://x.supabase.co/storage/v1/s3", "ak", "sk", "ap-northeast-1", "recordings"),
-                new AppProperties.Admin(""));
+                new AppProperties.Storage("https://x.supabase.co/storage/v1/s3", "ak", "sk", "ap-northeast-1", "recordings"));
     }
 
     // 문자·푸시·LiveKit 이 모두 logging(로그로만 도는 대역)이면 check() 가 예외를 던지고, 메시지에 세 설정 이름이 다 들어 있다

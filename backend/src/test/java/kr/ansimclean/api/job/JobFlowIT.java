@@ -45,16 +45,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 준비: 통합 테스트(CODE_GUIDE.md 3-12). 요청은 MockMvc 로 실제 API 경로에 보낸다.
  * 로그인 토큰 검증(JwtDecoder)만 가짜이고, 사용자·예약·콜은 ItSupport 와 API 로 만든다.
  * 시계는 옮길 수 있는 MutableClock(CLOCK.set) — 서버 코드가 쓰는 AppClock 을 이것으로 바꿔 '다음 날 09:50' 같은 시각을 만든다.
- * 운영자 토큰(app.admin.token)은 @TestPropertySource 로 ADMIN 값을 넣는다.
+ * 어드민 API 는 ItSupport.adminWithMfa(어드민 + aal2 토큰)로 부른다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers
 @ActiveProfiles("test")
 @Import(JobFlowIT.FixedClock.class)
-@org.springframework.test.context.TestPropertySource(properties = {"app.admin.token=" + JobFlowIT.ADMIN, "app.livekit.source=app"})
+@org.springframework.test.context.TestPropertySource(properties = "app.livekit.source=app")
 class JobFlowIT {
-    static final String ADMIN = "it-admin"; // 테스트용 운영자 토큰 값 — 위 @TestPropertySource 가 app.admin.token 에 넣는다
+    /** 어드민 + MFA 세션 사용자 (rbac.md §2.1 — 예전 X-Admin-Token 자리). 데이터 정리(resetUserData) 뒤에도 쓰도록 부를 때마다 만든다 */
+    private ItSupport.User admin() {
+        return ItSupport.adminWithMfa(profiles, jwtDecoder);
+    }
 
     // 클래스에 하나인 Postgres 16 컨테이너. static 이라 이 클래스의 테스트들이 같이 쓴다 (그래서 setUp 이 데이터를 비운다)
     @Container
@@ -209,7 +212,7 @@ class JobFlowIT {
         mvc.perform(get("/api/v1/manager/jobs/" + today2 + "/contact").header("Authorization", manager.bearer())).andExpect(status().isOk()).andExpect(jsonPath("$.mapQuery").value("서울특별시 강남구 테헤란로 123"));
     }
 
-    // 작업을 시작만 하고 이틀을 보낸 뒤 → 운영자 API: 토큰 없으면 401, 토큰(X-Admin-Token)이 맞으면 완료되고
+    // 작업을 시작만 하고 이틀을 보낸 뒤 → 어드민 API: 로그인 없으면 401, 매니저면 403, 어드민 + MFA 면 완료되고
     // 두 번 불러도 200(이미 완료면 그대로) → 진행 중 작업이 없어지고 정산은 한 건만 생겼는지 본다
     @Test
     void 청소_완료를_누르지_않고_떠난_작업은_운영자가_닫고_정산이_생긴다() throws Exception { // 자체 점검 #17
@@ -219,9 +222,10 @@ class JobFlowIT {
 
         CLOCK.set(Instant.parse("2026-09-18T00:00:00Z")); // 이틀이 지나도 in_progress
         mvc.perform(post("/api/v1/admin/jobs/" + job + "/complete")).andExpect(status().isUnauthorized());
-        mvc.perform(post("/api/v1/admin/jobs/" + job + "/complete").header("X-Admin-Token", ADMIN))
+        mvc.perform(post("/api/v1/admin/jobs/" + job + "/complete").header("Authorization", manager.bearer())).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/admin/jobs/" + job + "/complete").header("Authorization", admin().bearer()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.jobId").value(job.toString()));
-        mvc.perform(post("/api/v1/admin/jobs/" + job + "/complete").header("X-Admin-Token", ADMIN)).andExpect(status().isOk()); // 다시 불러도 그대로
+        mvc.perform(post("/api/v1/admin/jobs/" + job + "/complete").header("Authorization", admin().bearer())).andExpect(status().isOk()); // 다시 불러도 그대로
         mvc.perform(get("/api/v1/manager/jobs/active").header("Authorization", manager.bearer())).andExpect(status().isNotFound());
         assertThat(getJson("/api/v1/manager/settlements").get("items")).hasSize(1);
     }

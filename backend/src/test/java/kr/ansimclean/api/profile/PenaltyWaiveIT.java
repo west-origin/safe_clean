@@ -47,9 +47,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Testcontainers
 @ActiveProfiles("test")
 @Import(PenaltyWaiveIT.FixedClock.class)
-@org.springframework.test.context.TestPropertySource(properties = "app.admin.token=" + PenaltyWaiveIT.ADMIN)
 class PenaltyWaiveIT {
-    static final String ADMIN = "it-admin"; // 테스트 전용 운영자 토큰 값 — 위 설정과 X-Admin-Token 헤더에 같이 쓴다
+    /** 어드민 + MFA 세션 사용자 (rbac.md §2.1 — 예전 X-Admin-Token 자리). 데이터 정리(resetUserData) 뒤에도 쓰도록 부를 때마다 만든다 */
+    private ItSupport.User admin() {
+        return ItSupport.adminWithMfa(profiles, jwtDecoder);
+    }
 
     // Container + static = 이 클래스의 테스트 전체가 DB 컨테이너 하나를 같이 쓴다 (그래서 setUp 에서 데이터를 비운다)
     @Container
@@ -113,7 +115,7 @@ class PenaltyWaiveIT {
         assertThat(suspendedUntil()).isEqualTo(LocalDate.of(2026, 9, 22));
 
         for (int i = 0; i < 2; i++) { // 두 번째는 이미 면제된 기록 — 같은 응답
-            mvc.perform(post(url).header("X-Admin-Token", ADMIN).contentType(MediaType.APPLICATION_JSON).content(body))
+            mvc.perform(post(url).header("Authorization", admin().bearer()).contentType(MediaType.APPLICATION_JSON).content(body))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.penaltyId").value(second.getId().toString()))
                     .andExpect(jsonPath("$.managerId").value(manager.id().toString()))
@@ -129,7 +131,7 @@ class PenaltyWaiveIT {
         mvc.perform(get("/api/v1/manager/penalties").header("Authorization", manager.bearer()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.points").value("3")).andExpect(jsonPath("$.suspension").doesNotExist());
 
-        mvc.perform(post("/api/v1/admin/penalties/" + UUID.randomUUID() + "/waive").header("X-Admin-Token", ADMIN)
+        mvc.perform(post("/api/v1/admin/penalties/" + UUID.randomUUID() + "/waive").header("Authorization", admin().bearer())
                 .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isNotFound());
     }
 
@@ -148,7 +150,7 @@ class PenaltyWaiveIT {
 
         ManagerPenalty cancel = penalties.record(manager.id(), bookingId, seriesId, ManagerPenalty.CANCEL_LATE, "sick", null);
         assertThat(penalties.droppedSeries(manager.id(), seriesId)).isTrue();
-        mvc.perform(post("/api/v1/admin/penalties/" + cancel.getId() + "/waive").header("X-Admin-Token", ADMIN)
+        mvc.perform(post("/api/v1/admin/penalties/" + cancel.getId() + "/waive").header("Authorization", admin().bearer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"note\":\"진단서 확인\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.points").value("0"));
 
@@ -199,7 +201,7 @@ class PenaltyWaiveIT {
         penalties.record(manager.id(), null, null, ManagerPenalty.NO_SHOW, null, null);
         penalties.record(manager.id(), null, null, ManagerPenalty.NO_SHOW, null, null);
         ManagerPenalty third = penalties.record(manager.id(), null, null, ManagerPenalty.NO_SHOW, null, null); // 9 → 10/15 까지
-        mvc.perform(post("/api/v1/admin/penalties/" + third.getId() + "/waive").header("X-Admin-Token", ADMIN)
+        mvc.perform(post("/api/v1/admin/penalties/" + third.getId() + "/waive").header("Authorization", admin().bearer())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"note\":\"사고 확인서\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.points").value("6")).andExpect(jsonPath("$.suspendedUntil").value("2026-10-15"));
         assertThat(suspendedUntil()).isEqualTo(LocalDate.of(2026, 10, 15));

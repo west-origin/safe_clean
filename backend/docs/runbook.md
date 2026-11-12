@@ -38,7 +38,7 @@ curl -s localhost:8080/api/v1/catalog/categories/home/options
 ```
 SPRING_PROFILES_ACTIVE=local|prod
 # local·test 가 아닌 프로필(prod, 또는 프로필을 빠뜨린 배포)은 ProductionGuard 가 기동 전에 검사한다 — SMS_PROVIDER=solapi · PUSH_MODE=fcm · LIVEKIT_MODE=cloud(wss URL·키) ·
-# SUPABASE_URL https · service_role · S3 endpoint https·키 · ALLOWED_ORIGINS 에 * / http:// 없음 · ADMIN_TOKEN 은 비우거나 32자 이상. 하나라도 어기면 기동하지 않는다 (감사 M-10)
+# SUPABASE_URL https · service_role · S3 endpoint https·키 · ALLOWED_ORIGINS 에 * / http:// 없음. 하나라도 어기면 기동하지 않는다 (감사 M-10)
 SERVER_PORT=8080
 ALLOWED_ORIGINS=capacitor://localhost,https://localhost,ionic://localhost,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176
 DB_URL=jdbc:postgresql://aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres?sslmode=require   # Session pooler
@@ -71,6 +71,33 @@ FIREBASE_SERVICE_ACCOUNT_JSON=        # base64 한 줄 (B6)
 - 키 회전: Supabase service_role·LiveKit secret·Solapi 키는 환경변수만 바꾸고 재배포. 바디캠 스트림 키 회전 = `POST /admin/devices` 에 `rotate: true`(옛 Ingress 삭제 + 재생성) + 기기 재설정. JWT 서명키 회전은 Supabase 가 JWKS 로 알아서(앱 영향 없음).
 - 장애 대응 표: Supabase Auth 다운 → 로그인만 실패(`UPSTREAM`), 기존 토큰은 JWKS 캐시로 계속 검증됨 / 문자 API 다운 → 가입·인증만 실패(`UPSTREAM`), 로그인은 정상 / LiveKit 다운 → 라이브만 실패, 작업 상태는 진행 가능 / 바디캠 끊김 → `waiting_camera`, 매니저 푸시 / Egress 실패 → `recording_status=failed`, 완료 화면 "업로드 실패", 운영자 확인. / 매칭 실패(후보 0명·회차 소진) → `bookings.matching_failed_at` 표시 + 고객 푸시 1회 + ERROR 로그, 예약은 `assigning` 으로 남는다 → 운영자가 아래 SQL 로 찾아 매니저에게 직접 연락하거나 고객과 일정을 조정한다.
 
+## 어드민 계정과 토큰 (RBAC, `rbac.md` §2.1·§15-19)
+관리 API(`/api/v1/admin/**`)는 **역할 `admin` + MFA(aal2) 세션의 JWT** 로만 열린다. 예전 공용 `X-Admin-Token`(`ADMIN_TOKEN`)은 폐지됐다(R4) —
+Cloud Run 시크릿에 `ADMIN_TOKEN` 이 남아 있어도 서버가 읽지 않는다(다음 배포 때 지워도 된다).
+
+**계정 준비(개발자가 한 번)** — 어드민은 앱에서 임명하지 않는다.
+1. Supabase 대시보드 Authentication → Users → Add user 로 휴대폰 번호(+8210…)·비밀번호 사용자 생성. Authentication → Multi-Factor 에서 TOTP 가 켜져 있는지 확인.
+2. SQL 로 프로필을 어드민으로(가입 완료 표시 포함):
+   ```sql
+   insert into profiles (id, role, name, phone, signup_completed_at) values ('<auth user uuid>', 'admin', '운영자', '+8210xxxxxxxx', now());
+   ```
+3. 인증앱(TOTP) 등록 — 비밀번호 토큰으로 factor 를 만들고 QR(또는 secret)을 인증앱에 넣은 뒤 6자리로 확인한다:
+   ```bash
+   SB=https://<project>.supabase.co; KEY=<publishable key>
+   AAL1=$(curl -s "$SB/auth/v1/token?grant_type=password" -H "apikey: $KEY" -H "Content-Type: application/json" -d '{"phone":"+8210xxxxxxxx","password":"…"}' | jq -r .access_token)
+   curl -s "$SB/auth/v1/factors" -H "apikey: $KEY" -H "Authorization: Bearer $AAL1" -H "Content-Type: application/json" -d '{"factor_type":"totp"}'   # → id, totp.qr_code·secret
+   ```
+   이어서 아래 "토큰 받기" 의 challenge·verify 를 한 번 하면 factor 가 verified 가 된다.
+
+**토큰 받기(aal2, 1시간 유효)** — 매니저 앱 관리자 로그인(2회차)이 생기기 전까지는 curl 로:
+```bash
+FACTOR=<factor id>   # curl -s "$SB/auth/v1/user" -H "apikey: $KEY" -H "Authorization: Bearer $AAL1" | jq '.factors'
+CH=$(curl -s -X POST "$SB/auth/v1/factors/$FACTOR/challenge" -H "apikey: $KEY" -H "Authorization: Bearer $AAL1" | jq -r .id)
+ADMIN_JWT=$(curl -s -X POST "$SB/auth/v1/factors/$FACTOR/verify" -H "apikey: $KEY" -H "Authorization: Bearer $AAL1" -H "Content-Type: application/json" \
+  -d "{\"challenge_id\":\"$CH\",\"code\":\"<인증앱 6자리>\"}" | jq -r .access_token)
+```
+MFA 없는 토큰(aal1)·어드민이 아닌 계정은 403, 토큰이 없으면 401.
+
 ## 운영자 SQL (관리 화면 전까지 — §13-8)
 매니저 승인·정산 완료·문의 답변·매칭 실패 확인은 Supabase 대시보드 SQL 로 한다. **승인은 `status` 만 바꾸면 매칭에서 빠진다** — 지역·시도·활동 시작일을 같이 넣어야 한다(`ManagerProfile.approve` 와 같은 컬럼). 계정 상태는 `manager_profiles.status`(pending·active·suspended·dormant·withdrawn, V065 — 예전 `approved` 칸은 없어졌다). 상태 전환 어드민 API(R6)가 생기면 그쪽을 쓴다.
 ```sql
@@ -91,23 +118,23 @@ select b.id, b.service_date, b.service_time, b.dispatch_held_at, b.dispatch_held
 -- 08:05 뒤에도 남아 있으면 '밤에 미룬 매칭 보내기 실패' 로그를 확인한다 (매시 05분에 다시 시도한다)
 -- 이미 받았던 매니저에게까지 다시 보내려면(예: 전화로 조정) SQL 이 아니라 관리 API 로 (표시만 지우면 자동 재매칭 대상에서도 빠진다).
 -- 새 회차로 후보 전원에게 다시 보내고 { bookingId, offered } 를 돌려준다. offered 가 0 이면 다시 매칭 실패(고객에게 또 알림):
---   curl -X POST https://<api>/api/v1/admin/bookings/<booking uuid>/redispatch -H "X-Admin-Token: $ADMIN_TOKEN"
+--   curl -X POST https://<api>/api/v1/admin/bookings/<booking uuid>/redispatch -H "Authorization: Bearer $ADMIN_JWT"
 -- 고객이 일정을 바꿔도 다시 매칭된다(표시도 지워진다)
 -- 문의 답변은 SQL 이 아니라 관리 API 로 (푸시가 같이 나간다):
---   curl -X POST https://<api>/api/v1/admin/inquiries/<id>/answer -H "X-Admin-Token: $ADMIN_TOKEN" -H "Content-Type: application/json" -d '{"answer":"…"}'
+--   curl -X POST https://<api>/api/v1/admin/inquiries/<id>/answer -H "Authorization: Bearer $ADMIN_JWT" -H "Content-Type: application/json" -d '{"answer":"…"}'
 -- 답변 대기 문의
 select id, user_id, content, created_at from inquiries where status = 'open' order by created_at;
 -- 정산 완료 처리 (입금 뒤)
 update settlements set status = 'complete', settled_at = now() where id = '<settlement uuid>' and status = 'pending';
 -- '청소 완료' 를 누르지 않고 떠난 작업 (매일 03:10 StaleBookingCleaner 가 ERROR 로그를 남긴다). 매니저에게 확인한 뒤 관리 API 로 닫는다
 -- (매니저 완료와 같다: 정산 pending·완료 수·고객 푸시·시리즈 마감, 라이브는 재조정기가 1분 안에 멈춘다. 자체 점검 #17):
---   curl -X POST https://<api>/api/v1/admin/jobs/<booking uuid>/complete -H "X-Admin-Token: $ADMIN_TOKEN"
+--   curl -X POST https://<api>/api/v1/admin/jobs/<booking uuid>/complete -H "Authorization: Bearer $ADMIN_JWT"
 select id, manager_id, customer_id, service_date, status, started_at from bookings where status in ('in_progress','paused') and service_date < current_date - 1 order by service_date;
 -- 패널티 면제(증빙 — 진단서·사고 확인서·장비 고장 확인 뒤)는 SQL 이 아니라 관리 API 로 (docs/manager-policy.md "증빙이 있으면 면제").
 -- SQL 로 status 만 'waived' 로 바꾸면 점수는 빠지지만 콜 배정 정지(manager_profiles.suspended_until)가 남는다 — API 는 둘을 한 트랜잭션에서 바꾼다 (문제 목록 3번).
 -- note 는 면제 근거(필수). 응답 { penaltyId, managerId, points(면제 뒤 누적 점수), suspendedUntil(아직 정지면 마지막 날, 풀렸으면 null) }.
 -- 면제 뒤에도 5점 이상이면 정지는 그대로다(기간을 줄이지 않는다). 같은 요청을 다시 보내도 안전하다(이미 면제면 그대로):
---   curl -X POST https://<api>/api/v1/admin/penalties/<penalty uuid>/waive -H "X-Admin-Token: $ADMIN_TOKEN" -H "Content-Type: application/json" -d '{"note":"진단서 확인"}'
+--   curl -X POST https://<api>/api/v1/admin/penalties/<penalty uuid>/waive -H "Authorization: Bearer $ADMIN_JWT" -H "Content-Type: application/json" -d '{"note":"진단서 확인"}'
 -- 면제할 기록 찾기 (매니저 id 는 위 승인 대기 쿼리처럼 profiles 에서)
 select id, category, points, status, detail, created_at from manager_penalties where manager_id = '<manager uuid>' order by created_at desc;
 -- 6회 실패한 아웃박스 이벤트 다시 살리기 (원인을 고친 뒤)
@@ -120,9 +147,9 @@ update outbox_events set status = 'pending', attempts = 0, next_attempt_at = now
 1. **LiveKit Cloud 프로젝트**: 대시보드 → Settings → Keys 에서 API key/secret. `backend/.env` 에 `LIVEKIT_MODE=cloud`, `LIVEKIT_URL=wss://<project>.livekit.cloud`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`. (`logging` 모드면 LiveKit 없이 돌고 카메라는 붙지 않는다 — 로컬 기본값)
 2. **웹훅**: LiveKit 대시보드 → Settings → Webhooks → URL `https://<api 호스트>/api/v1/live/webhooks/livekit` (같은 API key 로 서명). 유실돼도 `LiveReconciler` 가 1분마다 조회로 맞춘다.
 3. **녹화 저장소**: Supabase Storage 에 비공개 버킷 `recordings`(그리고 `profile-images`) 생성 → Storage → S3 access keys 발급 → `SUPABASE_STORAGE_S3_*`. Egress 는 이 S3 자격증명으로 `recordings/<bookingId>.mp4` 를 올리고, 고객 재생은 service_role 로 만든 서명 URL(6시간).
-4. **바디캠 등록**(§13-20, 관리 화면 전까지): `ADMIN_TOKEN` 을 `.env` 에 두고
+4. **바디캠 등록**(§13-20, 관리 화면 전까지): 아래 "어드민 계정과 토큰" 으로 `ADMIN_JWT`(aal2) 를 받은 뒤
    ```bash
-   curl -X POST https://<api>/api/v1/admin/devices -H "X-Admin-Token: $ADMIN_TOKEN" -H "Content-Type: application/json" \
+   curl -X POST https://<api>/api/v1/admin/devices -H "Authorization: Bearer $ADMIN_JWT" -H "Content-Type: application/json" \
      -d '{"managerId":"<매니저 uuid>","name":"안심캠 #AC-00231","serial":"AC-00231"}'
    ```
    응답의 `streamUrl`·`streamKey` 를 기기에 **한 번만** 설정한다(앱 촬영 장비 화면은 마스킹된 키만 보여준다). 같은 매니저로 다시 부르면 Ingress 는 재사용된다. **분실·도난이면 `"rotate": true`** 를 붙여 옛 Ingress 를 지우고 새 키를 받는다. 매니저가 탈퇴하면 `AccountMediaDeleted` 핸들러가 Ingress·기기 행을 지운다.

@@ -74,7 +74,7 @@ public class SupportService {
                 .toList();
     }
 
-    /** 운영자 답변(관리 API 전까지 X-Admin-Token) → 사용자에게 InquiryAnswered 푸시 */
+    /** 어드민 답변(POST /admin/inquiries/{id}/answer, admin + MFA) → 사용자에게 InquiryAnswered 푸시 */
     @Transactional
     public MyInquiryResponse answer(UUID inquiryId, String answer) {
         // 없는 문의면 404. 이미 답한 문의에 다시 보내면 답변을 덮어쓰고 InquiryAnswered 행도 한 번 더 적힌다 (중복을 막지 않는다).

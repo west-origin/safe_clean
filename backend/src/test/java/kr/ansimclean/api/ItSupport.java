@@ -35,16 +35,26 @@ public final class ItSupport {
     /**
      * 인증번호·Supabase·주소·약관 단계를 건너뛰고 프로필 행을 바로 만든 뒤 가입 완료로 표시한다.
      * 토큰은 "t-<id>" 같은 가짜 문자열이고, mock JwtDecoder 가 그 문자열을 이 사용자의 JWT 로 풀어 주게 정한다.
-     * role 은 "customer" 또는 "manager". 약관 동의 기록은 남기지 않는다 (필요한 테스트는 SQL 로 직접 넣는다)
+     * role 은 profiles.role 값("customer"·"manager" 등). 약관 동의 기록은 남기지 않는다 (필요한 테스트는 SQL 로 직접 넣는다)
      */
     public static User signedUp(ProfileService profiles, JwtDecoder jwtDecoder, String role, String name) {
+        return signedUp(profiles, jwtDecoder, role, name, "aal1");
+    }
+
+    /** 어드민 + MFA(aal2) 세션 — /admin/** 를 부를 수 있다 (rbac.md §2.1). 예전 X-Admin-Token 자리 */
+    public static User adminWithMfa(ProfileService profiles, JwtDecoder jwtDecoder) {
+        return signedUp(profiles, jwtDecoder, "admin", "운영자", "aal2");
+    }
+
+    // aal = 토큰의 인증 단계 클레임. aal2 = MFA(인증앱 6자리)를 통과한 세션
+    private static User signedUp(ProfileService profiles, JwtDecoder jwtDecoder, String role, String name, String aal) {
         UUID id = UUID.randomUUID();
         // 번호는 id 에서 뽑은 8자리 — 살아 있는 계정끼리 번호가 겹치면 profiles_phone_live 고유 인덱스에 걸리므로 사용자마다 다르게 한다
         profiles.createForSignup(id, role, name, null, "+8210" + String.format("%08d", Math.floorMod(id.hashCode(), 100000000))); // Math.abs(MIN_VALUE) 는 음수
         profiles.completeSignup(id);
         String token = "t-" + id;
         // Supabase 토큰과 같은 모양(sub = 사용자 id, aud = authenticated, 1시간 뒤 만료). 진짜 디코더가 아니라 서명 검사는 없다
-        Jwt jwt = Jwt.withTokenValue(token).header("alg", "HS256").subject(id.toString()).claim("aud", List.of("authenticated"))
+        Jwt jwt = Jwt.withTokenValue(token).header("alg", "HS256").subject(id.toString()).claim("aud", List.of("authenticated")).claim("aal", aal)
                 .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(3600)).build();
         when(jwtDecoder.decode(token)).thenReturn(jwt);
         return new User(id, "Bearer " + token);

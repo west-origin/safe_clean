@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 서버가 끊은 Supabase 세션 목록 (감사 M-03). 요청마다 DB 를 읽지 않도록 메모리에 두고 1분마다 DB 에서 다시 읽는다
  * (여러 대로 늘려도 다른 인스턴스의 로그아웃이 1분 안에 반영된다). 쓰기는 DB 와 메모리에 같이.
- * 인증 필터(CurrentUserCache.isSessionRevoked)와 /auth/refresh 가 본다 — 끊은 세션은 access 토큰도, refresh 로 새로 받은 토큰도(같은 session_id) 거부된다.
+ * 인증 필터(DbCurrentUserResolver.isSessionRevoked)와 /auth/refresh 가 본다 — 끊은 세션은 access 토큰도, refresh 로 새로 받은 토큰도(같은 session_id) 거부된다.
  */
 // 부르는 곳 예: AuthService(로그아웃·비밀번호 재설정 때 revoke), AuthCleaner(매일 새벽 purgeExpired)
 @Service

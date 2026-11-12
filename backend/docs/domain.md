@@ -129,7 +129,7 @@ run(key, userId, requestHash, action):           -- 전체가 하나의 DB 트�
 
 ### 7.2 Spring 의 JWT 검증 (`SupabaseJwtDecoderConfig`)
 - Supabase 프로젝트의 **JWT Signing Keys** 를 비대칭(ES256, 기본값)으로 쓰고 `spring.security.oauth2.resourceserver.jwt.jwk-set-uri = ${SUPABASE_URL}/auth/v1/.well-known/jwks.json`, `issuer = ${SUPABASE_URL}/auth/v1`, `audience = authenticated`. (구형 프로젝트가 HS256 이면 `NimbusJwtDecoder.withSecretKey(SUPABASE_JWT_SECRET)` — `application.yml` 의 `auth.jwt.mode = jwks|secret` 로 고른다.)
-- 검증 후 `CurrentUser { id(sub), role, profileComplete }`: role 은 토큰이 아니라 **`profiles.role` 을 DB 에서 읽는다**(요청당 1쿼리, 1분 캐시). `profiles` 가 없거나 `deleted_at` 이 있으면 401. `signup_completed_at` 이 null 이면 `/auth/signup/complete`·`/auth/me`·`/auth/logout`·`/customer/profile/{address,housing}` 만 허용(가입 이어가기), 나머지는 403.
+- 검증 후 `CurrentUser { id(sub), role, profileComplete }`: role 은 토큰이 아니라 **`profiles.role` 을 DB 에서 읽는다**(요청당 PK 조회, 캐시 없음 — RBAC R4, `rbac.md` §1-4). `profiles` 가 없거나 `deleted_at` 이 있으면 401. `signup_completed_at` 이 null 이면 `/auth/signup/complete`·`/auth/me`·`/auth/logout`·`/customer/profile/{address,housing}` 만 허용(가입 이어가기), 나머지는 403.
 - `SecurityConfig`: `permitAll` = `/auth/phone/**`, **`POST /auth/signup`(정확히 이 경로 — 아직 토큰이 없는 신규 사용자)**, `/auth/login`, `/auth/refresh`, `/terms/**`, `/catalog/**`, `/support/faq`, `/support/notices/**`, `/live/webhooks/**`, `/actuator/health`. `/auth/signup/complete`·`/auth/me`·`/auth/logout`·`/auth/account` = 인증만. `/customer/**` = `ROLE_CUSTOMER`, `/manager/**` = `ROLE_MANAGER`, `/live/**`·`/support/inquiries`·`/push/**` = 인증 + 서비스에서 소유권. CSRF 끔(토큰 인증), 세션 stateless, CORS = `ALLOWED_ORIGINS`(§12).
 - 속도 제한: `auth/OtpRateLimiter`(메모리, 번호당 60초 1회·시간당 5회) · `LoginRateLimiter`(번호당 시간당 10회). 단일 인스턴스 전제(§13-11).
 

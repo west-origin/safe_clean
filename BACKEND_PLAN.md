@@ -947,7 +947,7 @@ run(key, userId, requestHash, action):           -- 전체가 하나의 DB 트�
 
 ### 7.2 Spring 의 JWT 검증 (`SupabaseJwtDecoderConfig`)
 - Supabase 프로젝트의 **JWT Signing Keys** 를 비대칭(ES256, 기본값)으로 쓰고 `spring.security.oauth2.resourceserver.jwt.jwk-set-uri = ${SUPABASE_URL}/auth/v1/.well-known/jwks.json`, `issuer = ${SUPABASE_URL}/auth/v1`, `audience = authenticated`. (구형 프로젝트가 HS256 이면 `NimbusJwtDecoder.withSecretKey(SUPABASE_JWT_SECRET)` — `application.yml` 의 `auth.jwt.mode = jwks|secret` 로 고른다.)
-- 검증 후 `CurrentUser { id(sub), role, profileComplete }`: role 은 토큰이 아니라 **`profiles.role` 을 DB 에서 읽는다**(요청당 1쿼리, 1분 캐시). `profiles` 가 없거나 `deleted_at` 이 있으면 401. `signup_completed_at` 이 null 이면 `/auth/signup/complete`·`/auth/me`·`/auth/logout`·`/customer/profile/{address,housing}` 만 허용(가입 이어가기), 나머지는 403.
+- 검증 후 `CurrentUser { id(sub), role, profileComplete }`: role 은 토큰이 아니라 **`profiles.role` 을 DB 에서 읽는다**(요청당 PK 조회, 캐시 없음 — RBAC R4, `rbac.md` §1-4). `profiles` 가 없거나 `deleted_at` 이 있으면 401. `signup_completed_at` 이 null 이면 `/auth/signup/complete`·`/auth/me`·`/auth/logout`·`/customer/profile/{address,housing}` 만 허용(가입 이어가기), 나머지는 403.
 - `SecurityConfig`: `permitAll` = `/auth/phone/**`, **`POST /auth/signup`(정확히 이 경로 — 아직 토큰이 없는 신규 사용자)**, `/auth/login`, `/auth/refresh`, `/terms/**`, `/catalog/**`, `/support/faq`, `/support/notices/**`, `/live/webhooks/**`, `/actuator/health`. `/auth/signup/complete`·`/auth/me`·`/auth/logout`·`/auth/account` = 인증만. `/customer/**` = `ROLE_CUSTOMER`, `/manager/**` = `ROLE_MANAGER`, `/live/**`·`/support/inquiries`·`/push/**` = 인증 + 서비스에서 소유권. CSRF 끔(토큰 인증), 세션 stateless, CORS = `ALLOWED_ORIGINS`(§12).
 - 속도 제한: `auth/OtpRateLimiter`(메모리, 번호당 60초 1회·시간당 5회) · `LoginRateLimiter`(번호당 시간당 10회). 단일 인스턴스 전제(§13-11).
 
@@ -1218,7 +1218,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON=        # base64 한 줄 (B6)
 | 17 | 정산 계좌 원본 보관 | 저장 안 함(정산 대행) / 암호화 저장 | **저장 안 함** |
 | 18 | 촬영 장비 | 매니저 휴대폰 = 카메라 / 별도 카메라 기기(`안심캠`) | ~~결정: 별도 바디캠 (2026-09-19) → §8 을 Ingress 구조로 다시 씀~~ → **결정: 매니저 휴대폰 (2026-10-10 사용자 결정 "바디캠이 아닌 스마트폰으로")**. `app.livekit.source`(`LIVE_SOURCE`) 기본 `app`, Ingress 코드는 `ingress` 로 남김(§8.0) |
 | 19 | **바디캠 기기 사양** | 모델명·RTMP 푸시 지원·H.264/AAC·상태 API 유무 (§8.3) | **공장 답변 대기 (2026-09-19)**. B5 실기기 검증 전까지만 필요. 그 전엔 ffmpeg/OBS 로 대체(§8.1). RTMP 가 안 되면 중계 서버 항목이 추가된다 |
-| 22 | 매니저 방문 취소·미방문 | — | **결정: 점수제** (2026-09-22, `backend/docs/manager-policy.md`). 24시간 전 월 2회 무료·이후 1점 / 24~4시간 1점 / 미방문 3점 / 지각(30분 초과) 0.5점. 3점 경고·5점 7일 정지·8점 30일 정지·10점 심사. 12개월 롤링 + 무사고 3개월마다 1점 회복. 증빙은 운영자 면제(`POST /admin/penalties/{id}/waive`, X-Admin-Token — 점수와 정지 해제가 한 트랜잭션, 문제 목록 3번). 숫자는 `app_settings.manager_penalty` |
+| 22 | 매니저 방문 취소·미방문 | — | **결정: 점수제** (2026-09-22, `backend/docs/manager-policy.md`). 24시간 전 월 2회 무료·이후 1점 / 24~4시간 1점 / 미방문 3점 / 지각(30분 초과) 0.5점. 3점 경고·5점 7일 정지·8점 30일 정지·10점 심사. 12개월 롤링 + 무사고 3개월마다 1점 회복. 증빙은 운영자 면제(`POST /admin/penalties/{id}/waive`, admin + MFA aal2 — 점수와 정지 해제가 한 트랜잭션, 문제 목록 3번). 숫자는 `app_settings.manager_penalty` |
 | 21 | 정기청소 단위 | — | **결정: 매월 1회** (2026-09-22 사용자 정정. 그 전 2026-09-19 결정은 '한 달 동안 매주'였다). 첫 방문일부터 매월 같은 날짜에 1회씩 `series_term_months` 회(기본 6)를 한 번에 생성, 주말도 선택일 유지(2026-10-26 변경), 자동 연장 없음(종료 7일 전 안내). 회차 매칭은 방문 7일 전 (§6.8) |
 | 22 | 회원 탈퇴 후 이력 보존 기간 | — | **결정: 5년** (2026-09-19). `DeletedAccountPurger`(§2.5) 가 5년 뒤 남은 개인정보를 파기 — 행은 지우지 않고 개인정보 칸을 비운다 (구현 2026-09-27, 사용자 결정) |
 | 26 | 앱의 회원 탈퇴 안내 문구·정기청소 활성 시 탈퇴 차단 문구 | — | 기본값 사용(DeleteAccountSheet). 디자이너 확인 |

@@ -40,7 +40,7 @@ class LiveKitCloudGatewayTest {
     static final AppProperties.Livekit LIVEKIT = new AppProperties.Livekit("cloud", "wss://example.livekit.cloud", KEY, SECRET, 3, 1);
     static final AppProperties.Storage STORAGE = new AppProperties.Storage("https://s3.example", "ak", "sk", "ap-northeast-2", "recordings");
     // 생성자는 livekit·storage 설정만 읽는다 — 나머지(cors·supabase·admin)는 null 로 둔다
-    LiveKitCloudGateway gateway = new LiveKitCloudGateway(new AppProperties(null, null, LIVEKIT, STORAGE, null));
+    LiveKitCloudGateway gateway = new LiveKitCloudGateway(new AppProperties(null, null, LIVEKIT, STORAGE));
 
     /**
      * 웹훅 Authorization 헤더 값을 LiveKit SDK 의 AccessToken 으로 만든다: 본문의 SHA-256 해시(Base64)를 담은 JWT 를 secret 으로 서명.
@@ -159,7 +159,7 @@ class LiveKitCloudGatewayTest {
         server.start();
         try {
             AppProperties.Livekit local = new AppProperties.Livekit("cloud", "ws://127.0.0.1:" + server.getAddress().getPort(), KEY, SECRET, 3, 1);
-            new LiveKitCloudGateway(new AppProperties(null, null, local, STORAGE, null)).setIngressEnabled("ing-1", false);
+            new LiveKitCloudGateway(new AppProperties(null, null, local, STORAGE)).setIngressEnabled("ing-1", false);
             LivekitIngress.UpdateIngressRequest req = LivekitIngress.UpdateIngressRequest.parseFrom(received.get());
             assertThat(req.getIngressId()).isEqualTo("ing-1");
             assertThat(req.hasEnabled()).isTrue();

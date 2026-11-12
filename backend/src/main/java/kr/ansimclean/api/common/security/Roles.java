@@ -14,6 +14,12 @@ public final class Roles {
     public static final String ROLE_MANAGER = "ROLE_MANAGER";
     public static final String ROLE_REGIONAL_MANAGER = "ROLE_REGIONAL_MANAGER";
     public static final String ROLE_ADMIN = "ROLE_ADMIN";
+    /** 퇴사(withdrawn)한 매니저·지역 매니저의 권한 — 정산 조회만 (rbac.md §3). ROLE_ 접두사를 붙이지 않아 어떤 역할 경로도 통과하지 않는다 */
+    public static final String WITHDRAWN_MANAGER = "WITHDRAWN_MANAGER";
+    /** 이 토큰이 MFA(aal2) 를 통과했다 — /admin/** 에 ROLE_ADMIN 과 함께 필요하다 (rbac.md §2.1) */
+    public static final String MFA_AAL2 = "MFA_AAL2";
+    /** manager_profiles.status 의 퇴사 값 (ManagerProfile.WITHDRAWN 과 같은 글자 — common 이 profile 패키지를 참조하지 않으려고 따로 둔다) */
+    public static final String STATUS_WITHDRAWN = "withdrawn";
 
     private Roles() {} // 상수·정적 메서드만 있는 클래스라 객체를 만들지 않는다
 

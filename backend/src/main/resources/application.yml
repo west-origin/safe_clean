@@ -55,7 +55,7 @@ management:
       exposure:
         include: health              # 나머지 actuator 는 노출하지 않는다
 
-# 이 프로젝트만의 설정. 같은 이름의 필드로 읽는 곳: cors·supabase·livekit·storage·admin 은 AppProperties,
+# 이 프로젝트만의 설정. 같은 이름의 필드로 읽는 곳: cors·supabase·livekit·storage 는 AppProperties,
 # sms 는 SmsProperties, push 는 PushProperties. otp.salt 는 OtpService, http.client-ip-header 는 ClientIp 가 직접(@Value) 읽는다
 app:
   otp:
@@ -91,9 +91,6 @@ app:
     s3-secret-key: ${SUPABASE_STORAGE_S3_SECRET_KEY:}
     s3-region: ${SUPABASE_STORAGE_S3_REGION:ap-northeast-2}
     recordings-bucket: recordings
-  # 관리자 API(/api/v1/admin/ 아래)의 X-Admin-Token 과 비교할 값. 비어 있으면 관리자 API 는 모두 401 (AdminAuth)
-  admin:
-    token: ${ADMIN_TOKEN:}
   # 주소 검색 (카카오 로컬 API REST 키, §13-4). 비우면 검색 결과가 늘 빈 목록 — 앱은 적은 주소 그대로 진행한다 (AddressSearchService)
   address:
     kakao-rest-key: ${KAKAO_REST_API_KEY:}

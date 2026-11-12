@@ -23,7 +23,7 @@ class SupabaseJwtDecoderConfigTest {
     static final String URL = "https://proj.supabase.local"; // 가짜 Supabase 주소. 올바른 issuer 는 이 뒤에 /auth/v1
     static final AppProperties.Supabase SUPABASE = new AppProperties.Supabase(URL, "service-role", "secret", SECRET); // secret 모드
 
-    JwtDecoder decoder = new SupabaseJwtDecoderConfig().jwtDecoder(new AppProperties(null, SUPABASE, null, null, null));
+    JwtDecoder decoder = new SupabaseJwtDecoderConfig().jwtDecoder(new AppProperties(null, SUPABASE, null, null));
 
     /**
      * 시험용 JWT 를 만든다: secret 으로 HS256 서명, issuer·aud 는 null 이면 넣지 않는다.
@@ -62,7 +62,7 @@ class SupabaseJwtDecoderConfigTest {
     void jwks_모드는_ES256_과_RS256_을_받는다() {
         // Supabase 기본 서명키는 ES256 — 빌더 기본값(RS256 만)으로 두면 모든 토큰이 401 이었다(검수 1차). 허용 알고리즘 목록으로 회귀를 막는다
         AppProperties.Supabase jwks = new AppProperties.Supabase(URL, "service-role", "jwks", null);
-        JwtDecoder d = new SupabaseJwtDecoderConfig().jwtDecoder(new AppProperties(null, jwks, null, null, null));
+        JwtDecoder d = new SupabaseJwtDecoderConfig().jwtDecoder(new AppProperties(null, jwks, null, null));
         // 허용 알고리즘 목록은 공개 메서드로 꺼낼 수 없어 ReflectionTestUtils(비공개 필드·메서드를 이름으로 읽는 테스트 도구)로
         // 디코더 → 처리기(jwtProcessor) → 키 선택기 → 허용 목록 순서로 들어간다. 라이브러리 내부 이름이 바뀌면 이 테스트가 깨진다
         Object processor = org.springframework.test.util.ReflectionTestUtils.getField(d, "jwtProcessor");

@@ -168,6 +168,30 @@ class SecurityConfigTest {
         mvc.perform(get("/api/v1/customer/home").header("Authorization", "Bearer a")).andExpect(status().isForbidden());
     }
 
+    // /admin/** 는 ROLE_ADMIN + MFA(aal2) 둘 다 (rbac.md §2.1). 이 슬라이스에 어드민 컨트롤러가 없어 통과하면 404
+    @Test
+    void 어드민_경로는_어드민_MFA_세션만_통과한다() throws Exception {
+        AdminTokens.stub(jwtDecoder, resolver);
+        mvc.perform(get("/api/v1/admin/anything")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/admin/anything").header("Authorization", AdminTokens.bearer(AdminTokens.ADMIN_NO_MFA)))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+        mvc.perform(get("/api/v1/admin/anything").header("Authorization", AdminTokens.bearer(AdminTokens.MANAGER_MFA))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/admin/anything").header("Authorization", AdminTokens.bearer(AdminTokens.ADMIN_MFA))).andExpect(status().isNotFound());
+        // 공용 비밀값 헤더는 더 이상 아무것도 열지 않는다
+        mvc.perform(get("/api/v1/admin/anything").header("X-Admin-Token", "anything")).andExpect(status().isUnauthorized());
+    }
+
+    // 퇴사한 매니저(manager_profiles.status=withdrawn)는 정산 조회만 (rbac.md §3)
+    @Test
+    void 퇴사한_매니저는_정산_조회만_통과한다() throws Exception {
+        UUID id = stubJwt("w");
+        when(resolver.resolve(id)).thenReturn(java.util.Optional.of(new CurrentUser(id, Roles.MANAGER, true, "withdrawn", false)));
+        mvc.perform(get("/api/v1/manager/settlements").header("Authorization", "Bearer w")).andExpect(status().isNotFound()); // 403 아님
+        mvc.perform(get("/api/v1/manager/settlements/" + UUID.randomUUID()).header("Authorization", "Bearer w")).andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/manager/home").header("Authorization", "Bearer w")).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/manager/offers").header("Authorization", "Bearer w")).andExpect(status().isForbidden());
+    }
+
     // 브라우저가 다른 출처 요청 전에 보내는 OPTIONS 사전 요청(preflight): test 프로필의 허용 출처는 통과하고
     // Access-Control-Allow-Origin 헤더를 받는다. 목록에 없는 출처는 403
     @Test

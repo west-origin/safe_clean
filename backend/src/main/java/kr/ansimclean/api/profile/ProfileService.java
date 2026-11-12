@@ -36,9 +36,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 // 프로필 기능의 서비스. 다루는 테이블: profiles·addresses·customer_housing·notification_settings·manager_profiles.
-// 부르는 곳 예: 고객·매니저 프로필 컨트롤러(가입·설정·MY 화면), AuthService(가입·로그인·탈퇴), CurrentUserCache(요청마다 사용자 확인).
+// 부르는 곳 예: 고객·매니저 프로필 컨트롤러(가입·설정·MY 화면), AuthService(가입·로그인·탈퇴), DbCurrentUserResolver(요청마다 사용자 확인).
 // 다른 기능(예: 예약·콜)도 이름·승인 여부·탈퇴 잠금을 여기서 받는다.
-// 가입·주소·주거·탈퇴를 바꾸는 메서드는 끝에 cache.evict 로 CurrentUserCache(1분 캐시)의 이 사용자 항목을 비운다.
+// 요청마다 사용자 확인은 캐시 없이 DB 를 읽는다(rbac.md §1-4) — 그래서 가입·탈퇴 뒤에 비울 캐시가 없다.
 // 주소·주거·이름·알림을 저장하는 메서드는 첫 줄에서 holdLive 를 불러 탈퇴와 줄을 선다 — 탈퇴 뒤에 커밋된 쓰기가 남지 않게.
 // 예외: 주소 삭제(removeAddress)는 holdLive 를 부르지 않는다. 가입 완료(completeSignup)는 여기가 아니라 부르는 AuthService.completeSignup 이
 // 먼저 lockLive(FOR UPDATE)로 잠가 탈퇴와 줄을 선다 (문제 목록 28번).
@@ -53,20 +53,18 @@ public class ProfileService {
     private final CustomerHousingRepository housing;
     private final NotificationSettingRepository notifications;
     private final ManagerProfileRepository managerProfiles;
-    private final CurrentUserCache cache;
     private final AppSettingsService settings;
     private final AppClock clock;
     private final JsonMapper json = JsonMapper.builder().build(); // 매니저 교육 이수 기록(jsonb 문자열)을 읽는 데 쓴다 (educationRows)
 
     public ProfileService(ProfileRepository profiles, AddressRepository addresses, CustomerHousingRepository housing,
-                          NotificationSettingRepository notifications, ManagerProfileRepository managerProfiles, CurrentUserCache cache,
+                          NotificationSettingRepository notifications, ManagerProfileRepository managerProfiles,
                           AppSettingsService settings, AppClock clock) {
         this.profiles = profiles;
         this.addresses = addresses;
         this.housing = housing;
         this.notifications = notifications;
         this.managerProfiles = managerProfiles;
-        this.cache = cache;
         this.settings = settings;
         this.clock = clock;
     }
@@ -109,7 +107,6 @@ public class ProfileService {
     /** 가입 1단계: Supabase 사용자가 만들어진 뒤 profiles 행 */
     public Profile createForSignup(UUID id, String role, String name, String nickname, String phone) {
         Profile p = profiles.save(Profile.create(id, role, name, nickname, phone));
-        cache.evict(id); // 캐시에 남았을 수 있는 '프로필 없음' 결과를 비워 다음 요청이 새 행을 보게
         return p;
     }
 
@@ -136,7 +133,6 @@ public class ProfileService {
         if (Roles.isManagerRole(p.getRole()) && !managerProfiles.existsById(id)) {
             managerProfiles.save(ManagerProfile.create(id, clock.now()));
         }
-        cache.evict(id);
         return p;
     }
 
@@ -173,7 +169,6 @@ public class ProfileService {
                     return existing;
                 })
                 .orElseGet(() -> addresses.save(Address.create(customerId, "집", road, detail, true, clock.now())));
-        cache.evict(customerId);
         return new AddressResponse(a.getId(), a.getLabel(), a.getRoadAddress(), a.getDetailAddress(), a.isDefault());
     }
 
@@ -194,7 +189,6 @@ public class ProfileService {
         CustomerHousing h = housing.findById(customerId).orElseGet(() -> CustomerHousing.create(customerId));
         h.update(req.housingType(), req.size(), req.sizeUnknown(), req.rooms(), req.bathrooms(), req.pet(), clock.now());
         housing.save(h);
-        cache.evict(customerId);
         return req;
     }
 
@@ -273,7 +267,6 @@ public class ProfileService {
         boolean first = !addresses.existsByCustomerId(customerId); // 저장된 주소가 하나도 없으면 이 주소가 기본 주소
         // label 이 비었으면 Address.create 가 "기타" 로 채운다. 시·도·시군구도 도로명주소에서 뽑아 같이 저장한다
         Address a = addresses.save(Address.create(customerId, req.label(), req.roadAddress().trim(), blankToNull(req.detailAddress()), first, clock.now()));
-        cache.evict(customerId);
         return toResponse(a);
     }
 
@@ -287,7 +280,6 @@ public class ProfileService {
         if (wasDefault) {
             addresses.findByCustomerIdOrderByCreatedAt(customerId).stream().findFirst().ifPresent(next -> next.makeDefault(true));
         }
-        cache.evict(customerId);
         return new IdResponse(addressId);
     }
 
@@ -306,7 +298,6 @@ public class ProfileService {
             });
             target.makeDefault(true);
         }
-        cache.evict(customerId);
         return addresses(customerId);
     }
 
@@ -315,7 +306,6 @@ public class ProfileService {
         holdLive(customerId); // 탈퇴와 직렬화 (makeDefaultAddress 와 같다)
         Address a = addresses.findById(addressId).filter(x -> x.getCustomerId().equals(customerId)).orElseThrow(ApiException::notFound);
         a.rename(req.label(), req.detailAddress());
-        cache.evict(customerId);
         return toResponse(a);
     }
 
@@ -598,7 +588,6 @@ public class ProfileService {
         notifications.deleteByUserId(id);
         managerProfiles.findById(id).ifPresent(m -> m.withdraw(clock.now())); // 탈퇴한 매니저가 매칭 후보로 남지 않게 (status=withdrawn)
         p.anonymize(clock.now());
-        cache.evict(id);
     }
 
     /** 파기 대상: 탈퇴한 지 5년이 지났고 아직 파기하지 않은 계정 (id·역할만, 오래된 순 최대 100) */
@@ -617,13 +606,17 @@ public class ProfileService {
         profiles.findById(id).orElseThrow(ApiException::notFound).markPurged(now);
     }
 
-    /** JWT → CurrentUser (JwtToCurrentUserConverter 가 CurrentUserCache 를 통해 부른다) */
+    /**
+     * JWT → CurrentUser (JwtToCurrentUserConverter 가 DbCurrentUserResolver 를 통해 **요청마다** 부른다 — 캐시하지 않는다, rbac.md §1-4).
+     * 매니저·지역 매니저면 계정 상태(manager_profiles.status)를 같이 읽는다(행이 아직 없으면 null — 가입 1단계만 끝낸 매니저).
+     */
     public Optional<CurrentUser> currentUser(UUID id) {
         Optional<Profile> profile = findLive(id);
         if (profile.isEmpty() && !profiles.existsById(id)) {
-            if (profiles.provisionSocial(id) > 0) cache.evict(id);
+            profiles.provisionSocial(id);
             profile = findLive(id);
         }
-        return profile.map(p -> new CurrentUser(p.getId(), p.getRole(), p.isSignupComplete()));
+        return profile.map(p -> new CurrentUser(p.getId(), p.getRole(), p.isSignupComplete(),
+                Roles.isManagerRole(p.getRole()) ? managerProfiles.findById(p.getId()).map(ManagerProfile::getStatus).orElse(null) : null, false));
     }
 }

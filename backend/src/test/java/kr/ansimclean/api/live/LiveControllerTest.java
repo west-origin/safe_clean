@@ -8,7 +8,8 @@ import kr.ansimclean.api.common.error.ErrorCode;
 import kr.ansimclean.api.common.error.GlobalExceptionHandler;
 import kr.ansimclean.api.common.security.CurrentUserResolver;
 import kr.ansimclean.api.common.security.JwtToCurrentUserConverter;
-import kr.ansimclean.api.common.security.AdminAuth;
+import kr.ansimclean.api.common.security.AccessPolicy;
+import kr.ansimclean.api.common.security.AdminTokens;
 import kr.ansimclean.api.common.security.SecurityConfig;
 import kr.ansimclean.api.live.dto.LiveStatusResponse;
 import kr.ansimclean.api.live.dto.RegisterDeviceResponse;
@@ -39,11 +40,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** 라이브·웹훅·관리자 API 의 권한·오류 JSON (docs/api.md §5.4) */
-// 컨트롤러 슬라이스(CODE_GUIDE.md 3-12). 라이브·웹훅·운영자 기기 컨트롤러를 묶었고, 서비스·LiveKit 창구(gateway)·AdminAuth 는 가짜다.
+// 컨트롤러 슬라이스(CODE_GUIDE.md 3-12). 라이브·웹훅·운영자 기기 컨트롤러를 묶었고, 서비스·LiveKit 창구(gateway)는 가짜, 권한 판단(SecurityConfig + AccessPolicy)은 진짜다.
 // 확인하는 것: 경로별 로그인·역할 검사(401·403), 서비스가 던진 오류 코드가 HTTP 상태와 { error } JSON 으로 바뀌는지,
-// 웹훅 서명 실패 401, 운영자 토큰 헤더와 본문 검증(400).
+// 웹훅 서명 실패 401, 어드민 + MFA 와 본문 검증(400).
 @WebMvcTest({ LiveController.class, LiveWebhookController.class, AdminDeviceController.class })
-@Import({ SecurityConfig.class, JwtToCurrentUserConverter.class, CorsConfig.class, GlobalExceptionHandler.class })
+@Import({ SecurityConfig.class, JwtToCurrentUserConverter.class, CorsConfig.class, GlobalExceptionHandler.class, AccessPolicy.class })
 @EnableConfigurationProperties(AppProperties.class)
 @ActiveProfiles("test")
 class LiveControllerTest {
@@ -61,9 +62,6 @@ class LiveControllerTest {
 
     @MockitoBean
     LiveKitGateway gateway;
-
-    @MockitoBean
-    AdminAuth adminAuth;
 
     @MockitoBean
     JwtDecoder jwtDecoder;
@@ -122,18 +120,20 @@ class LiveControllerTest {
                 .andExpect(jsonPath("$.recordingStatus").value("failed")).andExpect(jsonPath("$.recordingStartFailed").value(true));
     }
 
-    // 가짜 AdminAuth 는 헤더가 없을 때(require(null))만 401 을 던진다 → 헤더 없이 401, 헤더가 있으면 200 과 전체 스트림 키.
-    // 마지막은 헤더는 있지만 본문에 managerId·serial 이 없어 컨트롤러의 검증기(Validator)가 400 을 낸다
+    // 로그인 없이 401, MFA 없는 어드민 403, 어드민 + MFA 면 200 과 전체 스트림 키.
+    // 마지막은 권한은 있지만 본문에 managerId·serial 이 없어 컨트롤러의 검증기(Validator)가 400 을 낸다
     @Test
-    void 관리자_기기_등록은_토큰_헤더로만() throws Exception {
+    void 관리자_기기_등록은_어드민_MFA_세션만() throws Exception {
+        AdminTokens.stub(jwtDecoder, resolver);
         UUID manager = UUID.randomUUID();
-        doThrow(new ApiException(ErrorCode.UNAUTHENTICATED, "관리자 토큰이 올바르지 않아요")).when(adminAuth).require(isNull());
         mvc.perform(post("/api/v1/admin/devices").contentType(MediaType.APPLICATION_JSON).content("{\"managerId\":\"" + manager + "\",\"name\":\"안심캠\",\"serial\":\"AC-1\"}"))
                 .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/admin/devices").header("Authorization", AdminTokens.bearer(AdminTokens.ADMIN_NO_MFA)).contentType(MediaType.APPLICATION_JSON).content("{\"managerId\":\"" + manager + "\",\"name\":\"안심캠\",\"serial\":\"AC-1\"}"))
+                .andExpect(status().isForbidden());
         when(deviceService.register(any())).thenReturn(new RegisterDeviceResponse(manager, "안심캠", "AC-1", "ing-1", "rtmp://lk/x", "full-key"));
-        mvc.perform(post("/api/v1/admin/devices").header(AdminAuth.HEADER, "t").contentType(MediaType.APPLICATION_JSON).content("{\"managerId\":\"" + manager + "\",\"name\":\"안심캠\",\"serial\":\"AC-1\"}"))
+        mvc.perform(post("/api/v1/admin/devices").header("Authorization", AdminTokens.bearer(AdminTokens.ADMIN_MFA)).contentType(MediaType.APPLICATION_JSON).content("{\"managerId\":\"" + manager + "\",\"name\":\"안심캠\",\"serial\":\"AC-1\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.streamKey").value("full-key"));
-        mvc.perform(post("/api/v1/admin/devices").header(AdminAuth.HEADER, "t").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"안심캠\"}"))
+        mvc.perform(post("/api/v1/admin/devices").header("Authorization", AdminTokens.bearer(AdminTokens.ADMIN_MFA)).contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"안심캠\"}"))
                 .andExpect(status().isBadRequest());
     }
 }

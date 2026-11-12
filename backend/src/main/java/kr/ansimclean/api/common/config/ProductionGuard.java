@@ -57,9 +57,6 @@ public class ProductionGuard {
         AppProperties.Storage st = props.storage();
         if (st == null || blank(st.s3Endpoint()) || !st.s3Endpoint().startsWith("https://")) out.add("녹화 업로드용 S3 endpoint 는 https:// 여야 한다");
         if (st == null || blank(st.s3AccessKey()) || blank(st.s3SecretKey())) out.add("녹화 업로드용 S3 키가 비었다");
-        // 관리자 토큰: 비워 두는 것(관리 API 닫힘)은 허용하고, 값이 있으면 32자 이상만 받는다
-        String admin = props.admin() == null ? null : props.admin().token();
-        if (!blank(admin) && admin.length() < 32) out.add("ADMIN_TOKEN 은 비우거나(관리 API 닫힘) 32자 이상이어야 한다");
         // CORS: 목록이 비었거나, 아무 출처나 허용(*)하거나, 암호화되지 않은 http:// 출처(개발 서버용)가 섞였으면 막는다
         List<String> origins = props.cors() == null ? List.of() : props.cors().allowedOrigins();
         if (origins.isEmpty()) out.add("ALLOWED_ORIGINS 가 비었다");

@@ -27,7 +27,7 @@ class SupabaseStorageClientTest {
     RestClient.Builder builder = RestClient.builder();
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build(); // 이 빌더로 만든 클라이언트의 요청이 가짜 서버로 간다
     SupabaseStorageClient client = new SupabaseStorageClient(new AppProperties(new AppProperties.Cors(List.of()), new AppProperties.Supabase("https://sb.example", "srk", "secret", "s"),
-            null, null, null), builder);
+            null, null), builder);
 
     @Test
     void 사진_서명은_폴더_구분자를_인코딩하지_않는다() {

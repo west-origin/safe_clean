@@ -41,7 +41,7 @@ class SupabaseAuthClientTest {
         RestClient.Builder builder = RestClient.builder();
         // bindTo(builder): 이 빌더로 만든 RestClient 의 요청이 가짜 서버로 간다. 그래서 클라이언트를 이 빌더로 만든다
         server = MockRestServiceServer.bindTo(builder).build();
-        client = new SupabaseAuthClient(new AppProperties(new AppProperties.Cors(List.of()), new AppProperties.Supabase("https://test.supabase.local", KEY, "secret", "s"), null, null, null), builder);
+        client = new SupabaseAuthClient(new AppProperties(new AppProperties.Cors(List.of()), new AppProperties.Supabase("https://test.supabase.local", KEY, "secret", "s"), null, null), builder);
     }
 
     // POST /admin/users 에 service-role 키(apikey·Authorization 두 헤더)와 번호·phone_confirm=true 를 보내고,

@@ -20,7 +20,7 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(props.cors().allowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        // 앱이 붙이는 헤더: 로그인 토큰, JSON 본문 형식, 멱등 키. 목록에 없는 헤더(X-Admin-Token 등)를 붙인 브라우저 요청은
+        // 앱이 붙이는 헤더: 로그인 토큰, JSON 본문 형식, 멱등 키. 목록에 없는 헤더를 붙인 브라우저 요청은
         // 사전 확인(preflight, OPTIONS) 단계에서 막힌다
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
         config.setMaxAge(3600L); // 브라우저가 사전 확인 결과를 1시간(3600초) 기억해 같은 요청마다 OPTIONS 를 다시 보내지 않는다

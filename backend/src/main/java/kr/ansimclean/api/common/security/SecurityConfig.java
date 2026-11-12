@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.security.authorization.AuthorityAuthorizationManager;
+import org.springframework.security.authorization.AuthorizationManagers;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -22,12 +24,12 @@ import java.io.IOException;
  * 토큰 인증이라 CSRF·세션 없음. 401/403 도 { error } JSON 으로 돌려준다.
  * 설정 클래스(@Configuration): @Bean 메서드가 돌려준 객체를 스프링이 빈으로 등록한다. @EnableWebSecurity: Spring Security 를 켠다.
  * 함께 보는 곳: 토큰 서명 검증은 SupabaseJwtDecoderConfig, 토큰 → 사용자는 JwtToCurrentUserConverter,
- * /admin/** 의 운영자 토큰은 AdminTokenFilter·AdminAuth.
+ * /admin/** 는 ROLE_ADMIN + MFA_AAL2(JwtToCurrentUserConverter 가 붙인다), 작업별 판단은 AccessPolicy.
  */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-    public static final String API = "/api/v1"; // 모든 API 경로의 앞부분. 컨트롤러 주소(@RequestMapping 등)와 AdminTokenFilter 가 이 상수를 붙인다
+    public static final String API = "/api/v1"; // 모든 API 경로의 앞부분. 컨트롤러 주소(@RequestMapping 등)가 이 상수를 붙인다
     private static final org.slf4j.Logger HTTP_LOG = org.slf4j.LoggerFactory.getLogger("http"); // RequestLogFilter 와 같은 "http" 로거
 
     /**
@@ -53,10 +55,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, API + "/support/faq", API + "/support/notices/**", API + "/support/contact").permitAll() // 고객센터 FAQ·공지·연락처 읽기만 공개
                         .requestMatchers(API + "/live/webhooks/**").permitAll()               // LiveKit 서명으로 검증
                         .requestMatchers(HttpMethod.POST, API + "/hooks/supabase/send-sms").permitAll() // Supabase Send SMS Hook — Standard Webhooks 서명으로 검증 (SmsHookService)
-                        .requestMatchers(API + "/admin/**").permitAll()                       // X-Admin-Token 으로 검증 (common/security/AdminAuth, §13-20)
+                        // 어드민 API: 역할 admin ∧ MFA(aal2) 세션 둘 다 (rbac.md §2.1 — 예전 공용 X-Admin-Token 은 폐지). 컨트롤러도 AccessPolicy 로 한 번 더 본다
+                        .requestMatchers(API + "/admin/**").access(AuthorizationManagers.allOf(
+                                AuthorityAuthorizationManager.hasAuthority(Roles.ROLE_ADMIN), AuthorityAuthorizationManager.hasAuthority(Roles.MFA_AAL2)))
                         // 가입 도중(PENDING_CUSTOMER)에도 되는 가입 화면 저장
                         .requestMatchers(HttpMethod.PUT, API + "/customer/profile/address", API + "/customer/profile/housing").hasAnyAuthority(Roles.ROLE_CUSTOMER, "PENDING_CUSTOMER")
                         .requestMatchers(API + "/customer/**").hasAuthority(Roles.ROLE_CUSTOMER) // 가입을 끝낸 고객만 (매니저·가입 중이면 403)
+                        // 퇴사한 매니저(WITHDRAWN_MANAGER)는 정산 조회만 (rbac.md §3 — 조회 기한 3개월은 R7 에서 서비스가 본다)
+                        .requestMatchers(HttpMethod.GET, API + "/manager/settlements", API + "/manager/settlements/**")
+                                .hasAnyAuthority(Roles.ROLE_MANAGER, Roles.ROLE_REGIONAL_MANAGER, Roles.WITHDRAWN_MANAGER)
                         .requestMatchers(API + "/manager/**").hasAnyAuthority(Roles.ROLE_MANAGER, Roles.ROLE_REGIONAL_MANAGER) // 지역 매니저도 일반 매니저 업무 전부 (rbac.md §2)
                         .anyRequest().authenticated())                                        // /auth/signup/complete, /auth/me, /auth/logout, /auth/account, /live/**, /support/inquiries, /push/**
                 // Authorization: Bearer <JWT> 를 JwtDecoder 빈(SupabaseJwtDecoderConfig)으로 검증하고, converter 로 CurrentUserAuthentication 을 만든다

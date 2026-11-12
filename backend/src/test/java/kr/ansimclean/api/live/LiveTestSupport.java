@@ -25,7 +25,7 @@ final class LiveTestSupport {
     static AppProperties props() {
         return new AppProperties(new AppProperties.Cors(List.of()), new AppProperties.Supabase("https://sb.example", "srk", "secret", "s"),
                 new AppProperties.Livekit("cloud", "wss://lk.example", "key", "secret", 2, 0),
-                new AppProperties.Storage("https://sb.example/storage/v1/s3", "ak", "sk", "ap-northeast-2", "recordings"), new AppProperties.Admin("admin-token"));
+                new AppProperties.Storage("https://sb.example/storage/v1/s3", "ak", "sk", "ap-northeast-2", "recordings"));
     }
 
     /** props() 와 같고 영상 출처만 휴대폰 송출(app, §8.0) */
@@ -33,7 +33,7 @@ final class LiveTestSupport {
         AppProperties p = props();
         AppProperties.Livekit l = p.livekit();
         return new AppProperties(p.cors(), p.supabase(), new AppProperties.Livekit(l.mode(), l.url(), l.apiKey(), l.apiSecret(), l.muteConfirmAttempts(), l.muteConfirmSleepMs(), AppProperties.Livekit.SOURCE_APP),
-                p.storage(), p.admin());
+                p.storage());
     }
 
     // MANAGER 의 바디캠 기기 한 대 (DB 에 저장하지 않은 객체). Ingress id 는 "ing-1", 처음 상태는 offline·잠금 해제

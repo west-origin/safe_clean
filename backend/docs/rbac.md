@@ -233,7 +233,7 @@
 | R1 | 기본 권한 회수, 기존 표·시퀀스·함수 권한 회수, `set_updated_at` search_path 고정 (V064) | 완료(테스트 서버 미적용) |
 | R2 | 역할 4개, 매니저 계정 상태 컬럼과 데이터 이전 (V065) | 완료(테스트 서버 미적용) |
 | R3 | 활동 이력 표 + 불변 보장(앱 전용 DB 계정 포함) | 예정 |
-| R4 | Actor·`AccessPolicy`·`SecurityConfig`(aal2, 퇴사자 경로), `X-Admin-Token` 폐지 | 예정 |
+| R4 | Actor·`AccessPolicy`·`SecurityConfig`(aal2, 퇴사자 경로), `X-Admin-Token` 폐지 | 완료(테스트 서버 미배포) |
 | R5 | 권역 표, 소속 권역, `areas` 검사, 예약 권역 스냅샷, 어드민 권역 API | 예정 |
 | R6 | 어드민 계정 상태 전환 API, 매니저 본인 탈퇴 차단 | 예정 |
 | R7 | 업무 게이트(`active`), 공지 상태·권역, 퇴사자 정산 기간 | 예정 |
