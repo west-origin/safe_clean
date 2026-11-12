@@ -222,6 +222,7 @@
 - 모든 public 표: RLS 켬, 정책 0개, anon·authenticated 권한 없음. 새 표는 만드는 마이그레이션에서 RLS 를 켠다.
 - public 스키마의 **기본 권한(default privileges)** 에서 anon·authenticated 를 뺀다 — 새 표·시퀀스·함수가 앱 키에 자동으로 열리지 않게(§15-7).
 - `flyway_schema_history` 는 RLS 를 켜지 않는다(Flyway 가 자기 잠금과 엉켜 기동이 실패한다, V011 주석). 대신 anon·authenticated 권한을 회수해 둔다.
+- V064 이후 Flyway 계정이 만드는 표·시퀀스·함수는 anon·authenticated(함수는 PUBLIC 포함)에 자동으로 열리지 않는다. 그래도 새 표를 만드는 마이그레이션은 RLS 를 직접 켠다(안전망 두 겹).
 - 앱(Spring) 은 앱 전용 DB 계정, Flyway 는 표 소유자 계정으로 접속한다(§11).
 
 ## 14. 구현 단위와 상태
@@ -229,7 +230,7 @@
 | # | 단위 | 상태 |
 |---|---|---|
 | R0 | 사양 문서(이 문서, `BACKEND_PLAN.md` §3-8, `CLAUDE.md` §11-8) | 완료 |
-| R1 | 기본 권한 회수, 기존 표·시퀀스·함수 권한 회수, `set_updated_at` search_path 고정 | 예정 |
+| R1 | 기본 권한 회수, 기존 표·시퀀스·함수 권한 회수, `set_updated_at` search_path 고정 (V064) | 완료(테스트 서버 미적용) |
 | R2 | 역할 4개, 매니저 계정 상태 컬럼과 데이터 이전 | 예정 |
 | R3 | 활동 이력 표 + 불변 보장(앱 전용 DB 계정 포함) | 예정 |
 | R4 | Actor·`AccessPolicy`·`SecurityConfig`(aal2, 퇴사자 경로), `X-Admin-Token` 폐지 | 예정 |

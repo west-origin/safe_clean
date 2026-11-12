@@ -4,7 +4,7 @@
 - [x] 1단계 분석 보고(코드 + `safe_clean_test` 읽기 전용 조회). 찾은 것: 관리자는 공용 `X-Admin-Token` 뿐, 작업·사진·라이브 API 는 매니저 상태를 보지 않음, 콜 상세가 수락 전 자유 메모 노출, 사진 `x-upsert`·재촬영 시 이전 파일 삭제·녹화 경로 고정, public 기본 권한이 새 표를 anon·authenticated 에 연다(기존 표는 회수돼 있음), Spring·Flyway 모두 `postgres`(소유자, RLS 우회). 운영 `safe_clean` 은 INACTIVE 라 조회하지 않음.
 - [x] 2단계 계획 승인(제안대로) — 질의응답은 `rbac.md` §15.
 - [x] R0 사양 문서: `backend/docs/rbac.md` 신설, `BACKEND_PLAN.md` §3-8·§13-27·§15, `CLAUDE.md` §11-8.
-- [ ] R1 기본 권한 회수·기존 권한 회수·`set_updated_at` search_path
+- [x] R1 V064: public 기본 권한에서 anon·authenticated 제거(표·시퀀스·함수, 함수는 PUBLIC 전역 기본값까지), 기존 표·시퀀스·우리 함수 권한 회수, `set_updated_at` search_path 고정. `flyway_schema_history` 는 RLS 대신 권한 회수 유지(사용자 결정). 검증: `scripts/verify-rbac-v064.mjs` 로 PGlite 에 Supabase 기본 권한을 재현하고 V001~V064 를 차례로 실행 — V063 까지는 새 DB 에서 표 74·시퀀스 2·함수 6 건이 앱 키에 열림(테스트 DB 는 예전에 손으로 회수돼 있었음), V064 뒤 기존·새 객체 모두 0건, RLS 꺼진 표는 flyway 이력뿐, 트리거 동작·재실행 확인. **IT 미실행**(Docker 없음). 테스트 서버(`safe_clean_test`) 미적용 — 다음 배포 때 Flyway 가 적용한다.
 - [ ] R2~R19 (`rbac.md` §14)
 - [ ] 알아둘 것: 작업 트리에 이전 작업(소셜 로그인·첫 1회 청소, V060~V063 등)이 커밋되지 않은 채 남아 있다. RBAC 커밋은 자기 변경분만 담는다.
 
