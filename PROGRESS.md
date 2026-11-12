@@ -1,5 +1,13 @@
 # PROGRESS
 
+## RBAC 권한 체계 (2026-11-12 사용자 요청 — 사양 `backend/docs/rbac.md`, 단위 R0~R19)
+- [x] 1단계 분석 보고(코드 + `safe_clean_test` 읽기 전용 조회). 찾은 것: 관리자는 공용 `X-Admin-Token` 뿐, 작업·사진·라이브 API 는 매니저 상태를 보지 않음, 콜 상세가 수락 전 자유 메모 노출, 사진 `x-upsert`·재촬영 시 이전 파일 삭제·녹화 경로 고정, public 기본 권한이 새 표를 anon·authenticated 에 연다(기존 표는 회수돼 있음), Spring·Flyway 모두 `postgres`(소유자, RLS 우회). 운영 `safe_clean` 은 INACTIVE 라 조회하지 않음.
+- [x] 2단계 계획 승인(제안대로) — 질의응답은 `rbac.md` §15.
+- [x] R0 사양 문서: `backend/docs/rbac.md` 신설, `BACKEND_PLAN.md` §3-8·§13-27·§15, `CLAUDE.md` §11-8.
+- [ ] R1 기본 권한 회수·기존 권한 회수·`set_updated_at` search_path
+- [ ] R2~R19 (`rbac.md` §14)
+- [ ] 알아둘 것: 작업 트리에 이전 작업(소셜 로그인·첫 1회 청소, V060~V063 등)이 커밋되지 않은 채 남아 있다. RBAC 커밋은 자기 변경분만 담는다.
+
 ## GitHub CI 실패 수정 (2026-11-02 사용자 요청)
 - [x] apps 실패: `backend-mock-export.mjs shapes`의 시간표 응답 생성에서 누락된 `minimumLeadHours: 3` 복구. 기존 서버 계약·스냅샷과 일치하며 재생성 diff 없음.
 - [x] backend 실패 6건: CleaningPhotoIT·JobFlowIT·LiveSessionIT·LiveAppSourceIT를 전 사진 확정 → 영상 시작 → 영상 종료 요청/원격 종료 확인 → 모든 후 사진 → 작업 완료 순서로 갱신. 사진 준비는 공통 ItSupport에서 실제 API로 수행. 필수 사진/영상 종료 누락 시 거부 검증 추가. 운영 코드·마이그레이션 변경 없음.

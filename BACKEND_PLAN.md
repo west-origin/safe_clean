@@ -210,7 +210,7 @@ booking/
 5. **비밀값은 환경변수로만.** `application*.yml` 에 값 금지(`${VAR}` 참조만). `.env.example` 에 이름만. 커밋 전 `git diff | grep -i secret` 습관.
 6. **상태 전이는 엔티티 메서드로.** `booking.start()` 처럼 허용된 전이만 메서드로 두고, 잘못된 전이는 `ApiException(INVALID_STATE)`. 서비스에서 `setStatus` 금지.
 7. **시간·금액·표시 문자열** — `Instant` 저장 / `KoreanFormat` 표시 / `long` 원. §2.1.
-8. **권한은 두 겹.** `SecurityConfig` 에서 경로 접두사(`/api/v1/customer/**` → `ROLE_CUSTOMER`, `/manager/**` → `ROLE_MANAGER`) + Service 에서 소유권(`booking.customerId == currentUser.id`, 아니면 `NOT_FOUND` — 존재 여부를 노출하지 않는다).
+8. **권한은 두 겹 + 중앙 판단 (2026-11-12 RBAC, 유일한 기준은 `backend/docs/rbac.md`).** `SecurityConfig` 에서 경로 접두사(`/api/v1/customer/**` → `ROLE_CUSTOMER`, `/manager/**` → 매니저·지역 매니저, `/admin/**` → `ROLE_ADMIN` + MFA `aal2`) + Service 에서 소유권(`booking.customerId == currentUser.id`, 아니면 `NOT_FOUND` — 존재 여부를 노출하지 않는다). 역할(`customer`·`manager`·`regional_manager`·`admin`)·계정 상태·권역에 따른 쓰기·민감 조회는 `AccessPolicy.require(actor, action, resource)` 한 곳에서 판단하고, 규칙에 없는 접근은 거부한다. 역할·상태는 요청마다 DB 에서 읽는다(JWT 클레임 불신). 보호 필드(역할·상태·권역·배정 매니저·금액)를 바꾸는 범용 update API 금지. 민감 작업은 활동 이력(`activity_logs`)을 같은 트랜잭션에서 남긴다. 도입 순서는 `rbac.md` §14(R0~R19) — 아직 옮기지 않은 코드는 예전 두 겹 규칙대로 동작한다.
 9. **테스트는 기능마다 3층.** Service 단위(Mockito, 규칙·상태기계) / Controller 슬라이스(`@WebMvcTest`, JSON 모양·권한) / 통합(`@SpringBootTest` + Testcontainers Postgres, 핵심 흐름 8개 §11). 새 엔드포인트는 셋 다 없으면 보고 불가.
 10. **로그에 개인정보 금지.** 전화번호·주소·토큰은 마스킹(`KoreanFormat.maskPhone`). 요청 로그는 `method path status ms userId` 만.
 11. **한 항목 = 한 커밋** (`feat(backend): … (단계 B3)`), 회차마다 §14 형식으로 보고 후 정지. 프론트 규칙과 같다.
@@ -1225,6 +1225,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON=        # base64 한 줄 (B6)
 | 25 | **로그인 식별자** (§7.1.1) | A: Phone provider 켜기 / B: 합성 이메일 / C: Spring 자체 JWT | **결정: A** (2026-09-19). 대시보드에서 Phone provider 를 켜고 Twilio 칸에 더미 값(`ACxxx…`/`MGxxx…`)을 넣어 저장, phone confirmations 끔, 가입 끔. 확인: phone+password grant 가 `invalid_credentials`(관문 통과), `/signup`·`/otp` 는 `signup_disabled` |
 | 24 | 수리 서비스 주문 모델 | 지금은 청소 예약 플로우를 빌려 쓰고 `repair_type` 만 남긴다(Figma 임시 연결). 수리 전용 카테고리·가격·매니저(기사) 모델은 디자인 확정 후 | **답 필요**(급하지 않음) — 그 전까지 수리 예약은 `repair_type` 이 있는 청소 예약으로 처리 |
 | 23 | 바디캠 음성 | — | **결정: 영상만** (2026-09-19). Egress `videoOnly`, 고객 소리 설정 제거, Mute 컨트롤 disabled(§9.2-6). 약관 `recording` 문안 "영상만 녹화" |
+| 27 | **권한 체계(RBAC)** | 역할 4개·매니저 계정 상태 5개·권역·직무 분리·활동 이력 | **결정 2026-11-12** — `backend/docs/rbac.md` 가 유일한 기준(§15 에 질의응답 기록). 결정 8(운영자 화면)은 "어드민 API(admin 역할 + MFA) 먼저, 화면은 나중" 으로, 결정 20·22 의 `X-Admin-Token` 은 폐지, 결정 22 의 방문 취소 점수는 "72시간 전 직접 반납 0점" 으로 바뀐다(R9 구현 때 `manager-policy.md` 갱신) |
 | 20 | 바디캠 등록 절차 | 운영자가 SQL 로 `manager_devices` 삽입 + Spring 내부 API 로 Ingress 생성 / 관리 API | 결정 8 과 함께 (기본: 서버의 관리자 전용 엔드포인트 `POST /admin/devices` + `ADMIN_TOKEN` 헤더, B5) |
 
 ---
@@ -1246,6 +1247,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON=        # base64 한 줄 (B6)
 ---
 
 ## 15. 검토 이력
+- **2026-11-12 (RBAC 도입 결정)** — 역할 `regional_manager`·`admin` 추가, 매니저 계정 상태 5개(pending·active·suspended·dormant·withdrawn), 권역·예약 권역 스냅샷, 예약 정보 3단계 공개·출입 정보, 사진 버전·영구 보관, 고객 피드백, 활동 이력, 어드민 MFA(aal2), `X-Admin-Token` 폐지. 1단계 분석에서 찾은 것: 관리자가 공용 토큰뿐, 업무 API 가 매니저 상태를 보지 않음, 콜 상세가 수락 전 자유 메모 노출, 사진 덮어쓰기·삭제, public 기본 권한이 새 표를 anon 에 연다. 사양과 결정 기록은 `backend/docs/rbac.md`, 이 문서는 §3-8·§13-27 만 바꿨다.
 - **2026-09-19 (2차 검토, 결정 5개 반영 후)** — 고친 허점:
   1. Spring Boot 3.5 는 OSS 지원 종료(2026-06) → **4.0.x** 로. 스타터 이름은 start.spring.io 생성 pom 을 따른다.
   2. `preparing` 서버 상태 삭제 (뒤로 가기로 되돌릴 수 없고 부분 유니크 인덱스에 걸려 다음 작업을 막았다).

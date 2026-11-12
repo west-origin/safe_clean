@@ -283,7 +283,7 @@ npm run build
 5. **비밀값은 환경변수로만.** `application*.yml` 에 값 금지(`${VAR}` 참조만). `backend/.env.example` 에 이름만. `.env` 는 커밋 금지. 커밋 전 `git diff | grep -i secret`.
 6. **상태 전이는 엔티티 메서드로.** `booking.start()` 처럼 허용된 전이만 메서드로 두고, 잘못된 전이는 `ApiException(INVALID_STATE)`. 서비스에서 `setStatus` 금지. 전이 표는 계획 §6.1.
 7. **시간·금액·표시 문자열.** 시각은 `Instant`(UTC) 저장, 표시는 `KoreanFormat`(Asia/Seoul) 에서만. 금액은 `long` 원. 예약 생성 시 금액·수수료·소요 시간을 예약 행에 고정하고 오퍼·정산은 그 값에서만 계산한다.
-8. **권한은 두 겹.** `SecurityConfig` 경로 접두사(`/customer/**` → `ROLE_CUSTOMER`, `/manager/**` → `ROLE_MANAGER`) + Service 소유권 검사(남의 리소스는 `NOT_FOUND` — 존재를 노출하지 않는다).
+8. **권한은 두 겹 + 중앙 판단 (2026-11-12 RBAC, 유일한 기준은 `backend/docs/rbac.md`).** `SecurityConfig` 경로 접두사(`/customer/**` → `ROLE_CUSTOMER`, `/manager/**` → 매니저·지역 매니저, `/admin/**` → `ROLE_ADMIN` + MFA `aal2`) + Service 소유권 검사(남의 리소스는 `NOT_FOUND` — 존재를 노출하지 않는다). 역할·계정 상태·권역에 따른 쓰기·민감 조회는 `AccessPolicy.require(actor, action, resource)` 한 곳에서 판단하고 규칙에 없으면 거부한다. 역할·상태는 요청마다 DB 기준(JWT 클레임 불신). 보호 필드를 바꾸는 범용 update API 금지, 민감 작업은 `activity_logs` 를 같은 트랜잭션에서. 결정을 완화하거나 바꾸려면 먼저 사용자에게 묻는다. 도입 순서는 `rbac.md` §14.
 9. **쓰기 요청은 멱등.** 예약 생성·콜 수락·작업 시작/완료·문의는 `Idempotency-Key` 헤더 + `Idempotent.run`(계획 §6.9). 앱은 `crypto.randomUUID()` 로 키를 만들어 재시도 때 같은 키를 보낸다(§9.4).
 10. **테스트는 기능마다 3층.** Service 단위(Mockito) / Controller 슬라이스(`@WebMvcTest`, JSON 모양·권한) / 통합(`@SpringBootTest` + Testcontainers Postgres, 핵심 흐름 `*IT`). 새 엔드포인트는 셋 다 없으면 보고 불가. Docker 가 없어 `-DskipITs` 로 건너뛰면 PROGRESS 에 "IT 미실행" 을 적는다.
 11. **로그에 개인정보 금지.** 전화번호·주소·토큰은 마스킹. 요청 로그는 `method path status ms userId` 만.
