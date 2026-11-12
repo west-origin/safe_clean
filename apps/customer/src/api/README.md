@@ -141,3 +141,7 @@ ServiceLivePortrait 가 완료 전에는 10초마다 묻고, `ready` 를 받으�
 | `verifyCustomerPhoneProof(phone, code)` / `getFirstCleaningEligibility()` | `verified`, `eligible` boolean, `reason` `'eligible'\|'phone_required'\|'already_used'`, `completedOneTime` boolean | 첫 1회 청소 자격 |
 
 문구는 `mock.js` `PHONE_VERIFY_COPY`. 가짜 서버는 `__fake.phoneVerified=false` 로 미인증 고객, 맞는 인증번호는 `VALID_CODE`.
+
+## `getHomeBanners()` → Home 혜택 배너(`HomePromotions`) (2026-11-12, rbac.md §15-22)
+서버 `GET /customer/banners` → `[{ id, title, description, imageUrl }]` 를 `{ id, title, description, image }` 로 바꿔 준다(`HomePromotionCard` 가 `image` 를 그린다).
+어드민이 매니저 앱 배너 관리에서 올린 배너 중 오늘 게시 중인 것만 순서대로. 비었거나 실패하면 홈은 배너 영역을 숨긴다. 가짜 서버는 예전 고정 배너 3장을 주고, `__fake.banners` 로 바꿀 수 있다.

@@ -14,7 +14,7 @@ import {
   ScreenError,
   ScreenLoading,
 } from '@ansimclean/ui';
-import { getHome, getNotices } from '../../api/customer.js';
+import { getHome, getNotices, getHomeBanners } from '../../api/customer.js';
 import { UPCOMING_HOME_COPY } from '../../api/mock.js';
 import CustomerFooter from '../CustomerFooter.jsx';
 import { onPushReceived } from '../../push/pushClient.js';
@@ -33,6 +33,7 @@ export default function Home() {
     subscribe: onPushReceived,
   });
   const notices = useAsync(() => getNotices(), []);
+  const banners = useAsync(() => getHomeBanners(), []); // 혜택 배너 — 없거나 못 받으면 배너 영역을 숨긴다 (rbac.md §15-22 판단 항목)
   const tabBar = <CustomerFooter active="home" />;
   if (error) return <ScreenError error={error} onRetry={reload} tabBar={tabBar} />;
   if (!data) return <ScreenLoading tabBar={tabBar} />;
@@ -101,7 +102,7 @@ export default function Home() {
             </span>
           </button>
         </section>
-        <HomePromotions />
+        {banners.data?.length > 0 && <HomePromotions banners={banners.data} />}
         <section className={styles.section} aria-labelledby="news-title">
           <div className={styles.sectionHeader}>
             <h2 id="news-title" className="text-heading-s">

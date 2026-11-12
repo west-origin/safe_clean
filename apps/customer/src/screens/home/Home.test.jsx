@@ -151,3 +151,23 @@ describe('Home 갱신', () => {
     expect(screen.getByText('매칭 완료')).toBeInTheDocument();
   });
 });
+
+// 홈 혜택 배너는 서버(GET /customer/banners)가 준다 — 어드민이 매니저 앱 배너 관리에서 올린 것 (rbac.md §15-22)
+describe('홈 혜택 배너', () => {
+  it('서버가 준 배너를 순서대로 보여준다', async () => {
+    const { __fake } = await import('../../api/http.js');
+    __fake.banners = [{ id: 'x1', title: '겨울 대청소 이벤트', description: '12월 한정', imageUrl: 'https://signed/x1.png' }];
+    renderHome();
+    expect(await screen.findByRole('img', { name: '겨울 대청소 이벤트. 12월 한정' })).toHaveAttribute('src', 'https://signed/x1.png');
+    __fake.banners = undefined;
+  });
+
+  it('배너가 없으면 배너 영역을 숨긴다', async () => {
+    const { __fake } = await import('../../api/http.js');
+    __fake.banners = [];
+    renderHome();
+    expect(await screen.findByRole('heading', { name: '안심클린 소식' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: '안심클린 혜택' })).not.toBeInTheDocument();
+    __fake.banners = undefined;
+  });
+});

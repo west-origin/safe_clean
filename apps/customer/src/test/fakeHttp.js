@@ -16,6 +16,10 @@ import {
   CONFIRM_COPY, SAVED_ADDRESS, CLEANER_PENDING, ADDRESS_RESULTS, PROFILE_FORM, ADDRESSES, LIVE_SESSION, LIVE_CHECKLIST, CLEANING_PHOTOS,
   FAQ, NOTICES, SCHEDULE_PRICE,
 } from '../api/mock.js';
+// 홈 혜택 배너 (GET /customer/banners) — 서버로 옮기기 전 앱에 있던 3장을 가짜 서버가 준다 (scripts/seed-home-banners.mjs 와 같은 문구)
+import couponBanner from '@ansimclean/ui/assets/home-banner-coupon.png';
+import dailyBanner from '@ansimclean/ui/assets/home-banner-daily.png';
+import giftBanner from '@ansimclean/ui/assets/home-banner-gift.png';
 
 /**
  * api/http.js 의 ApiError 와 같은 모양 (status, code, message).
@@ -250,6 +254,11 @@ export function fakeHttpModule() {
     },
     // ── B3 고객 ──
     // upcoming = '예정' 탭 카드 중 날짜·시각('YYYY-MM-DD HH:MM' 문자열 비교)이 가장 이른 것, 없으면 null
+    'GET /customer/banners': () => state.banners ?? [
+      { id: 'banner-1', title: '첫 청소 15,000원 쿠폰팩', description: '즉시 지급 · 신규 고객 웰컴', imageUrl: couponBanner },
+      { id: 'banner-2', title: '청소는 맡기고, 일상은 여유롭게', description: '우리 집에 맞는 청소를 만나보세요', imageUrl: dailyBanner },
+      { id: 'banner-3', title: '소중한 사람에게 깨끗한 하루', description: '깨끗함을 넘어, 안심을 전해요', imageUrl: giftBanner },
+    ], // __fake.banners = [] 로 '배너 없음' 을 흉내 낸다
     'GET /customer/home': () => ({ slides: HOME_SLIDES, upcoming: state.reservations.filter((r) => r.tab === 'upcoming').sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))[0] ?? null, changeDeadlineHours: state.changeDeadlineHours }),
     'GET /customer/repair': () => ({ hero: REPAIR_HERO }),
     'GET /customer/reservations': () => ({ header: RESERVATIONS_HEADER, tabs: RESERVATION_TABS, reservations: state.reservations, changeDeadlineHours: state.changeDeadlineHours }),

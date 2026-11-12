@@ -135,6 +135,15 @@ export async function deleteAccount() {
 }
 
 /** Home/Realtime · Home/Standard-A — { slides(히어로 문구·이미지), upcoming(다가오는 방문 카드 | null), changeDeadlineHours(변경·취소 기한 시간) } */
+/**
+ * 홈 혜택 배너 (HomePromotions) — 서버 GET /customer/banners. 어드민이 매니저 앱 배너 관리에서 올린 배너 중 오늘 게시 중인 것만 순서대로.
+ * 홈을 열 때마다 다시 부른다(앱은 저장하지 않는다). → [{ id, title, description, image }] (image = 서명 URL, HomePromotionCard 가 그린다)
+ */
+export async function getHomeBanners() {
+  const list = await http.get('/customer/banners');
+  return list.map(({ id, title, description, imageUrl }) => ({ id, title, description, image: imageUrl }));
+}
+
 export async function getHome() {
   failIfErrorScenario();
   const home = await http.get('/customer/home');
