@@ -21,6 +21,7 @@
 //   로그인·회원가입은 Figma 에 없어 코드에서 정함: /auth/login → (회원가입) /auth/signup → /auth/signup/info → /auth/signup/complete → /
 //   위 22개 화면은 전부 RequireAuth 안 (로그인 전이면 /auth/login 으로, 로그인 후 원래 주소로 복귀)
 //   [코드에서 정함, rbac.md §15-20] 어드민: /auth/login → /auth/mfa(인증앱 6자리) → /admin(관리자 홈). 어드민은 매니저 화면 대신 /admin… 만 (RequireAuth)
+//     /admin ─ 공지 관리 → /admin/notices ─ 공지 올리기 → /admin/notices/new · 공지 한 줄 → /admin/notices/:id ─ 올리기·저장·삭제 → /admin/notices
 import { createBrowserRouter } from 'react-router';
 import RouteError from './screens/RouteError.jsx';
 import RouteShell from './screens/RouteShell.jsx';
@@ -75,6 +76,8 @@ const protectedRoutes = [
   { path: '/profile/:key', lazy: page(() => import('./screens/profile/ProfileDetail.jsx')) }, // info · area · identity · education · account
   // 관리자 화면 (코드에서 정함, rbac.md §15-20) — 어드민 + MFA 만 (RequireAuth)
   { path: '/admin', lazy: page(() => import('./screens/admin/AdminHome.jsx')) },
+  { path: '/admin/notices', lazy: page(() => import('./screens/admin/AdminNotices.jsx')) }, // 공지 관리 목록
+  { path: '/admin/notices/:id', lazy: page(() => import('./screens/admin/AdminNoticeEdit.jsx')) }, // :id = 'new' 면 새 공지
 ];
 
 // 경로 없는 RequireAuth 라우트로 감싼다: 로그인돼 있으면 자식 화면을(Outlet), 아니면 로그인·가입 화면으로 보낸다

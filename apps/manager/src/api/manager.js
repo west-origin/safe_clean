@@ -3,7 +3,7 @@
 // (요일 번호, 반복 문구, 날짜·시각 형식, 서버가 null 로 주는 선택 문구 → undefined).
 // 로그인·가입의 세션 저장(session.js)과 가입 초안(localStorage), DEV 확인용 ?scenario=empty|error 도 여기서 처리한다.
 // 부르는 곳은 대부분 screens/* 화면이다. 화면 밖의 예: live/liveClient.js(라이브 세션 함수), App.jsx(refreshMe).
-import { REPEAT_OPTIONS, SUPPORT_COPY, AUTH_COPY, ADMIN_COPY, MANAGER_PASSWORD_OK_MESSAGE, PHOTO_COPY } from './mock.js';
+import { REPEAT_OPTIONS, SUPPORT_COPY, AUTH_COPY, ADMIN_COPY, ADMIN_NOTICE_COPY, MANAGER_PASSWORD_OK_MESSAGE, PHOTO_COPY } from './mock.js';
 import { deviceToken } from '../push/deviceToken.js';
 
 import { http, ApiError, newIdempotencyKey } from './http.js';
@@ -433,6 +433,34 @@ export const currentUserName = () => session.user()?.name ?? '';
 export async function getAdminCopy() {
   return ADMIN_COPY;
 }
+
+// ── 관리자 › 공지 관리 (코드에서 정함, 서버 /admin/notices — backend/docs/api.md "어드민 공지") ──
+/** 공지 관리 화면 문구 (api/mock.js ADMIN_NOTICE_COPY) */
+export async function getAdminNoticeCopy() {
+  return ADMIN_NOTICE_COPY;
+}
+/** 모든 대상의 공지, 최신순 → [{ id, audience, title, date }] */
+export async function getAdminNotices() {
+  return http.get('/admin/notices');
+}
+/** 공지 한 건 → { id, audience, title, date, body } */
+export async function getAdminNotice(id) {
+  return http.get(`/admin/notices/${encodeURIComponent(id)}`);
+}
+/** 새 공지 올리기. submitKey(화면을 열 때 한 번 만든 멱등 키)로 재시도가 두 번 올리지 않는다 */
+export async function createAdminNotice({ audience, title, body, submitKey }) {
+  return http.post('/admin/notices', { audience, title, body }, { idempotencyKey: submitKey });
+}
+/** 공지 고치기 (게시 날짜는 그대로) */
+export async function updateAdminNotice(id, { audience, title, body }) {
+  return http.put(`/admin/notices/${encodeURIComponent(id)}`, { audience, title, body });
+}
+/** 공지 지우기 */
+export async function deleteAdminNotice(id) {
+  await http.delete(`/admin/notices/${encodeURIComponent(id)}`);
+}
+/** 새 공지 화면의 멱등 키 */
+export const newNoticeKey = () => newIdempotencyKey();
 
 // ── Profile › 로그아웃. 서버 폐기가 실패해도 앱은 토큰을 지운다 ──
 /** 로그아웃 요청은 짧게 기다린다 — 서버가 느려도 5초 안에 세션을 지우고 화면을 넘긴다 */

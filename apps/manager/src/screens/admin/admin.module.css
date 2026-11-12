@@ -16,3 +16,22 @@
   margin: 0;
   color: var(--color-text-secondary);
 }
+
+/* 입력 한 묶음 (라벨 + 칸) */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* 라벨 (TextField 의 라벨과 같은 줄 높이) */
+.label {
+  margin: 0;
+}
+
+/* 하단 고정 영역: 오류 문구 + 버튼 */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}

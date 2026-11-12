@@ -373,7 +373,44 @@ export const ADMIN_COPY = {
   title: '관리자',
   description: '고객 앱에 보이는 배너와 공지를 관리해요.',
   logout: '로그아웃',
+  menuTitle: '관리',
 };
+
+/** 관리자 › 공지 관리 문구 (Figma 에 없어 코드에서 정함, rbac.md §15-23). 대상 키는 서버 notices.audience 값 */
+export const ADMIN_NOTICE_COPY = {
+  menu: '공지 관리',
+  listTitle: '공지 관리',
+  description: '올린 공지는 고객·매니저 앱에서 화면을 열 때 바로 보여요.',
+  empty: '올린 공지가 없어요',
+  create: '공지 올리기',
+  newTitle: '새 공지',
+  editTitle: '공지 수정',
+  audienceLabel: '보여줄 앱',
+  audiences: [
+    { key: 'customer', label: '고객' },
+    { key: 'manager', label: '매니저' },
+    { key: 'all', label: '전체' },
+  ],
+  titleLabel: '제목',
+  titlePlaceholder: '제목을 입력해주세요',
+  bodyLabel: '내용',
+  bodyPlaceholder: '내용을 입력해주세요',
+  submit: '올리기',
+  save: '저장하기',
+  delete: '삭제하기',
+  deleteTitle: '이 공지를 삭제할까요?',
+  deleteDescription: '삭제하면 고객·매니저 앱에서 바로 사라져요.',
+  deleteConfirm: '삭제',
+  cancel: '취소',
+  created: '공지를 올렸어요',
+  saved: '공지를 저장했어요',
+  deleted: '공지를 삭제했어요',
+};
+/** 가짜 서버(test/fakeHttp.js)의 어드민 공지 목록 처음 값 — 매니저 공지(Figma 문구 MANAGER_NOTICES)를 매니저 대상으로 */
+export const ADMIN_NOTICES = [
+  { id: 'mn1', audience: 'manager', title: '추석 연휴 정산 일정 안내', date: '2026.09.10', body: '연휴 기간(9월 24일~27일) 정산은 9월 28일에 일괄 처리됩니다.' },
+  { id: 'mn2', audience: 'manager', title: '실시간 촬영 장비 점검 안내', date: '2026.09.01', body: '9월 5일까지 촬영 장비 배터리와 네트워크 상태를 앱에서 확인해주세요.' },
+];
 
 export const AUTH_COPY = {
   login: {

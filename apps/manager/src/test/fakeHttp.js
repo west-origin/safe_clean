@@ -10,7 +10,7 @@ import {
   MANAGER_TERMS, MANAGER_TERM_BODIES, MANAGER_PRIVACY_NOTE, HOME, CALLS, CALL_DETAIL, REJECT_REASONS, JOB_DETAIL, EQUIPMENT_OK, ACTIVE_JOB, PAUSE_REASONS,
   PAUSED_JOB, COMPLETED_JOB, SETTLEMENT, SETTLEMENT_DETAIL, SCHEDULE, SCHEDULE_WEEK, AVAILABILITY, PROFILE, EQUIPMENT_DEVICE, JOB_CONTACT, PROFILE_DETAILS,
   MANAGER_NOTIFICATION_SETTINGS, MANAGER_NOTIFICATION_ROWS,
-  MANAGER_NOTICES,
+  MANAGER_NOTICES, ADMIN_NOTICES,
 } from '../api/mock.js';
 
 /**
@@ -87,6 +87,8 @@ export function fakeHttpModule() {
     user: user(),
     calls: [], // 보낸 요청 { method, path, body, idempotencyKey… } 기록 — 테스트가 요청 본문·멱등 키를 확인한다
     inquiries: [], // 접수된 문의 내용(문자열)
+    adminNotices: ADMIN_NOTICES.map((n) => ({ ...n })), // 어드민 공지 관리 (최신순)
+    noticeKeys: {}, // 공지 올리기 멱등 키 → 만든 공지 id
     cancelledJobs: [], // 방문 취소 요청 { id, reason, detail } 기록
     homeManager: {}, // __fake.homeManager = { suspension: '…' } → 홈 매니저 필드 덮어쓰기
     jobDetail: {}, // __fake.jobDetail = { status: 'inProgress' } → 업무 상세 필드 덮어쓰기
@@ -115,6 +117,19 @@ export function fakeHttpModule() {
   };
   // 올린 사진 파일의 주소: 브라우저(VITE_API_MOCK=1)에서는 찍은 사진을 그대로 보이게 blob: 주소, 테스트(jsdom)에는 없어 예시 주소
   const photoUrl = (file, name) => globalThis.URL?.createObjectURL?.(file) ?? `https://example.com/photos/${name}.jpg`;
+  const adminNoticeOf = (id) => state.adminNotices.find((n) => n.id === id) ?? (() => { throw notFound(id); })();
+  /** 서버 AdminNoticeService.clean 과 같은 검사. 통과하면 공백을 뗀 { audience, title, body } */
+  const checkNotice = (b) => {
+    const audience = (b?.audience ?? '').trim();
+    const title = (b?.title ?? '').trim();
+    const body = (b?.body ?? '').trim();
+    if (!['customer', 'manager', 'all'].includes(audience)) throw new ApiError(400, 'VALIDATION', '공지 대상을 골라주세요');
+    if (!title) throw new ApiError(400, 'VALIDATION', '제목을 입력해주세요');
+    if (title.length > 100) throw new ApiError(400, 'VALIDATION', '제목은 100자까지 쓸 수 있어요');
+    if (!body) throw new ApiError(400, 'VALIDATION', '내용을 입력해주세요');
+    if (body.length > 5000) throw new ApiError(400, 'VALIDATION', '내용은 5,000자까지 쓸 수 있어요');
+    return { audience, title, body };
+  };
   const photoOf = (id) => state.jobPhotos.find((p) => p.id === id) ?? (() => { throw notFound(id); })();
   // 404 NOT_FOUND 오류를 만든다 (what = 찾지 못한 것, 문구에 붙는다)
   const notFound = (what) => new ApiError(404, 'NOT_FOUND', `찾을 수 없어요: ${what}`);
@@ -181,6 +196,16 @@ export function fakeHttpModule() {
     ],
     'GET /manager/penalties': () => state.penalties,
     'GET /auth/me': () => state.user,
+    // 어드민 공지 관리 (서버 AdminNoticeService 와 같은 검사 문구)
+    'GET /admin/notices': () => state.adminNotices.map((n) => ({ ...n, body: null })),
+    'POST /admin/notices': (b, opts) => {
+      const key = opts?.idempotencyKey;
+      if (key && state.noticeKeys[key]) return { ...state.adminNotices.find((n) => n.id === state.noticeKeys[key]) };
+      const n = { id: `notice-${state.adminNotices.length + 1}`, date: '2026.11.12', ...checkNotice(b) };
+      state.adminNotices.unshift(n);
+      if (key) state.noticeKeys[key] = n.id;
+      return { ...n };
+    },
     'POST /auth/logout': () => ({ ok: true }),
     'GET /support/notices?audience=manager': () => MANAGER_NOTICES.map(({ id, title, date }) => ({ id, title, date })),
     // 접수된 문의를 목록 모양으로 만든다. 첫 문의만 답변 완료, 나머지는 답변 대기
@@ -240,6 +265,13 @@ export function fakeHttpModule() {
   // 경로에 id 가 들어가는 요청. [메서드, 정규식, 처리 함수] — 정규식 괄호로 잡은 값들이 첫 인자 배열로 온다.
   // exact 를 먼저 보므로 '/manager/jobs/active' 는 아래 '/manager/jobs/:id' 에 id='active' 로 걸리지 않는다.
   const patterns = [
+    ['GET', /^\/admin\/notices\/([^/?]+)$/, ([id]) => ({ ...adminNoticeOf(id) })],
+    ['PUT', /^\/admin\/notices\/([^/?]+)$/, ([id], b) => Object.assign(adminNoticeOf(id), checkNotice(b))],
+    ['DELETE', /^\/admin\/notices\/([^/?]+)$/, ([id]) => {
+      adminNoticeOf(id);
+      state.adminNotices = state.adminNotices.filter((n) => n.id !== id);
+      return { ok: true };
+    }],
     ['GET', /^\/support\/notices\/([^?]+)\?audience=manager$/, ([id]) => {
       const n = MANAGER_NOTICES.find((x) => x.id === id);
       if (!n) throw new ApiError(404, 'NOT_FOUND', '찾을 수 없어요');

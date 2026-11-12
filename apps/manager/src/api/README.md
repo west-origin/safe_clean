@@ -113,6 +113,10 @@ CompleteConfirm 의 "아직 완료하지 않은 항목" 은 InProgress 체크리
 | `isAdmin()` | `boolean` | `session.user.role === 'admin'` — RequireAuth 가 매니저 화면 대신 `/auth/mfa`·`/admin` 으로 보낸다 |
 | `ADMIN_COPY` | `{ title, description, logout }` | `mock.js`. 6자리 화면 문구는 `AUTH_COPY.mfa` |
 
+## `getAdminNotices()` / `getAdminNotice(id)` / `createAdminNotice()` / `updateAdminNotice()` / `deleteAdminNotice()` → Admin/Notices · Admin/NoticeEdit (코드에서 정함)
+서버 `/admin/notices` (`backend/docs/api.md` "어드민 공지"). 한 건 `{ id, audience: 'customer'|'manager'|'all', title, date: '2026.11.12', body }` — 목록은 `body: null`.
+쓰기 본문 `{ audience, title, body }`, 올리기는 화면을 열 때 만든 `submitKey` 를 `Idempotency-Key` 로. 문구 `mock.js ADMIN_NOTICE_COPY`, 가짜 서버 처음 목록 `ADMIN_NOTICES`.
+
 ## 매니저 데이터 (B4 부터 실서버 — 경로·응답은 `backend/docs/api.md` §5.3)
 | 함수 | 서버 | 화면 계약 |
 |---|---|---|
