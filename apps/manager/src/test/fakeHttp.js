@@ -51,6 +51,8 @@ export const MY_ACCEPTED_OFFER_ID = 'call-mine';
 export const UNAVAILABLE_OFFER_ID = 'call-unavailable';
 /** 이 작업은 오늘이 아니라 시작할 수 없다 (INVALID_STATE) */
 export const UNSTARTABLE_JOB_ID = 'job-tomorrow'; // 방문 취소는 409(4시간 전), 고객 연락처는 404 로도 쓴다
+/** 이 번호로 로그인하면 어드민 계정 (aal1 토큰) — 다음은 POST /auth/mfa/verify(VALID_CODE) 로 aal2 토큰 (rbac.md §15-20) */
+export const ADMIN_PHONE = '11112222';
 /** 수락하면 이동하는 작업 id */
 export const ACCEPTED_JOB_ID = 'job-1';
 
@@ -62,6 +64,9 @@ const stripPrefix = (label) => label.replace(/^\((필수|선택)\)\s*/, '');
 const user = (patch) => ({ id: FAKE_USER_ID, role: 'manager', name: '김매니저', profileComplete: true, signupStep: null, ...patch });
 // 로그인·가입·비밀번호 재설정 응답 모양 (토큰 두 개 + 사용자)
 const sessionOf = (u) => ({ accessToken: 'access', refreshToken: 'refresh', expiresIn: 3600, user: u });
+/** 가운데 부분에 aal 이 든 JWT 모양 글자 (서명 없음). 앱 session.hasMfa 가 aal 을 읽는다 */
+const fakeJwt = (aal) => `e30.${btoa(JSON.stringify({ aal })).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')}.sig`;
+const adminSession = (aal) => ({ accessToken: fakeJwt(aal), refreshToken: `refresh-${aal}`, expiresIn: 3600, user: { id: FAKE_USER_ID, role: 'admin', name: '운영자', profileComplete: true, signupStep: null } });
 // '2026-09-18' → '9월 18일' (근무 불가 목록의 날짜 표시)
 const dateShort = (iso) => {
   const [, m, d] = iso.split('-').map(Number);
@@ -126,7 +131,13 @@ export function fakeHttpModule() {
     'GET /terms?audience=manager': () => ({ terms: MANAGER_TERMS, note: MANAGER_PRIVACY_NOTE }),
     'POST /auth/login': (b) => {
       if (b.password === WRONG_PASSWORD) throw new ApiError(401, 'LOGIN_FAILED', '휴대폰 번호 또는 비밀번호를 확인해주세요');
+      if (b.phone === ADMIN_PHONE) return adminSession('aal1');
       return sessionOf(state.user);
+    },
+    // 어드민 인증앱 6자리: VALID_CODE 만 통과하고 aal2 토큰을 준다
+    'POST /auth/mfa/verify': (b) => {
+      if (b.code !== VALID_CODE) throw new ApiError(400, 'OTP_INVALID', '인증번호가 맞지 않아요');
+      return adminSession('aal2');
     },
     'POST /auth/phone/otp': (b) => {
       if (b.phone === TAKEN_PHONE) throw new ApiError(409, 'PHONE_TAKEN', '이미 가입한 번호예요. 로그인해서 이어서 진행해주세요');

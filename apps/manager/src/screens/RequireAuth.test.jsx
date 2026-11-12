@@ -20,8 +20,10 @@ function renderAt(path) {
       <Routes>
         <Route path="/auth/login" element={<Login />} />
         <Route path="/auth/signup/complete" element={<p>가입 완료 화면</p>} />
+        <Route path="/auth/mfa" element={<p>인증앱 6자리 화면</p>} />
         <Route element={<RequireAuth />}>
           <Route path="/" element={<p>홈 화면</p>} />
+          <Route path="/admin" element={<p>관리자 홈</p>} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -48,5 +50,27 @@ describe('매니저 RequireAuth', () => {
     session.set({ accessToken: 'a', refreshToken: 'r', expiresIn: 3600, user: { id: 'm1', role: 'manager', name: '김매니저', profileComplete: false, signupStep: 'complete' } });
     renderAt('/');
     expect(screen.getByText('가입 완료 화면')).toBeInTheDocument();
+  });
+
+  // 어드민 (rbac.md §15-20·24): 토큰의 aal 로 6자리 화면·관리자 홈을 고른다. 매니저는 /admin 에 오면 홈으로
+  const jwt = (aal) => `e30.${btoa(JSON.stringify({ aal })).replace(/=+$/, '')}.sig`;
+  const admin = { id: 'a1', role: 'admin', name: '운영자', profileComplete: true, signupStep: null };
+
+  it('어드민인데 6자리 전(aal1)이면 인증앱 화면으로', () => {
+    session.set({ accessToken: jwt('aal1'), refreshToken: 'r', expiresIn: 3600, user: admin });
+    renderAt('/admin');
+    expect(screen.getByText('인증앱 6자리 화면')).toBeInTheDocument();
+  });
+
+  it('어드민이 6자리를 통과했으면(aal2) 매니저 화면 대신 관리자 홈으로', () => {
+    session.set({ accessToken: jwt('aal2'), refreshToken: 'r', expiresIn: 3600, user: admin });
+    renderAt('/');
+    expect(screen.getByText('관리자 홈')).toBeInTheDocument();
+  });
+
+  it('매니저가 /admin 으로 오면 홈으로', () => {
+    session.set({ accessToken: jwt('aal2'), refreshToken: 'r', expiresIn: 3600, user: { id: 'm1', role: 'manager', name: '김매니저', profileComplete: true, signupStep: null } });
+    renderAt('/admin');
+    expect(screen.getByText('홈 화면')).toBeInTheDocument();
   });
 });

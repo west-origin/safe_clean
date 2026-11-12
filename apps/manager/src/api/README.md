@@ -105,6 +105,14 @@ CompleteConfirm 의 "아직 완료하지 않은 항목" 은 InProgress 체크리
 ## `getEquipmentDevice()` → Manager/Profile/Equipment
 `{ name: '안심캠 #AC-00231', connection: '정상 연결', status: { label, value, status }[] }`
 
+## `verifyAdminMfa(code)` / `isAdmin()` / `hasAdminMfa()` / `getAdminCopy()` → Auth/Mfa · Admin/Home (코드에서 정함, `rbac.md` §15-20)
+| 필드 | 형식 | 비고 |
+|---|---|---|
+| `code` | `string` 6자리 숫자 | 인증앱(TOTP) 숫자. 서버 `POST /auth/mfa/verify` |
+| 응답 | `{ accessToken, refreshToken, expiresIn, user }` | 로그인과 같은 모양. 토큰 aal=aal2 → `session.hasMfa()` true. 틀리면 `{ ok: false }`(OTP_INVALID) |
+| `isAdmin()` | `boolean` | `session.user.role === 'admin'` — RequireAuth 가 매니저 화면 대신 `/auth/mfa`·`/admin` 으로 보낸다 |
+| `ADMIN_COPY` | `{ title, description, logout }` | `mock.js`. 6자리 화면 문구는 `AUTH_COPY.mfa` |
+
 ## 매니저 데이터 (B4 부터 실서버 — 경로·응답은 `backend/docs/api.md` §5.3)
 | 함수 | 서버 | 화면 계약 |
 |---|---|---|

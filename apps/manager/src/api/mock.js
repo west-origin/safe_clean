@@ -368,6 +368,13 @@ export const ACTION_FAILED_COPY = { accept: '수락하지 못했어요. 다시 �
 
 // ── 로그인·회원가입 (Figma 매니저 페이지에 화면 없음 → 코드에서 정함. 디자인이 오면 문구·순서 교체) ──
 /** 화면 문구. 고객용 Auth/* 의 어투를 따랐다 */
+/** 관리자 홈 문구 (Figma 에 없어 코드에서 정함 — 어드민은 매니저 앱에서 배너·공지 관리만 한다, rbac.md §15-20·24) */
+export const ADMIN_COPY = {
+  title: '관리자',
+  description: '고객 앱에 보이는 배너와 공지를 관리해요.',
+  logout: '로그아웃',
+};
+
 export const AUTH_COPY = {
   login: {
     title: '매니저 로그인',
@@ -379,6 +386,15 @@ export const AUTH_COPY = {
     signUpPrompt: '아직 매니저 계정이 없으신가요?',
     signUpLink: '회원가입',
     failed: '휴대폰 번호 또는 비밀번호를 확인해주세요.',
+  },
+  // 어드민 로그인 2단계 — 인증앱 6자리 (코드에서 정함, rbac.md §15-20)
+  mfa: {
+    title: '관리자 인증',
+    description: '인증앱에 표시된 6자리 숫자를\n입력해주세요.',
+    codeLabel: '인증앱 6자리',
+    submit: '확인',
+    failed: '인증번호가 맞지 않아요. 인증앱의 새 숫자를 입력해주세요.',
+    switchAccount: '다른 계정으로 로그인',
   },
   terms: { title: '매니저 활동을 위한\n약관에 동의해주세요', agreeAll: '전체 동의하기', next: '다음' },
   info: {

@@ -30,6 +30,7 @@ export default function Login() {
     if (!ok) return setFailed(true);
     // 계정은 만들었지만 가입 완료(약관 동의 전송)를 못 한 사람: 서버가 준 signupStep 으로 이어갈 화면을 고른다. 모르는 값이면 완료 화면
     if (!user.profileComplete) return navigate(SIGNUP_STEP_PATHS[user.signupStep] ?? '/auth/signup/complete', { replace: true });
+    if (user.role === 'admin') return navigate('/auth/mfa', { replace: true }); // 어드민은 인증앱 6자리를 한 번 더 (rbac.md §15-20)
     navigate(safeReturnTo(state?.from) ?? '/', { replace: true });
   });
   // 훅을 모두 부른 뒤에 early return 한다 (React 훅은 렌더마다 같은 순서로 불려야 한다). onBack: 오류 화면에서 이전 화면으로

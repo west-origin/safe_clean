@@ -119,6 +119,20 @@ async function hydrate() {
   return hydrating;
 }
 // subscribe() 로 등록된 함수들. 세션이 바뀔 때마다 모두 부른다
+/**
+ * access 토큰(JWT)의 aal 값. 'aal2' = 어드민이 인증앱 6자리(MFA)를 통과한 세션 (rbac.md §2.1).
+ * 화면 이동(6자리 화면 · 관리자 홈)을 고르는 데만 쓴다 — 서명은 확인하지 않는다. 진짜 권한 검사는 서버가 한다.
+ * 토큰 가운데 부분(base64url JSON)을 풀어 읽는다. 읽지 못하면 null
+ */
+function tokenAal(token) {
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(payload)).aal ?? null;
+  } catch {
+    return null;
+  }
+}
+
 const listeners = new Set();
 const notify = () => listeners.forEach((fn) => fn());
 
@@ -171,6 +185,10 @@ export const session = {
   user: () => memory?.user ?? null,
   /** 가입까지 끝난 로그인 상태 (RequireAuth 가 본다). 가입 도중이면 false — signupStep 으로 이어간다 */
   isSignedIn: () => Boolean(memory?.accessToken && memory?.user?.profileComplete),
+  /** 어드민 계정으로 로그인했는가 (매니저 앱에서 관리자 화면만 본다, rbac.md §15-24) */
+  isAdmin: () => Boolean(memory?.accessToken && memory?.user?.role === 'admin'),
+  /** 이 토큰이 MFA(인증앱 6자리)를 통과했는가 — 어드민은 이것이 true 여야 관리자 화면으로 간다 */
+  hasMfa: () => tokenAal(memory?.accessToken) === 'aal2',
   /** 토큰은 있지만 가입이 덜 끝난 상태의 다음 화면 키 ('address' | 'housing' | 'complete') */
   signupStep: () => (memory?.accessToken ? (memory.user?.signupStep ?? null) : null), // 매니저 계정에는 서버가 'complete'(또는 null)만 준다 (ProfileService.signupStep)
 };

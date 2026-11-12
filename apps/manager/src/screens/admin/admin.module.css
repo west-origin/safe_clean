@@ -1,0 +1,18 @@
+/* 관리자 화면 공통 레이아웃 (Figma 없음 → 코드에서 정함). 색·글꼴은 ui 컴포넌트와 .text-* 가 정한다 */
+
+/* 상단 제목 + 설명 묶음 */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.header h1 {
+  margin: 0;
+}
+
+/* 회색 보조 설명 */
+.secondary {
+  margin: 0;
+  color: var(--color-text-secondary);
+}

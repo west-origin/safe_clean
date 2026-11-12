@@ -3,7 +3,7 @@
 // (요일 번호, 반복 문구, 날짜·시각 형식, 서버가 null 로 주는 선택 문구 → undefined).
 // 로그인·가입의 세션 저장(session.js)과 가입 초안(localStorage), DEV 확인용 ?scenario=empty|error 도 여기서 처리한다.
 // 부르는 곳은 대부분 screens/* 화면이다. 화면 밖의 예: live/liveClient.js(라이브 세션 함수), App.jsx(refreshMe).
-import { REPEAT_OPTIONS, SUPPORT_COPY, AUTH_COPY, MANAGER_PASSWORD_OK_MESSAGE, PHOTO_COPY } from './mock.js';
+import { REPEAT_OPTIONS, SUPPORT_COPY, AUTH_COPY, ADMIN_COPY, MANAGER_PASSWORD_OK_MESSAGE, PHOTO_COPY } from './mock.js';
 import { deviceToken } from '../push/deviceToken.js';
 
 import { http, ApiError, newIdempotencyKey } from './http.js';
@@ -13,6 +13,10 @@ import { session } from './session.js';
 export const isSignedIn = () => session.isSignedIn();
 /** 세션 변화 구독 (RequireAuth) */
 export const subscribeSession = session.subscribe;
+/** 어드민 계정으로 로그인했는가 — RequireAuth 가 매니저 화면 대신 관리자 화면으로 보낸다 (rbac.md §15-24) */
+export const isAdmin = () => session.isAdmin();
+/** 어드민이 인증앱 6자리(MFA)까지 통과했는가 (토큰의 aal). 아니면 /auth/mfa */
+export const hasAdminMfa = () => session.hasMfa();
 /** 가입이 덜 끝난 로그인이면 다음 화면 키(서버 user.signupStep), 아니면 null. RequireAuth 가 이 값과 SIGNUP_STEP_PATHS 로 이어갈 화면을 고른다 */
 export const signupStep = () => session.signupStep();
 /** 매니저는 약관 → 정보 → 완료 뿐이라 재개 화면은 완료 하나 */
@@ -405,6 +409,29 @@ export async function loginWithPhone({ phone, password }) {
     if (e instanceof ApiError && e.code === 'LOGIN_FAILED') return { ok: false };
     throw e;
   }
+}
+
+/**
+ * Auth/Mfa (코드에서 정함) — 어드민 로그인 2단계: 인증앱 6자리 → 서버 POST /auth/mfa/verify → aal2 토큰으로 세션 교체.
+ * 6자리가 틀리면 { ok: false }, 그 밖의 오류(인증앱 미등록 INVALID_STATE·한도 등)는 던진다 — 화면이 서버 문구를 보여 준다
+ */
+export async function verifyAdminMfa(code) {
+  try {
+    const res = await http.post('/auth/mfa/verify', { code });
+    session.set(res); // 새 토큰 쌍(aal2). 같은 사람이지만 토큰이 바뀌므로 새 로그인처럼 저장한다
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'OTP_INVALID') return { ok: false };
+    throw e;
+  }
+}
+
+/** 로그인한 사람의 이름 (관리자 홈). 세션이 없으면 빈 글자 */
+export const currentUserName = () => session.user()?.name ?? '';
+
+/** 관리자 홈 문구 (Figma 에 없어 코드에서 정함 — api/mock.js ADMIN_COPY) */
+export async function getAdminCopy() {
+  return ADMIN_COPY;
 }
 
 // ── Profile › 로그아웃. 서버 폐기가 실패해도 앱은 토큰을 지운다 ──

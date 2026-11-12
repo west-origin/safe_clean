@@ -1,10 +1,12 @@
 // 로그인이 필요한 화면 묶음 (매니저 앱 전체). 로그인 전이면 로그인 화면으로, 가입이 덜 끝났으면 완료 화면으로, 로그인 후 원래 주소로 돌아온다.
+// 어드민(rbac.md §15-20·24): 인증앱 6자리 전이면 /auth/mfa, 통과했으면 관리자 화면(/admin…)만. 매니저는 /admin… 에 오면 홈으로.
+// 화면을 숨기는 것은 편의일 뿐이고 권한은 서버가 본다(/admin/** = 어드민 + MFA, /manager/** = 매니저).
 import { useSyncExternalStore } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router';
-import { isSignedIn, signupStep, subscribeSession, SIGNUP_STEP_PATHS } from '../api/manager.js';
+import { isSignedIn, signupStep, subscribeSession, SIGNUP_STEP_PATHS, isAdmin, hasAdminMfa } from '../api/manager.js';
 
 /** 세션이 바뀌면(401 로 삭제 등) 다시 계산한다 — 오류 화면에 갇히지 않게 */
-const snapshot = () => `${isSignedIn()}:${signupStep() ?? ''}`;
+const snapshot = () => `${isSignedIn()}:${signupStep() ?? ''}:${isAdmin()}:${hasAdminMfa()}`;
 
 /**
  * routes.jsx 가 로그인이 필요한 화면 전체를 이 라우트의 children 으로 둔다 (경로 없는 감싸기 라우트).
@@ -15,7 +17,16 @@ export default function RequireAuth() {
   // useSyncExternalStore = React 밖의 값(세션)을 구독한다. snapshot 문자열이 바뀌면 이 컴포넌트를 다시 그린다.
   // 반환값은 쓰지 않고, 아래에서 isSignedIn()·signupStep() 을 직접 다시 읽는다
   useSyncExternalStore(subscribeSession, snapshot);
-  if (isSignedIn()) return <Outlet />; // Outlet = 자식 라우트의 화면이 그려지는 자리
+  if (isSignedIn()) {
+    const adminPath = location.pathname === '/admin' || location.pathname.startsWith('/admin/');
+    if (isAdmin()) {
+      if (!hasAdminMfa()) return <Navigate to="/auth/mfa" replace />;
+      if (!adminPath) return <Navigate to="/admin" replace />; // 어드민은 매니저 업무를 하지 않는다
+    } else if (adminPath) {
+      return <Navigate to="/" replace />;
+    }
+    return <Outlet />; // Outlet = 자식 라우트의 화면이 그려지는 자리
+  }
   const step = signupStep();
   // 모르는 단계 값이면 완료 화면으로 (매니저 가입의 재개 화면은 완료 하나뿐이다 — api/manager.js 의 SIGNUP_STEP_PATHS)
   if (step) return <Navigate to={SIGNUP_STEP_PATHS[step] ?? '/auth/signup/complete'} replace />;

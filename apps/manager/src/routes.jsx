@@ -20,6 +20,7 @@
 //   빈 상태(Home/Empty, Call/Empty, Schedule/Empty)는 라우트가 아니라 데이터가 비었을 때의 조건부 렌더링
 //   로그인·회원가입은 Figma 에 없어 코드에서 정함: /auth/login → (회원가입) /auth/signup → /auth/signup/info → /auth/signup/complete → /
 //   위 22개 화면은 전부 RequireAuth 안 (로그인 전이면 /auth/login 으로, 로그인 후 원래 주소로 복귀)
+//   [코드에서 정함, rbac.md §15-20] 어드민: /auth/login → /auth/mfa(인증앱 6자리) → /admin(관리자 홈). 어드민은 매니저 화면 대신 /admin… 만 (RequireAuth)
 import { createBrowserRouter } from 'react-router';
 import RouteError from './screens/RouteError.jsx';
 import RouteShell from './screens/RouteShell.jsx';
@@ -37,6 +38,7 @@ const publicRoutes = [
   { path: '/auth/signup/info', lazy: page(() => import('./screens/auth/SignUpInfo.jsx')) },
   { path: '/auth/signup/complete', lazy: page(() => import('./screens/auth/SignUpComplete.jsx')) },
   { path: '/auth/terms/:id', lazy: page(() => import('./screens/auth/TermDetail.jsx')) },
+  { path: '/auth/mfa', lazy: page(() => import('./screens/auth/MfaVerify.jsx')) }, // 어드민 인증앱 6자리 (코드에서 정함). 스스로 세션을 보고 로그인·관리자 홈으로 보낸다
 ];
 
 // 로그인이 필요한 화면 (Figma 매니저 22화면 + 코드에서 정한 프로필 아래 화면)
@@ -71,6 +73,8 @@ const protectedRoutes = [
   { path: '/profile/notices/:id', lazy: page(() => import('./screens/profile/NoticeDetail.jsx')) },
   { path: '/profile/support', lazy: page(() => import('./screens/profile/Support.jsx')) },
   { path: '/profile/:key', lazy: page(() => import('./screens/profile/ProfileDetail.jsx')) }, // info · area · identity · education · account
+  // 관리자 화면 (코드에서 정함, rbac.md §15-20) — 어드민 + MFA 만 (RequireAuth)
+  { path: '/admin', lazy: page(() => import('./screens/admin/AdminHome.jsx')) },
 ];
 
 // 경로 없는 RequireAuth 라우트로 감싼다: 로그인돼 있으면 자식 화면을(Outlet), 아니면 로그인·가입 화면으로 보낸다

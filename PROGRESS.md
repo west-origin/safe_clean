@@ -4,8 +4,9 @@
 매니저 앱에서 어드민이 고객 앱 홈 혜택 배너 이미지와 공지를 올리면 고객 앱에 반영. 4회차로 나눈다.
 - [x] 결정 기록: 어드민 화면은 매니저 앱 안 배너·공지 관리만, MFA(aal2) 필수 유지, 배너 = 이미지·대체 문구·게시 기간·순서, 공지는 화면 열 때 갱신·대상 선택·수정·삭제
 - [x] 1회차: R2(역할 4개·매니저 상태) → R4(Actor·AccessPolicy·aal2, `X-Admin-Token` 폐지) — 상세는 아래 RBAC 절
-- [ ] 2회차: 어드민 MFA 로그인(매니저 앱 6자리 → 관리자 홈) + R3(활동 이력 표·불변 트리거. 앱 전용 DB 계정 분리는 배포 때)
+- [x] 2회차: 어드민 MFA 로그인(매니저 앱 6자리 → 관리자 홈) + R3(활동 이력 표·불변 트리거. 앱 전용 DB 계정 분리는 배포 때)
   - [x] R3 표·트리거·서비스 (아래 RBAC 절)
+  - [x] 매니저 앱: 어드민이 로그인하면 `/auth/mfa`(인증앱 6자리, `OtpCodeField`) → `/admin`(관리자 홈: 이름 + 로그아웃, 메뉴는 3·4회차). `RequireAuth` 가 어드민은 aal2 전이면 `/auth/mfa`, 뒤면 `/admin…` 만, 매니저가 `/admin` 이면 홈으로. MFA 여부는 토큰의 aal(서명 미확인 — 화면 이동용, 권한은 서버). 문구 `mock.js AUTH_COPY.mfa`·`ADMIN_COPY`(코드에서 정함). 가짜 서버: `ADMIN_PHONE`(11112222) 로그인 → 6자리 `123456`. 확인: 화면 테스트 + manager-mock 393px 에서 로그인 → 오답(빨간 칸·안내·칸 비움) → 정답 → 관리자 홈, `/call` 로 가도 `/admin` 으로. 콘솔 오류 없음
   - [x] 서버 `POST /auth/mfa/verify`: 어드민만, 서버가 Supabase TOTP factor 조회 → challenge → verify 를 사용자 토큰으로 대신 불러 aal2 토큰을 돌려준다(앱은 Supabase 를 부르지 않는다). 어드민도 매니저 앱 비밀번호 로그인(`Roles.appOf(admin)=manager`, aal1). 인증앱 미등록 INVALID_STATE "인증앱이 등록되지 않은 관리자 계정이에요. 개발자에게 등록을 요청해주세요"(코드에서 정함), 틀린 6자리 OTP_INVALID, 사용자당 시간당 10회. 테스트: 클라이언트(MockRestServiceServer)·서비스·컨트롤러 슬라이스 + `AuthFlowIT` 어드민 흐름(**IT 미실행**)
 - [ ] 3회차: 어드민 공지 API(대상·등록·수정·삭제, 활동 이력) + 매니저 앱 공지 관리 화면
 - [ ] 4회차: `home_banners` 표·비공개 버킷·서명 URL·어드민 배너 API + 매니저 앱 배너 관리 화면 + 고객 앱 배너 서버 연결
@@ -667,6 +668,7 @@
 ### Figma 에 없어 코드에서 정한 화면·동작 (점검 4, 디자인이 오면 교체)
 - (2026-11-11 사용자 지정) 예약 주소 확인(`BookingAddressConfirm`): 상세주소를 비워도 '다음' 이 켜지고, 비운 채 누르면 확인 시트 "상세주소 없이 진행할까요?" + 안내 + '입력하기'(상세주소 칸으로)·'없이 진행'. 문구 `mock.js ADDRESS_DETAIL_SKIP_COPY`. 확인 화면의 새 주소 상세주소 필수 조건도 뺐다(그대로 두면 마지막 '예약 확정하기' 가 꺼짐). 모의 서버(customer-mock)는 앱 시작 로그인 확인이 실패해 393px 화면 확인은 못 함 — 화면 테스트로만 확인.
 고객: 약관 본문 `/terms/:id` · 예약 변경(`/booking/:category/datetime?edit=`)·취소(확인 시트)·완료/취소 탭·빈 상태 · 진행 중 예약 카드의 "실시간 영상 보기"(→ `/service/start?booking=`) · 설정 아래 7개(내 정보 수정, 주소 관리, 결제 수단(안내만), FAQ, 1:1 문의, 공지사항 목록/본문) · 주소 검색 결과 목록(`AddressResultList`, Figma 이미지의 4건을 mock) · 라이브 설정 시트(소리)
+매니저(2026-11-12 배너·공지 관리 2회차): 어드민 인증앱 6자리 `/auth/mfa`(`MfaVerify`) · 관리자 홈 `/admin`(`AdminHome`) — Login 과 같은 골격, 기존 ui 만
 매니저: 지도 보기(카카오맵 검색)·고객 연락(tel:, mock 번호) · 고객센터 문의 폼 `/profile/support` · 촬영 장비 카메라 테스트(후면 카메라 미리보기, `liveClient.testCamera`) · 일정 이번 주/달력 · 기본 근무시간 수정 시트 · 프로필 5개(매니저 정보·활동 지역·신원 인증·교육 이수·정산 계좌 읽기 전용, 알림 설정, 공지사항)
 새 ui: `ErrorState` `ScreenError` `ScreenLoading` `AddressResultList` `FaqItem`, `ReservationCard` 상태 3종 추가(inProgress/done/cancelled), `useAsync`
 

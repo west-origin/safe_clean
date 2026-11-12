@@ -1,0 +1,36 @@
+// Manager/Admin/Home (코드에서 정함, rbac.md §15-20·24) — Figma 에 없다. 어드민이 MFA 를 통과하면 매니저 탭 대신 이 화면만 본다.
+// 들어오는 길: MfaVerify 성공, 또는 RequireAuth(어드민이 다른 주소로 왔을 때). 메뉴(배너 관리·공지 관리)는 3·4회차에 여기에 더한다.
+// 기존 ui 프리미티브(ScreenLayout·Card·Button)만 조립한다. 문구는 api/mock.js ADMIN_COPY.
+import { useNavigate } from 'react-router';
+import { ScreenLayout, Card, Button, ScreenError, ScreenLoading, useAsync, useAction, cx } from '@ansimclean/ui';
+import { getAdminCopy, currentUserName, logout } from '../../api/manager.js';
+import styles from './admin.module.css';
+
+/** 관리자 홈 (/admin). 이름·안내 + 로그아웃 */
+export default function AdminHome() {
+  const navigate = useNavigate();
+  const { data: copy, error, reload } = useAsync(() => getAdminCopy(), []);
+  const out = useAction(async () => {
+    await logout(); // 서버 요청이 실패해도 던지지 않고 세션을 지운다
+    navigate('/auth/login', { replace: true });
+  });
+  if (error) return <ScreenError error={error} onRetry={reload} />;
+  if (!copy) return <ScreenLoading />;
+
+  return (
+    <ScreenLayout topPadding="lg">
+      <header className={styles.header}>
+        <h1 className="text-heading-l">{copy.title}</h1>
+        <p className={cx('text-body-s', styles.secondary)}>{copy.description}</p>
+      </header>
+
+      <Card tone="muted" gap="md">
+        <p className="text-heading-s">{currentUserName()}</p>
+      </Card>
+
+      <Button variant="secondary" chevron={false} loading={out.loading} onClick={out.run}>
+        {copy.logout}
+      </Button>
+    </ScreenLayout>
+  );
+}
