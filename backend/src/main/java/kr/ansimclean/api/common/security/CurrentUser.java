@@ -15,8 +15,8 @@ public record CurrentUser(UUID id, String role, boolean profileComplete) {
         return Roles.CUSTOMER.equals(role);
     }
 
-    /** 매니저 계정인가 */
+    /** 매니저 업무를 하는 계정인가 (매니저·지역 매니저) */
     public boolean isManager() {
-        return Roles.MANAGER.equals(role);
+        return Roles.isManagerRole(role);
     }
 }

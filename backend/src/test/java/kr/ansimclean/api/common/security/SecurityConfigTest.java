@@ -150,6 +150,24 @@ class SecurityConfigTest {
         mvc.perform(get("/api/v1/manager/home").header("Authorization", "Bearer c")).andExpect(status().isForbidden());
     }
 
+    // 지역 매니저는 일반 매니저 업무를 전부 한다(rbac.md §2) — /manager/** 통과, /customer/** 는 403
+    @Test
+    void 지역_매니저는_manager_경로를_통과한다() throws Exception {
+        UUID id = stubJwt("r");
+        when(resolver.resolve(id)).thenReturn(java.util.Optional.of(new CurrentUser(id, Roles.REGIONAL_MANAGER, true)));
+        mvc.perform(get("/api/v1/manager/home").header("Authorization", "Bearer r")).andExpect(status().isNotFound()); // 403 아님
+        mvc.perform(get("/api/v1/customer/home").header("Authorization", "Bearer r")).andExpect(status().isForbidden());
+    }
+
+    // 어드민은 매니저 업무를 하지 않는다(rbac.md §15-24) — /manager/**·/customer/** 모두 403
+    @Test
+    void 어드민은_manager_customer_경로가_403() throws Exception {
+        UUID id = stubJwt("a");
+        when(resolver.resolve(id)).thenReturn(java.util.Optional.of(new CurrentUser(id, Roles.ADMIN, true)));
+        mvc.perform(get("/api/v1/manager/home").header("Authorization", "Bearer a")).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/customer/home").header("Authorization", "Bearer a")).andExpect(status().isForbidden());
+    }
+
     // 브라우저가 다른 출처 요청 전에 보내는 OPTIONS 사전 요청(preflight): test 프로필의 허용 출처는 통과하고
     // Access-Control-Allow-Origin 헤더를 받는다. 목록에 없는 출처는 403
     @Test

@@ -72,12 +72,12 @@ FIREBASE_SERVICE_ACCOUNT_JSON=        # base64 한 줄 (B6)
 - 장애 대응 표: Supabase Auth 다운 → 로그인만 실패(`UPSTREAM`), 기존 토큰은 JWKS 캐시로 계속 검증됨 / 문자 API 다운 → 가입·인증만 실패(`UPSTREAM`), 로그인은 정상 / LiveKit 다운 → 라이브만 실패, 작업 상태는 진행 가능 / 바디캠 끊김 → `waiting_camera`, 매니저 푸시 / Egress 실패 → `recording_status=failed`, 완료 화면 "업로드 실패", 운영자 확인. / 매칭 실패(후보 0명·회차 소진) → `bookings.matching_failed_at` 표시 + 고객 푸시 1회 + ERROR 로그, 예약은 `assigning` 으로 남는다 → 운영자가 아래 SQL 로 찾아 매니저에게 직접 연락하거나 고객과 일정을 조정한다.
 
 ## 운영자 SQL (관리 화면 전까지 — §13-8)
-매니저 승인·정산 완료·문의 답변·매칭 실패 확인은 Supabase 대시보드 SQL 로 한다. **승인은 `approved` 만 바꾸면 매칭에서 빠진다** — 지역·시도·활동 시작일을 같이 넣어야 한다(`ManagerProfile.approve` 와 같은 컬럼).
+매니저 승인·정산 완료·문의 답변·매칭 실패 확인은 Supabase 대시보드 SQL 로 한다. **승인은 `status` 만 바꾸면 매칭에서 빠진다** — 지역·시도·활동 시작일을 같이 넣어야 한다(`ManagerProfile.approve` 와 같은 컬럼). 계정 상태는 `manager_profiles.status`(pending·active·suspended·dormant·withdrawn, V065 — 예전 `approved` 칸은 없어졌다). 상태 전환 어드민 API(R6)가 생기면 그쪽을 쓴다.
 ```sql
 -- 승인 대기 매니저
-select p.id, p.name, p.phone, p.created_at from manager_profiles m join profiles p on p.id = m.manager_id where m.approved = false and p.deleted_at is null;
+select p.id, p.name, p.phone, p.created_at from manager_profiles m join profiles p on p.id = m.manager_id where m.status = 'pending' and p.deleted_at is null;
 -- 승인 (areas = '시도 시군구' 문자열 배열, sido = 대표 시도). 목록을 본 뒤 탈퇴했으면 0행 — 그 계정은 승인하지 않는다 (자체 점검 #55: 예전 SQL 은 없는 컬럼 m.id·m.created_at 을 썼고 탈퇴를 보지 않았다)
-update manager_profiles set approved = true, areas = array['서울특별시 강남구','서울특별시 서초구'], sido = '서울특별시', active_since = current_date, updated_at = now()
+update manager_profiles set status = 'active', status_changed_at = now(), areas = array['서울특별시 강남구','서울특별시 서초구'], sido = '서울특별시', active_since = current_date, updated_at = now()
  where manager_id = '<manager uuid>' and exists (select 1 from profiles p where p.id = manager_profiles.manager_id and p.deleted_at is null);
 -- 매칭 실패로 멈춘 예약 (운영자 조치 필요)
 select b.id, b.customer_id, b.service_date, b.service_time, b.sido, b.sigungu, b.dispatch_round, b.matching_failed_at

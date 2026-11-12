@@ -12,18 +12,18 @@ import java.util.UUID;
 // manager_profiles 테이블을 읽고 쓰는 저장소. profile 패키지 안(ProfileService·ManagerPenaltyService)에서만 쓴다 —
 // 다른 기능(예: OfferService)은 ProfileService 를 거친다.
 public interface ManagerProfileRepository extends JpaRepository<ManagerProfile, UUID> {
-    /** 승인 ∧ 탈퇴하지 않은 매니저 — 탈퇴 뒤 운영자가 승인해도 콜이 유령 계정으로 가지 않게 (자체 점검 #55) */
+    /** 활동 중(status=active) ∧ 탈퇴하지 않은 매니저 — 탈퇴 뒤 운영자가 승인해도 콜이 유령 계정으로 가지 않게 (자체 점검 #55) */
     // @Query 의 글은 SQL 이 아니라 JPQL(엔티티 이름·필드 이름으로 쓰는 쿼리)이다. profiles 와 id 로 맞춰 탈퇴 여부를 본다.
     // 정지 중인 매니저는 여기서 거르지 않는다 — ProfileService.approvedManagers 가 isSuspended 로 한 번 더 거른다
-    @org.springframework.data.jpa.repository.Query("select m from ManagerProfile m, Profile p where p.id = m.managerId and m.approved = true and p.deletedAt is null")
+    @org.springframework.data.jpa.repository.Query("select m from ManagerProfile m, Profile p where p.id = m.managerId and m.status = 'active' and p.deletedAt is null")
     List<ManagerProfile> findApprovedLive();
 
     /**
-     * 이 매니저가 지금 매칭 후보인가를 DB 의 지금 값으로 센다(1 이면 후보, 0 이면 아님): 승인 ∧ 탈퇴 아님 ∧ 오늘 정지 아님(정지 종료일이 없거나 오늘보다 앞).
+     * 이 매니저가 지금 매칭 후보인가를 DB 의 지금 값으로 센다(1 이면 후보, 0 이면 아님): 활동 중(active) ∧ 탈퇴 아님 ∧ 오늘 정지 아님(정지 종료일이 없거나 오늘보다 앞).
      * 엔티티가 아니라 숫자를 돌려주는 조회라, 같은 트랜잭션에서 findApprovedLive 등으로 먼저 올려 둔 ManagerProfile 객체(1차 캐시 —
      * 같은 id 를 다시 찾으면 DB 대신 돌려주는 메모리 사본)의 옛 값을 보지 않는다 (합친 38건 검토 R3). ProfileService.isApprovedManagerNow 가 부른다
      */
-    @Query("select count(m) from ManagerProfile m, Profile p where p.id = m.managerId and m.managerId = :managerId and m.approved = true"
+    @Query("select count(m) from ManagerProfile m, Profile p where p.id = m.managerId and m.managerId = :managerId and m.status = 'active'"
             + " and p.deletedAt is null and (m.suspendedUntil is null or m.suspendedUntil < :today)")
     long countCallableNow(UUID managerId, java.time.LocalDate today);
 

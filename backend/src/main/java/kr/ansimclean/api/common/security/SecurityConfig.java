@@ -57,7 +57,7 @@ public class SecurityConfig {
                         // 가입 도중(PENDING_CUSTOMER)에도 되는 가입 화면 저장
                         .requestMatchers(HttpMethod.PUT, API + "/customer/profile/address", API + "/customer/profile/housing").hasAnyAuthority(Roles.ROLE_CUSTOMER, "PENDING_CUSTOMER")
                         .requestMatchers(API + "/customer/**").hasAuthority(Roles.ROLE_CUSTOMER) // 가입을 끝낸 고객만 (매니저·가입 중이면 403)
-                        .requestMatchers(API + "/manager/**").hasAuthority(Roles.ROLE_MANAGER)
+                        .requestMatchers(API + "/manager/**").hasAnyAuthority(Roles.ROLE_MANAGER, Roles.ROLE_REGIONAL_MANAGER) // 지역 매니저도 일반 매니저 업무 전부 (rbac.md §2)
                         .anyRequest().authenticated())                                        // /auth/signup/complete, /auth/me, /auth/logout, /auth/account, /live/**, /support/inquiries, /push/**
                 // Authorization: Bearer <JWT> 를 JwtDecoder 빈(SupabaseJwtDecoderConfig)으로 검증하고, converter 로 CurrentUserAuthentication 을 만든다
                 .oauth2ResourceServer(oauth2 -> oauth2

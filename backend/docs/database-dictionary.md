@@ -1551,7 +1551,8 @@ DB 제약조건:
 | 컬럼 | DB 타입 | NULL 허용 | 기본값·계산식 | 의미 |
 | --- | --- | --- | --- | --- |
 | `manager_id` | `uuid` | 아니오 | 없음 | 매니저의 profiles.id |
-| `approved` | `boolean` | 아니오 | `false` | 신원 확인·교육 후 운영 승인 여부 |
+| `status` | `text` | 아니오 | `'pending'::text` | 계정 상태 pending=승인 대기, active=활동 중, suspended=활동 정지, dormant=휴면, withdrawn=퇴사 (V065, 예전 `approved` 를 대신함) |
+| `status_changed_at` | `timestamp with time zone` | 예 | 없음 | 마지막 상태 전환 시각 (V065) |
 | `rating` | `numeric(2,1)` | 아니오 | `0` | 매니저 평점 |
 | `completed_count` | `integer` | 아니오 | `0` | 완료 작업 수 |
 | `active_since` | `date` | 예 | 없음 | 활동 시작일 |
@@ -1571,6 +1572,7 @@ DB 제약조건:
 
 - `FOREIGN KEY (manager_id) REFERENCES profiles(id) ON DELETE CASCADE`
 - `PRIMARY KEY (manager_id)`
+- `CHECK ((status = ANY (ARRAY['pending'::text, 'active'::text, 'suspended'::text, 'dormant'::text, 'withdrawn'::text])))` (V065)
 
 <a id="public-manager-unavailable"></a>
 
@@ -1812,7 +1814,7 @@ DB 제약조건:
 | 컬럼 | DB 타입 | NULL 허용 | 기본값·계산식 | 의미 |
 | --- | --- | --- | --- | --- |
 | `id` | `uuid` | 아니오 | 없음 | 사용자 UUID. auth.users.id와 대응 |
-| `role` | `text` | 아니오 | 없음 | customer=고객, manager=매니저 |
+| `role` | `text` | 아니오 | 없음 | customer=고객, manager=매니저, regional_manager=지역 매니저, admin=어드민 (V065) |
 | `name` | `text` | 아니오 | 없음 | 이름 |
 | `nickname` | `text` | 예 | 없음 | 닉네임 |
 | `phone` | `text` | 아니오 | 없음 | E.164 형식 휴대폰 번호. 살아 있는 계정 간 중복 제한 |
@@ -1826,7 +1828,7 @@ DB 제약조건:
 DB 제약조건:
 
 - `PRIMARY KEY (id)`
-- `CHECK ((role = ANY (ARRAY['customer'::text, 'manager'::text])))`
+- `CHECK ((role = ANY (ARRAY['customer'::text, 'manager'::text, 'regional_manager'::text, 'admin'::text])))` (V065)
 
 <a id="public-push-tokens"></a>
 

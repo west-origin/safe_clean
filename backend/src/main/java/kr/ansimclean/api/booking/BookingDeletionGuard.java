@@ -31,7 +31,7 @@ public class BookingDeletionGuard implements AccountDeletionGuard {
      */
     @Override
     public String blockReason(UUID userId, String role) {
-        if (Roles.MANAGER.equals(role)) return bookings.hasOpenJobs(userId) ? MANAGER_BLOCKED : null;
+        if (Roles.isManagerRole(role)) return bookings.hasOpenJobs(userId) ? MANAGER_BLOCKED : null;
         // 진행 중 예약도 OPEN 에 들어 있어 아래 검사에 걸리지만, 고객이 취소할 수 없으니 먼저 따로 거른다
         if (bookings.hasActiveJobsAsCustomer(userId)) return CUSTOMER_IN_PROGRESS;
         return bookings.hasOpenBookings(userId) || bookings.hasActiveSeries(userId) ? CUSTOMER_BLOCKED : null;

@@ -125,7 +125,7 @@ public class ProfileService {
     public Profile completeSignup(UUID id, boolean marketingAgreed) {
         Profile p = requireLive(id);
         p.completeSignup(clock.now());
-        List<String> keys = p.getRole().equals(Roles.MANAGER) ? MANAGER_NOTIFICATION_KEYS : List.of("push", "marketing");
+        List<String> keys = Roles.isManagerRole(p.getRole()) ? MANAGER_NOTIFICATION_KEYS : List.of("push", "marketing");
         // 이미 있는 키는 그대로 둔다 — 두 번 불려도 행이 겹치거나 사용자가 바꾼 값이 덮이지 않게
         for (String key : keys) {
             if (!notifications.existsById(new NotificationSetting.Key(id, key))) {
@@ -133,7 +133,7 @@ public class ProfileService {
             }
         }
         // 매니저는 manager_profiles 행을 미승인 상태로 만든다 — 운영자가 승인하기 전에는 콜 후보가 아니다
-        if (p.getRole().equals(Roles.MANAGER) && !managerProfiles.existsById(id)) {
+        if (Roles.isManagerRole(p.getRole()) && !managerProfiles.existsById(id)) {
             managerProfiles.save(ManagerProfile.create(id, clock.now()));
         }
         cache.evict(id);
@@ -231,7 +231,7 @@ public class ProfileService {
     /** Settings › 알림 토글 저장. key 는 역할별 목록 안에 있어야 한다 */
     public NotificationResponse updateNotification(UUID id, String key, boolean enabled) {
         Profile p = holdLive(id); // 탈퇴(익명화)와 직렬화 — 탈퇴가 지운 알림 설정 행을 다시 만들지 않게 (감사 M-06)
-        List<String> allowed = p.getRole().equals(Roles.MANAGER) ? MANAGER_NOTIFICATION_KEYS : List.of("push", "marketing");
+        List<String> allowed = Roles.isManagerRole(p.getRole()) ? MANAGER_NOTIFICATION_KEYS : List.of("push", "marketing");
         if (!allowed.contains(key)) throw ApiException.validation("알 수 없는 알림 설정이에요: " + key);
         // 행이 있으면 값만 바꾸고, 없으면 새로 만든다. 고객·매니저 컨트롤러가 같이 쓴다
         NotificationSetting n = notifications.findById(new NotificationSetting.Key(id, key)).orElseGet(() -> NotificationSetting.of(id, key, enabled));
@@ -370,7 +370,7 @@ public class ProfileService {
     /** 앱 HOUSING_TYPES 의 id → 표시 문구 (Figma) */
     static final Map<String, String> HOUSING_LABELS = Map.of("apartment", "아파트·빌라", "studio", "원룸·오피스텔", "house", "단독주택", "other", "기타");
 
-    /** 매칭 후보의 모집단 (§6.2-1: approved=true) */
+    /** 매칭 후보의 모집단 (§6.2-1: 계정 상태 active — 예전 approved=true) */
     // OfferService 가 콜을 보낼 매니저를 고를 때 부른다. findApprovedLive = 승인됐고 탈퇴하지 않은 매니저
     @Transactional(readOnly = true)
     public List<ManagerProfile> approvedManagers() {
@@ -411,7 +411,7 @@ public class ProfileService {
 
     /** 콜 수락의 첫 잠금 (§6.2-3 순서: 매니저 → 예약 → 오퍼). 매니저 프로필이 없으면 NOT_FOUND */
     public ManagerProfile lockManager(UUID managerId) {
-        // 탈퇴도 lockManagerIfExists 로 같은 행을 잠근다 — 탈퇴가 먼저 끝나면 approved=false 라 OfferService 가 수락을 거절한다
+        // 탈퇴도 lockManagerIfExists 로 같은 행을 잠근다 — 탈퇴가 먼저 끝나면 status=withdrawn 이라 OfferService 가 수락을 거절한다
         return managerProfiles.findForUpdate(managerId).orElseThrow(ApiException::notFound);
     }
 
@@ -596,7 +596,7 @@ public class ProfileService {
         addresses.deleteByCustomerId(id);
         housing.deleteById(id);
         notifications.deleteByUserId(id);
-        managerProfiles.findById(id).ifPresent(m -> m.withdraw(clock.now())); // 탈퇴한 매니저가 approved 후보로 남지 않게
+        managerProfiles.findById(id).ifPresent(m -> m.withdraw(clock.now())); // 탈퇴한 매니저가 매칭 후보로 남지 않게 (status=withdrawn)
         p.anonymize(clock.now());
         cache.evict(id);
     }

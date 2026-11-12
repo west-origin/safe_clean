@@ -25,7 +25,7 @@ public class SettlementDeletionGuard implements AccountDeletionGuard {
     /** 매니저이고 pending 정산이 하나라도 있으면 막는 문구, 아니면 null(탈퇴를 막지 않는다). AuthService.deleteAccount 가 탈퇴 트랜잭션 안에서 부른다 */
     @Override
     public String blockReason(UUID userId, String role) {
-        if (!Roles.MANAGER.equals(role)) return null;
+        if (!Roles.isManagerRole(role)) return null;
         return settlements.existsByManagerIdAndStatus(userId, Settlement.PENDING) ? MANAGER_BLOCKED : null;
     }
 }

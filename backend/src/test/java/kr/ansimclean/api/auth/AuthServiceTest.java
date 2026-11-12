@@ -253,6 +253,45 @@ class AuthServiceTest {
         assertThatThrownBy(() -> service.refresh("r1")).isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.UNAUTHENTICATED);
     }
 
+    // 지역 매니저는 매니저 앱으로 로그인한다 (Roles.appOf, rbac.md §2)
+    @Test
+    void 지역_매니저는_매니저_앱으로_로그인한다() {
+        Profile r = Profile.create(USER, "regional_manager", "김지역", null, PHONE);
+        when(profiles.findLive(USER)).thenReturn(Optional.of(r));
+        when(profiles.userResponse(r)).thenReturn(new UserResponse(USER, "regional_manager", "김지역", true, null));
+        AuthResponse res = service.login(new LoginRequest("12345678", "password1", "manager"), null);
+        assertThat(res.user().role()).isEqualTo("regional_manager");
+    }
+
+    // 어드민의 매니저 앱 로그인(MFA)은 2회차 — 그 전에는 매니저 앱 비밀번호 로그인으로 들어오지 못한다
+    @Test
+    void 어드민은_아직_매니저_앱으로_로그인하지_못하고_세션을_끊는다() {
+        Profile a = Profile.create(USER, "admin", "운영자", null, PHONE);
+        when(profiles.findLive(USER)).thenReturn(Optional.of(a));
+        assertThatThrownBy(() -> service.login(new LoginRequest("12345678", "password1", "manager"), null))
+                .extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.LOGIN_FAILED);
+        verify(supabase).logout(SESSION.accessToken());
+    }
+
+    @Test
+    void 어드민은_앱에서_탈퇴할_수_없다() { // 어드민은 DB 에서만 지정·해제 (rbac.md §2)
+        Profile a = Profile.create(USER, "admin", "운영자", null, PHONE);
+        when(profiles.requireLive(USER)).thenReturn(a);
+        assertThatThrownBy(() -> service.deleteAccount(USER, "password1"))
+                .extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.FORBIDDEN);
+        verify(profiles, never()).anonymize(USER);
+    }
+
+    @Test
+    void 지역_매니저가_탈퇴하면_매니저와_같이_근무시간_패널티를_지운다() {
+        Profile r = Profile.create(USER, "regional_manager", "김지역", null, PHONE);
+        when(profiles.requireLive(USER)).thenReturn(r);
+        service.deleteAccount(USER, "password1");
+        verify(profiles).lockManagerIfExists(USER);
+        verify(availability).forget(USER);
+        verify(penalties).forget(USER);
+    }
+
     @Test
     void 매니저가_탈퇴하면_근무시간_근무_불가_패널티도_그_자리에서_지운다() { // 동의 '보유 기간: 매니저 탈퇴 시까지'(V039) 대로 (자체 점검 후속 검토)
         Profile m = Profile.create(USER, "manager", "김매니저", null, PHONE);

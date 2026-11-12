@@ -47,7 +47,7 @@ public class DeviceService {
     public RegisterDeviceResponse register(RegisterDeviceRequest req) {
         // 탈퇴하지 않은 프로필만 — 운영자 API 라 401(UNAUTHENTICATED, '운영자 토큰 문제' 로 읽힌다)이 아니라 빈 값을 받아 아래 VALIDATION 으로 바꾼다.
         // filter 로 역할이 매니저인지까지 본다. 잠금은 이 트랜잭션(클래스 @Transactional)이 끝날 때 풀린다
-        Profile manager = profiles.holdLiveIfPresent(req.managerId()).filter(p -> Roles.MANAGER.equals(p.getRole()))
+        Profile manager = profiles.holdLiveIfPresent(req.managerId()).filter(p -> Roles.isManagerRole(p.getRole()))
                 .orElseThrow(() -> new ApiException(ErrorCode.VALIDATION, "매니저를 찾을 수 없어요"));
         // Postgres 권고 잠금(pg_advisory_xact_lock): 같은 매니저 id 로 들어온 요청을 한 줄로 세우고, 트랜잭션이 끝나면 저절로 풀린다
         devices.lockManager(req.managerId()); // 동시 등록 → 두 번째는 여기서 기다렸다가 기존 기기를 본다

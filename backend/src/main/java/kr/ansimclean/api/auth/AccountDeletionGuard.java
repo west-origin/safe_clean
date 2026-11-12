@@ -11,6 +11,6 @@ import java.util.UUID;
  * auth 가 booking·settlement 를 직접 부르지 않고 이 인터페이스를 거치므로 패키지끼리 서로 물지 않는다 (AccountPurge 와 같은 방식).
  */
 public interface AccountDeletionGuard {
-    // role 은 "customer" 또는 "manager" (Roles) — 역할마다 막는 조건이 다르다
+    // role 은 profiles.role 값 (Roles) — 역할마다 막는 조건이 다르다. 매니저 계정 비교는 Roles.isManagerRole(지역 매니저 포함)
     String blockReason(UUID userId, String role);
 }

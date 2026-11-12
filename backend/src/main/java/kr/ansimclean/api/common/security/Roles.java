@@ -1,18 +1,24 @@
 package kr.ansimclean.api.common.security;
 
-/** profiles.role 값과 Spring Security 권한 이름 */
+/** profiles.role 값과 Spring Security 권한 이름 (역할 4개 — backend/docs/rbac.md §2) */
 // 쓰는 곳: SecurityConfig(경로 권한), JwtToCurrentUserConverter(권한 만들기), CurrentUser,
 // 그 밖에 역할을 비교하는 서비스들(예: AuthService·ProfileService)
 public final class Roles {
-    public static final String CUSTOMER = "customer"; // profiles.role 컬럼 값 (DB check 제약: customer | manager)
+    // profiles.role 컬럼 값 (DB check 제약: customer | manager | regional_manager | admin, V065)
+    public static final String CUSTOMER = "customer";
     public static final String MANAGER = "manager";
-    public static final String ROLE_CUSTOMER = "ROLE_CUSTOMER"; // Spring Security 권한 이름. "ROLE_" 접두사는 스프링의 역할 표기 관례
+    public static final String REGIONAL_MANAGER = "regional_manager"; // 지역 매니저: 담당 권역 운영 + 일반 매니저 업무 전부
+    public static final String ADMIN = "admin";                       // 어드민: DB 에서만 지정한다(앱에 임명 기능 없음)
+    // Spring Security 권한 이름. "ROLE_" 접두사는 스프링의 역할 표기 관례
+    public static final String ROLE_CUSTOMER = "ROLE_CUSTOMER";
     public static final String ROLE_MANAGER = "ROLE_MANAGER";
+    public static final String ROLE_REGIONAL_MANAGER = "ROLE_REGIONAL_MANAGER";
+    public static final String ROLE_ADMIN = "ROLE_ADMIN";
 
     private Roles() {} // 상수·정적 메서드만 있는 클래스라 객체를 만들지 않는다
 
-    /** 가입을 끝낸 사용자: ROLE_CUSTOMER / ROLE_MANAGER */
-    // role 은 "customer" 또는 "manager" (null 이면 NullPointerException — profiles.role 은 not null 이다)
+    /** 가입을 끝낸 사용자: ROLE_CUSTOMER / ROLE_MANAGER / ROLE_REGIONAL_MANAGER / ROLE_ADMIN */
+    // role 은 profiles.role 값 (null 이면 NullPointerException — profiles.role 은 not null 이다)
     public static String authorityOf(String role) {
         return "ROLE_" + role.toUpperCase();
     }
@@ -23,5 +29,21 @@ public final class Roles {
      */
     public static String pendingAuthorityOf(String role) {
         return "PENDING_" + role.toUpperCase();
+    }
+
+    /**
+     * 매니저 업무를 하는 역할인가: manager 또는 regional_manager (지역 매니저는 일반 매니저 업무를 전부 한다, rbac.md §2).
+     * manager_profiles 행·근무시간·패널티·정산이 있는 계정이다. 탈퇴·파기·알림 설정처럼 '매니저 계정' 을 가르는 곳은 이것으로 비교한다.
+     */
+    public static boolean isManagerRole(String role) {
+        return MANAGER.equals(role) || REGIONAL_MANAGER.equals(role);
+    }
+
+    /**
+     * 이 역할의 계정이 로그인하는 앱: "customer"(고객 앱) / "manager"(매니저 앱). 로그인·비밀번호 재설정 요청의 role 과 비교한다.
+     * 어드민은 아직 앱 로그인이 없다(매니저 앱 MFA 로그인은 배너·공지 관리 2회차) — 어떤 앱과도 맞지 않게 "admin" 을 돌려준다.
+     */
+    public static String appOf(String role) {
+        return isManagerRole(role) ? MANAGER : role;
     }
 }

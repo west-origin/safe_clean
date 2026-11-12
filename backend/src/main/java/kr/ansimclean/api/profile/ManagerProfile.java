@@ -17,19 +17,34 @@ import java.util.UUID;
 // 행은 매니저 가입 마지막 단계(ProfileService.completeSignup)에서 만든다.
 // 쓰는 곳 예: ProfileService(매칭 후보·MY 화면·탈퇴), ManagerPenaltyService(패널티 정지·해제).
 // setter 가 없다 — 값은 아래 메서드로만 바꾼다.
-/** manager_profiles — 매니저 승인·평점·활동 지역·신원·정산 계좌(마스킹). approved 는 운영자가 바꾼다(탈퇴 때는 withdraw 가 거둔다) */
+/**
+ * manager_profiles — 매니저 계정 상태·평점·활동 지역·신원·정산 계좌(마스킹).
+ * status(계정 상태, rbac.md §3): pending 승인 대기 · active 활동 중 · suspended 활동 정지 · dormant 휴면 · withdrawn 퇴사.
+ * 콜·업무는 active 일 때만. 상태는 어드민이 바꾸고(R6 전까지는 approve 를 통합 테스트·SQL 이 부른다), 탈퇴 때는 withdraw 가 withdrawn 으로 바꾼다.
+ * 패널티 '콜 배정 정지'(suspendedUntil)는 계정 상태와 별개다(§3.1).
+ */
 @Entity
 @Table(name = "manager_profiles")
 // @DynamicUpdate: UPDATE 문에 바뀐 칸만 싣는다(기본은 모든 칸). 청소 완료(incrementCompleted)와 운영자 면제(liftSuspension)처럼 이 행을 잠그지 않고
 // 읽어 둔 두 트랜잭션이 겹쳐 저장해도, 한쪽의 전체 칸 UPDATE 가 상대가 바꾼 정지 종료일·완료 수를 옛 값으로 되돌리지 않게 (합친 38건 검토 R6 — Profile 과 같은 방어)
 @org.hibernate.annotations.DynamicUpdate
 public class ManagerProfile {
+    // manager_profiles.status 값 (rbac.md §3)
+    public static final String PENDING = "pending";
+    public static final String ACTIVE = "active";
+    public static final String SUSPENDED = "suspended";
+    public static final String DORMANT = "dormant";
+    public static final String WITHDRAWN = "withdrawn";
+
     @Id
     @Column(name = "manager_id", columnDefinition = "uuid")
     private UUID managerId; // profiles.id 와 같은 값 (계정 하나당 한 행)
 
-    @Column(nullable = false)
-    private boolean approved; // true 여야 매칭 후보가 된다
+    @Column(nullable = false, columnDefinition = "text")
+    private String status; // 계정 상태 — 아래 상수 중 하나 (DB check 제약, V065). active 여야 매칭 후보가 된다
+
+    @Column(name = "status_changed_at")
+    private Instant statusChangedAt; // 마지막 상태 전환 시각 (퇴사자 정산 조회 기한 계산용, rbac.md §3)
 
     @Column(nullable = false, precision = 2, scale = 1)
     private BigDecimal rating; // 소수 한 자리 평점. 이 클래스에는 바꾸는 메서드가 없다 (가입 때 0.0, 화면은 0 이면 '-')
@@ -89,7 +104,8 @@ public class ManagerProfile {
     public static ManagerProfile create(UUID managerId, Instant now) {
         ManagerProfile m = new ManagerProfile();
         m.managerId = managerId;
-        m.approved = false;
+        m.status = PENDING; // 신규 가입 매니저는 승인 대기 (rbac.md §3)
+        m.statusChangedAt = now;
         m.rating = BigDecimal.ZERO.setScale(1);
         m.completedCount = 0;
         m.areas = List.of();
@@ -100,7 +116,10 @@ public class ManagerProfile {
 
     // 읽기용 getter (예: MY 화면 ProfileService, 매칭 OfferService)
     public UUID getManagerId() { return managerId; }
-    public boolean isApproved() { return approved; }
+    public String getStatus() { return status; }
+    public Instant getStatusChangedAt() { return statusChangedAt; }
+    /** 활동 중(active)인가 — 콜·업무를 할 수 있는 상태. 예전 approved=true 와 같은 자리 (이름은 그대로 둔다) */
+    public boolean isApproved() { return ACTIVE.equals(status); }
     public BigDecimal getRating() { return rating; }
     public int getCompletedCount() { return completedCount; }
     public LocalDate getActiveSince() { return activeSince; }
@@ -117,17 +136,19 @@ public class ManagerProfile {
     /** 운영자 승인 (§13-8: 관리 API 전까지 SQL·테스트에서). areas = '시도 시군구' 문자열, sido = 대체 매칭용 */
     public void approve(List<String> areas, String sido, LocalDate activeSince, Instant now) {
         // 부르는 곳: ProfileService.approveManager (activeSince = 서울 기준 오늘)
-        this.approved = true;
+        this.status = ACTIVE;
+        this.statusChangedAt = now;
         this.areas = List.copyOf(areas); // 받은 목록을 복사해 둔다 — 밖에서 원본 목록을 바꿔도 여기 값은 그대로
         this.sido = sido;
         this.activeSince = activeSince;
         this.updatedAt = now;
     }
 
-    /** 탈퇴: 승인을 거두고(매칭 후보·우선 오퍼 대상에서 빠진다) 계좌 정보를 지운다. completed_count·rating 은 정산 이력용으로 남긴다 */
+    /** 탈퇴: 상태를 퇴사(withdrawn)로 바꾸고(매칭 후보·우선 오퍼 대상에서 빠진다) 계좌 정보를 지운다. completed_count·rating 은 정산 이력용으로 남긴다 */
     public void withdraw(Instant now) {
         // 부르는 곳: ProfileService.anonymize (탈퇴 트랜잭션 안), 그리고 아래 purge
-        this.approved = false;
+        this.status = WITHDRAWN; // 매칭 후보·우선 오퍼 대상에서 빠진다
+        this.statusChangedAt = now;
         this.areas = List.of();
         this.bankName = null;
         this.accountNumberMasked = null;

@@ -128,7 +128,7 @@ public class AuthService {
         String phone = OtpService.toE164(localPhone);
         if (clientIp != null) rateLimiter.check("otp-ip", clientIp, RateLimiter.OTP_PER_IP_PER_HOUR);
         rateLimiter.check("otp-global", "all", RateLimiter.OTP_GLOBAL_PER_HOUR);
-        Profile p = profiles.findLiveByPhone(phone).filter(profile -> profile.getRole().equals(role))
+        Profile p = profiles.findLiveByPhone(phone).filter(profile -> Roles.appOf(profile.getRole()).equals(role)) // 지역 매니저도 매니저 앱 계정
                 .orElseThrow(() -> new ApiException(ErrorCode.PHONE_NOT_FOUND));
         return new OtpResponse(true, otp.request(p.getPhone(), role).toSeconds(), OtpService.RESEND_INTERVAL.toSeconds());
     }
@@ -150,7 +150,7 @@ public class AuthService {
         String phone = verification.getPhone();
         String role = verification.getRole();
         requireManagerPasswordFlow(role);
-        Profile p = profiles.findLiveByPhone(phone).filter(profile -> profile.getRole().equals(role))
+        Profile p = profiles.findLiveByPhone(phone).filter(profile -> Roles.appOf(profile.getRole()).equals(role)) // 지역 매니저도 매니저 앱 계정
                 .orElseThrow(() -> new ApiException(ErrorCode.PHONE_NOT_FOUND));
 
         // 외부 변경 전에 단독 트랜잭션으로 소비를 커밋한다. 응답 유실/외부 실패도 토큰을 되살리지 않는다.
@@ -257,7 +257,7 @@ public class AuthService {
             terms.recordAgreements(userId, p.getRole(), agreedTermIds);
             // 선택 약관 "marketing" 에 동의했을 때만 마케팅 알림을 켠 채로 시작한다
             p = profiles.completeSignup(userId, agreedTermIds != null && agreedTermIds.contains("marketing"));
-            if (p.getRole().equals(Roles.MANAGER)) availability.createDefaultHours(userId);
+            if (Roles.isManagerRole(p.getRole())) availability.createDefaultHours(userId);
         }
         return new CompleteSignupResponse(true, profiles.userResponse(p));
     }
@@ -271,7 +271,7 @@ public class AuthService {
         SupabaseAuthClient.Session session = supabase.passwordGrant(phone, req.password()); // 번호·비밀번호가 틀리면 여기서 LOGIN_FAILED
         Profile p = profiles.findLive(session.userId()).orElse(null);
         // 프로필이 없거나 탈퇴한 계정, 또는 다른 앱의 계정(고객 번호로 매니저 앱 로그인 등)이면 같은 LOGIN_FAILED
-        if (p == null || !p.getRole().equals(req.role())) {
+        if (p == null || !Roles.appOf(p.getRole()).equals(req.role())) { // 지역 매니저는 매니저 앱으로 로그인한다 (Roles.appOf)
             supabase.logout(session.accessToken()); // 쓰지 않을 세션을 남기지 않는다 (전체 재점검 A2, 실패해도 조용히)
             throw new ApiException(ErrorCode.LOGIN_FAILED);
         }
@@ -319,6 +319,8 @@ public class AuthService {
         rateLimiter.check("delete", userId.toString(), RateLimiter.DELETE_PER_USER_PER_HOUR); // 로그인된 세션으로 비밀번호를 무한히 맞춰 보지 못하게
         Profile p = profiles.requireLive(userId);
         if (Roles.CUSTOMER.equals(p.getRole())) throw new ApiException(ErrorCode.FORBIDDEN, "SNS 재인증 후 탈퇴해주세요");
+        // 어드민은 앱에서 지정·해제하지 않는다(DB 에서만, rbac.md §2) — 본인 탈퇴로 마지막 어드민이 사라지지 않게 막는다
+        if (Roles.ADMIN.equals(p.getRole())) throw new ApiException(ErrorCode.FORBIDDEN, "관리자 계정은 앱에서 탈퇴할 수 없어요");
         SupabaseAuthClient.Session check = supabase.passwordGrant(p.getPhone(), password); // manager only
         supabase.logout(check.accessToken()); // 비밀번호 확인용으로 생긴 세션은 바로 끊는다 — 가드에 막혀도 남지 않게 (전체 재점검 A2)
         finishDeletion(userId, p);
@@ -347,7 +349,7 @@ public class AuthService {
         // All deletion guards and retained business records remain in the original transaction.
         tx.executeWithoutResult(status -> {
             profiles.lockLive(userId);                 // 가드 검사와 익명화를 같은 트랜잭션·잠금 안에서 (검사 뒤 수락이 끼어들지 못하게)
-            if (p.getRole().equals(Roles.MANAGER)) profiles.lockManagerIfExists(userId); // 콜 수락(lockManager)과 직렬화. 가입 미완료 매니저는 행이 없다
+            if (Roles.isManagerRole(p.getRole())) profiles.lockManagerIfExists(userId); // 콜 수락(lockManager)과 직렬화. 가입 미완료 매니저는 행이 없다
             for (AccountDeletionGuard guard : deletionGuards) {
                 String reason = guard.blockReason(userId, p.getRole());
                 if (reason != null) throw new ApiException(ErrorCode.INVALID_STATE, reason);
@@ -355,7 +357,7 @@ public class AuthService {
             profiles.anonymize(userId);
             push.forget(userId); // 탈퇴한 기기로 푸시가 가지 않게 (§5.1 deleteAccount)
             support.retainAfterDeletion(userId); // 1:1 문의는 분쟁처리 기록으로 3년 뒤 지운다 (사용자 결정 2026-09-27, 자체 점검 #31)
-            if (p.getRole().equals(Roles.MANAGER)) {
+            if (Roles.isManagerRole(p.getRole())) {
                 // 근무시간·근무 불가(사유 자유 입력)·패널티 원장도 탈퇴 때 지운다 — 매니저 동의 '보유 기간: 매니저 탈퇴 시까지'(V039) 가 사실이 되게.
                 // 예전에는 5년 파기까지 남아 동의 문구와 달랐다 (자체 점검 후속 검토). 맡은 작업·미지급 정산이 없어야 여기까지 온다(가드)
                 availability.forget(userId);

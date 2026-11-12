@@ -93,7 +93,7 @@ public class DeletedAccountPurger {
      */
     private void purgeOne(ProfileService.PurgeTarget t) {
         for (AccountPurge p : purges) p.purge(t.id(), t.role());
-        if (Roles.MANAGER.equals(t.role())) {
+        if (Roles.isManagerRole(t.role())) {
             availability.forget(t.id());
             penalties.forget(t.id());
         }
