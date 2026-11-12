@@ -13,6 +13,7 @@
   - [x] 매니저 앱: 관리자 홈 '관리 › 공지 관리' → `/admin/notices`(대상별 MenuGroup 묶음, 최신순, 빈 상태, '공지 올리기') → `/admin/notices/new`·`/:id`(보여줄 앱 SegmentedControl 고객·매니저·전체 / 제목 TextField 100자 / 내용 TextArea 5,000자 / 올리기·저장 / 삭제 확인 Sheet) → 목록 + 토스트. 서버 검사 문구는 버튼 위 ActionError. 문구 `mock.js ADMIN_NOTICE_COPY`(코드에서 정함). 확인: 화면 테스트 5개 + manager-mock 393px 에서 새 공지 올리기 → 고객 묶음 맨 위·토스트, 콘솔 오류 없음
   - 고객 앱은 바꾸지 않았다: 홈 공지 띠·공지사항 목록이 화면을 열 때마다 `GET /support/notices?audience=customer` 를 부른다(사용자 결정 §15-23). 실서버로 '올림 → 고객 앱에 보임' 을 끝까지 본 것은 `AdminNoticeIT`(미실행)뿐 — 배포 뒤 테스트 서버에서 확인 필요
 - [ ] 4회차: `home_banners` 표·비공개 버킷·서명 URL·어드민 배너 API + 매니저 앱 배너 관리 화면 + 고객 앱 배너 서버 연결
+  - [x] 서버: V067 `home_banners`(제목·설명·이미지 경로·게시 시작·종료일(서울, 양 끝 포함)·순서) + RLS. `banner` 패키지 — `AdminBannerService`(`/admin/banners` 목록·한 건·올리기(multipart)·문구 수정·이미지 교체·순서·삭제, AccessPolicy `BANNER_MANAGE`, 활동 이력, 업로드는 트랜잭션 밖·DB 실패 시 파일 정리, 옛 파일 삭제는 아웃박스 `BannerImageDeleted`), `BannerService`(`GET /customer/banners` 오늘 게시 중만, 6시간 서명 URL). 이미지 JPG·PNG·WebP 5MB, 제목 40자·설명 60자(코드에서 정함). `ImageBytes` 를 `common/image` 로 옮김(공용). 검증: 단위 10·슬라이스 4, `scripts/verify-banners-v067.mjs`(PGlite), `BannerIT`(**미실행**). **버킷 `banners` 는 runbook SQL 로 만들어야 한다**, 처음 3장은 `scripts/seed-home-banners.mjs`
 - 정한 것(판단 항목): 배너가 없거나 못 받으면 배너 영역을 숨긴다(지금 3장은 테스트 서버에 처음 한 번 등록). 배너 이미지는 JPG·PNG·WebP 5MB 이하, 비율 360:108(권장 1080×324). 관리자 화면은 Figma 에 없어 코드에서 정함(기존 ui 프리미티브만)
 
 ## RBAC 권한 체계 (2026-11-12 사용자 요청 — 사양 `backend/docs/rbac.md`, 단위 R0~R19)

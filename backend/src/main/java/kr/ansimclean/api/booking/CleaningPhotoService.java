@@ -1,5 +1,6 @@
 package kr.ansimclean.api.booking;
 
+import kr.ansimclean.api.common.image.ImageBytes;
 import kr.ansimclean.api.booking.dto.CleaningPhotoResponse;
 import kr.ansimclean.api.booking.dto.CustomerCleaningPhotosResponse;
 import kr.ansimclean.api.booking.dto.JobPhotosResponse;

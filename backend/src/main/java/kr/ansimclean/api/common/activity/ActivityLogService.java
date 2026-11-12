@@ -21,6 +21,11 @@ public class ActivityLogService {
     public static final String NOTICE_CREATE = "notice.create";
     public static final String NOTICE_UPDATE = "notice.update";
     public static final String NOTICE_DELETE = "notice.delete";
+    public static final String BANNER_CREATE = "banner.create";
+    public static final String BANNER_UPDATE = "banner.update";       // 대체 문구·게시 기간
+    public static final String BANNER_IMAGE = "banner.image";         // 이미지 교체
+    public static final String BANNER_REORDER = "banner.reorder";
+    public static final String BANNER_DELETE = "banner.delete";
 
     private final ActivityLogRepository logs;
     private final AppClock clock;

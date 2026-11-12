@@ -1,5 +1,6 @@
 package kr.ansimclean.api.booking;
 
+import kr.ansimclean.api.common.image.ImageBytes;
 import kr.ansimclean.api.booking.dto.RepairPhotoResponse;
 import kr.ansimclean.api.common.web.RateLimiter;
 import kr.ansimclean.api.common.error.ApiException;

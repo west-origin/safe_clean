@@ -47,6 +47,8 @@ class OutboxHandlersTest {
         handled.add("CameraReleased");      // live.CameraReleaseHandler (전체 재점검 J1)
         handled.addAll(new kr.ansimclean.api.payment.PaymentWorkHandler(
                 mock(kr.ansimclean.api.payment.CheckoutService.class), mock(kr.ansimclean.api.payment.TossPaymentGateway.class)).types());
+        handled.addAll(new kr.ansimclean.api.banner.BannerImageDeletionHandler(
+                new kr.ansimclean.api.banner.BannerImages(mock(kr.ansimclean.api.common.supabase.SupabaseStorageClient.class))).types()); // 배너 옛 파일 삭제
         assertThat(handled).containsAll(events);
         // 겹치면 OutboxDispatcher 생성자가 막는다 — 여기서도 확인
         assertThat(new PushHandler(mock(kr.ansimclean.api.push.PushService.class), mock(kr.ansimclean.api.profile.ProfileService.class)).types()).doesNotContain("AccountDeleted");

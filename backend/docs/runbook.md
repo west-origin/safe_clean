@@ -29,6 +29,7 @@ curl -s localhost:8080/api/v1/catalog/categories/home/options
 - 프로젝트 `ckvanmhgepdlxvfhdxes`, 리전 **ap-northeast-1(도쿄)** — 계획은 서울(ap-northeast-2)이었다. 테스트용이라 그대로 두고, 운영 프로젝트는 서울로 만든다.
 - Postgres **17.6**, `search_path = "$user", public, extensions`. `pgcrypto`·`uuid-ossp` 설치됨, `btree_gist` 는 V001 이 `public` 에 설치한다(Supabase 권고는 `extensions` 스키마지만, Testcontainers 와 동일하게 동작시키려고 기본 스키마를 쓴다 — 보안 경고 lint 는 무시).
 - `auth`·`storage` 스키마 준비됨. **Storage 버킷 `recordings`·`profile-images` 는 아직 없다(만들어야 함).** `repair-photos`(비공개, 수리 사진) 는 2026-09-21 dev 프로젝트에 SQL 로 만들었다: `insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('repair-photos','repair-photos',false,5242880,'{image/jpeg,image/png,image/webp,image/heic,image/heif}')` — prod 에도 같은 문장
+- **`banners`(비공개, 고객 앱 홈 혜택 배너, 2026-11-12 V067) 는 dev·prod 모두 아직 없다 — 배포 전에 만든다:** `insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('banners','banners',false,5242880,'{image/jpeg,image/png,image/webp}')`. 없으면 어드민 배너 올리기가 502("사진을 올리지 못했어요…")이고 고객 홈 배너는 비어 보인다. 처음 배너 3장(지금 앱에 있던 이미지)은 `scripts/seed-home-banners.mjs`(어드민 aal2 토큰 필요)로 올린다
 - **`job-photos`(비공개, 청소 전·후 사진, 2026-10-23) 는 dev·prod 모두 아직 없다 — 배포 전에 만든다:** `insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('job-photos','job-photos',false,5242880,'{image/jpeg,image/png,image/webp,image/heic,image/heif}')`
 - `GET /auth/v1/settings` (설정 후): `email:true, phone:true, disable_signup:true, phone_autoconfirm:true, sms_provider:"twilio"(더미)`.
 

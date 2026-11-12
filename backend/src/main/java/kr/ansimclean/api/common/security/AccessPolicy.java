@@ -23,6 +23,7 @@ public class AccessPolicy {
         PENALTY_WAIVE,       // 패널티 면제 (POST /admin/penalties/{id}/waive) — §4.1 정산·보너스·페널티 관리
         INQUIRY_ANSWER,      // 문의 답변 (POST /admin/inquiries/{id}/answer) — §10 (권역 문의의 지역 매니저 처리는 R15)
         NOTICE_MANAGE,       // 공지 목록·등록·수정·삭제 (/admin/notices/**) — §10 "공지 등록·수정·삭제는 어드민만" (권역 지정은 R16)
+        BANNER_MANAGE,       // 고객 앱 홈 배너 목록·등록·수정·순서·삭제 (/admin/banners/**) — §15-22
     }
 
     /** 작업 대상. type = 대상 종류("booking"·"penalty" 등), id = 그 행 id(없으면 null). 권역 규칙(R5 이후)이 여기에 권역을 더한다 */
@@ -44,6 +45,7 @@ public class AccessPolicy {
             // 기존 관리자 API 5개는 어드민 + MFA 만 (rbac.md §2.1 — 공용 X-Admin-Token 폐지)
             case JOB_FORCE_COMPLETE, DEVICE_REGISTER, BOOKING_REDISPATCH, PENALTY_WAIVE, INQUIRY_ANSWER -> isAdminWithMfa(actor);
             case NOTICE_MANAGE -> isAdminWithMfa(actor); // rbac.md §10
+            case BANNER_MANAGE -> isAdminWithMfa(actor); // rbac.md §15-22
         };
     }
 

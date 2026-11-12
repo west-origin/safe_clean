@@ -1,4 +1,4 @@
-package kr.ansimclean.api.booking;
+package kr.ansimclean.api.common.image;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
@@ -10,19 +10,19 @@ import java.util.Set;
  * (5MB 안에 수억 픽셀짜리 '압축 폭탄'을 넣어 매니저 앱 화면을 멈추지 못하게). HEIC/HEIF 는 서명만 본다 — 헤더 구조가 복잡해 여기서 풀지 않는다.
  * 서버는 이미지를 디코딩하지 않는다(헤더 몇 바이트만 읽는다).
  * 예: RepairPhotoService.upload 가 detect 로 형식을 고르고, HEIC 가 아니면 dimensions 로 가로·세로를 읽어 픽셀 수를 검사한다.
- * static 메서드만 모은 도구 클래스라 객체를 만들지 않는다(생성자가 private). public 이 아니라 booking 패키지 안에서만 쓴다.
+ * static 메서드만 모은 도구 클래스라 객체를 만들지 않는다(생성자가 private). 청소·수리 사진(booking)과 홈 배너(banner)가 쓴다.
  * 짧거나 깨진 파일이어도 예외를 내지 않고 빈 값(Optional.empty)을 돌려준다 — 부르는 쪽이 그것을 '읽을 수 없는 사진' 400 으로 바꾼다.
  */
-final class ImageBytes {
+public final class ImageBytes {
     /** 폰 카메라 사진(최대 5,000만 화소 안팎)은 넉넉히 통과하고, 5MB 안의 비정상적인 해상도만 막는다 */
-    static final long MAX_PIXELS = 100_000_000L;
+    public static final long MAX_PIXELS = 100_000_000L;
     // HEIC/HEIF 파일 앞 'ftyp' 상자 바로 뒤 4글자(brand, 파일 종류 이름)로 올 수 있는 값들
     private static final Set<String> HEIF_BRANDS = Set.of("heic", "heix", "hevc", "hevx", "heim", "heis", "mif1", "msf1", "heif");
 
     private ImageBytes() {}
 
     /** image/jpeg | image/png | image/webp | image/heic. 모르는 형식이면 빈 값 */
-    static Optional<String> detect(byte[] b) {
+    public static Optional<String> detect(byte[] b) {
         if (startsWith(b, 0, 0xFF, 0xD8, 0xFF)) return Optional.of("image/jpeg"); // JPEG 는 FF D8 FF 로 시작한다
         if (startsWith(b, 0, 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A)) return Optional.of("image/png"); // PNG 고정 서명 8바이트
         if (ascii(b, 0, 4).equals("RIFF") && ascii(b, 8, 4).equals("WEBP")) return Optional.of("image/webp"); // 'RIFF' + 파일 길이 4바이트 + 'WEBP'
@@ -32,7 +32,7 @@ final class ImageBytes {
 
     /** 헤더에서 읽은 가로×세로. 읽지 못하면(깨진 파일) 빈 값. HEIC 는 항상 빈 값 */
     // 결과 배열은 { 가로, 세로 } 순서다 (RepairPhotoService 가 가로×세로가 MAX_PIXELS 를 넘는지 본다)
-    static Optional<long[]> dimensions(byte[] b, String type) {
+    public static Optional<long[]> dimensions(byte[] b, String type) {
         return switch (type) {
             // PNG: 서명 8바이트 + 길이 4바이트 뒤 12번째부터 'IHDR' 조각. 16번째·20번째에 가로·세로(4바이트, 큰 자리 먼저)
             case "image/png" -> ascii(b, 12, 4).equals("IHDR") ? Optional.of(new long[] { u32(b, 16), u32(b, 20) }) : Optional.empty();

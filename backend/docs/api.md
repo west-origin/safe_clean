@@ -259,6 +259,21 @@ CheckoutResponse: `{ id, bookingId, orderId, amount, currency: "KRW", status, re
 
 검사(`VALIDATION`, 문구 그대로 화면에): 대상이 세 값이 아니면 "공지 대상을 골라주세요", 제목·내용은 앞뒤 공백을 뗀 뒤 비면 "제목을 입력해주세요"·"내용을 입력해주세요", 제목 100자·내용 5,000자 초과면 "제목은 100자까지 쓸 수 있어요"·"내용은 5,000자까지 쓸 수 있어요"(상한은 코드에서 정함). 권역 지정(`notices.region_id`)은 R16.
 
+#### 홈 혜택 배너 (고객 앱 홈 `HomePromotions` · 매니저 앱 관리자 화면, `rbac.md` §15-22 — 2026-11-12)
+| 앱 함수 | 메서드 · 경로 | 요청 | 응답 |
+|---|---|---|---|
+| `getHomeBanners()` **(고객 앱)** | `GET /customer/banners` | — | `[{ id, title, description, imageUrl }]` — 오늘(서울)이 게시 기간 안인 배너만 순서대로. `imageUrl` = 비공개 버킷 `banners` 의 6시간 서명 URL(못 만든 배너는 뺀다). title·description 은 이미지의 대체 문구. 비었거나 실패하면 앱은 배너 영역을 숨긴다 |
+| `getAdminBanners()` | `GET /admin/banners` | — | `[AdminBanner]` 모든 배너(지난·예정 포함) 순서대로 |
+| `getAdminBanner(id)` | `GET /admin/banners/{id}` | — | `AdminBanner`. 없으면 `NOT_FOUND` |
+| `createAdminBanner(draft)` | `POST /admin/banners` (multipart) | `file` + `title`·`description`·`startsOn`·`endsOn` | `AdminBanner` — 맨 뒤에 붙는다 |
+| `updateAdminBanner(id, draft)` | `PUT /admin/banners/{id}` | `{ title, description, startsOn, endsOn }` | `AdminBanner` |
+| `replaceAdminBannerImage(id, file)` | `PUT /admin/banners/{id}/image` (multipart) | `file` | `AdminBanner` — 새 경로로 올리고 옛 파일은 아웃박스(`BannerImageDeleted`)가 지운다 |
+| `reorderAdminBanners(ids)` | `PUT /admin/banners/order` | `{ ids: [모든 배너 id, 새 순서] }` | `[AdminBanner]` 새 순서. 빠지거나 남는 id 면 `VALIDATION` "배너 목록이 바뀌었어요. 화면을 새로고침해주세요" |
+| `deleteAdminBanner(id)` | `DELETE /admin/banners/{id}` | — | `{ ok: true }`. 파일은 아웃박스가 지운다 |
+
+`AdminBanner` = `{ id, title, description, imageUrl /* 1시간 서명 URL, 실패면 null */, startsOn: "2026-11-12"|null, endsOn, periodLabel: "11월 12일 ~ 12월 31일"|"11월 12일부터"|"12월 31일까지"|"기간 제한 없음", state: "live"|"scheduled"|"ended", stateLabel: "게시 중"|"게시 예정"|"게시 종료" }`.
+`/admin/banners/**` 는 admin + MFA(aal2)만. 바꾸는 작업은 `activity_logs`(`banner.create|update|image|reorder|delete`). 검사(`VALIDATION`, 문구 그대로 화면에 — 코드에서 정함): 이미지 없음 "배너 이미지를 골라주세요", 5MB 초과 "이미지는 5MB 이하로 올려주세요", JPG·PNG·WebP 가 아니면 "JPG·PNG·WebP 이미지만 올릴 수 있어요"(HEIC 는 고객 앱이 그리지 못해 받지 않는다), 읽을 수 없으면 "이미지 파일을 읽을 수 없어요. 다른 이미지를 골라주세요", 제목 비었으면 "배너 제목을 입력해주세요"·40자 초과, 설명 60자 초과, 날짜 형식 "날짜 형식을 확인해주세요", 시작 > 종료 "게시 종료일은 시작일과 같거나 뒤여야 해요". 권장 크기 1080×324(360:108)는 안내만 — 앱이 잘라 보여 준다.
+
 푸시 문구·받는 사람(`push/PushCopy`, `PushHandler`): 새 콜(후보 매니저, 설정 `call`) · 매니저 배정(고객) · 청소 시작 = 바디캠 첫 연결(고객) · 완료(고객 + 매니저 `settlement`) · 취소·일정 변경(배정됐던 매니저) · 미배정 취소(고객) · 정기청소 종료 7일 전(고객) · 바디캠 끊김/5분 대기(매니저) · 녹화본 준비(고객). 알림 설정 `push` 가 꺼져 있으면 보내지 않는다. `data: { type, bookingId }` 로 화면 이동.
 
 
