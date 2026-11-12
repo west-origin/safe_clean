@@ -47,9 +47,10 @@ public final class Roles {
 
     /**
      * 이 역할의 계정이 로그인하는 앱: "customer"(고객 앱) / "manager"(매니저 앱). 로그인·비밀번호 재설정 요청의 role 과 비교한다.
-     * 어드민은 아직 앱 로그인이 없다(매니저 앱 MFA 로그인은 배너·공지 관리 2회차) — 어떤 앱과도 맞지 않게 "admin" 을 돌려준다.
+     * 어드민도 매니저 앱으로 로그인한다(rbac.md §15-20) — 비밀번호 로그인은 aal1 토큰이고, 인증앱 6자리(/auth/mfa/verify)를 통과해야
+     * 관리자 API 가 열린다.
      */
     public static String appOf(String role) {
-        return isManagerRole(role) ? MANAGER : role;
+        return isManagerRole(role) || ADMIN.equals(role) ? MANAGER : role;
     }
 }

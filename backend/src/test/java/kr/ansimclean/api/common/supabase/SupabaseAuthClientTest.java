@@ -163,4 +163,35 @@ class SupabaseAuthClientTest {
         assertThatThrownBy(() -> client.verifyPhoneChange("+821000000001", "000000"))
                 .extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.OTP_RATE_LIMITED);
     }
+
+    // GET /user 의 factors 중 등록이 끝난(verified) TOTP 만 고른다. 등록 중(unverified)이거나 다른 종류뿐이면 null
+    @Test
+    void MFA_factor_는_verified_TOTP_만_고른다() {
+        server.expect(requestTo(BASE + "/user")).andExpect(method(HttpMethod.GET)).andExpect(header("Authorization", "Bearer u1"))
+                .andRespond(withSuccess("{\"id\":\"" + USER + "\",\"factors\":[{\"id\":\"f0\",\"factor_type\":\"totp\",\"status\":\"unverified\"},{\"id\":\"f1\",\"factor_type\":\"totp\",\"status\":\"verified\"}]}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(BASE + "/user"))
+                .andRespond(withSuccess("{\"id\":\"" + USER + "\",\"factors\":[{\"id\":\"p1\",\"factor_type\":\"phone\",\"status\":\"verified\"}]}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(BASE + "/user")).andRespond(withSuccess("{\"id\":\"" + USER + "\"}", MediaType.APPLICATION_JSON));
+        assertThat(client.verifiedTotpFactorId("u1")).isEqualTo("f1");
+        assertThat(client.verifiedTotpFactorId("u1")).isNull();
+        assertThat(client.verifiedTotpFactorId("u1")).isNull();
+        server.verify();
+    }
+
+    // challenge → verify(challenge_id, code) 순서로 사용자 토큰을 싣고, verify 응답을 새 세션으로. 틀린 6자리(422)는 OTP_INVALID
+    @Test
+    void MFA_확인은_challenge_뒤_verify_하고_틀리면_OTP_INVALID() {
+        server.expect(requestTo(BASE + "/factors/f1/challenge")).andExpect(method(HttpMethod.POST)).andExpect(header("Authorization", "Bearer u1"))
+                .andRespond(withSuccess("{\"id\":\"c1\",\"type\":\"totp\"}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(BASE + "/factors/f1/verify")).andExpect(method(HttpMethod.POST)).andExpect(header("Authorization", "Bearer u1"))
+                .andExpect(jsonPath("$.challenge_id").value("c1")).andExpect(jsonPath("$.code").value("123456"))
+                .andRespond(withSuccess("{\"access_token\":\"a2\",\"refresh_token\":\"r2\",\"expires_in\":3600,\"user\":{\"id\":\"" + USER + "\"}}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(BASE + "/factors/f1/challenge")).andRespond(withSuccess("{\"id\":\"c2\"}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(BASE + "/factors/f1/verify"))
+                .andRespond(withStatus(HttpStatus.UNPROCESSABLE_ENTITY).contentType(MediaType.APPLICATION_JSON).body("{\"error_code\":\"mfa_verification_failed\"}"));
+        SupabaseAuthClient.Session s = client.verifyTotp("u1", "f1", "123456");
+        assertThat(s.accessToken()).isEqualTo("a2");
+        assertThat(s.userId()).isEqualTo(USER);
+        assertThatThrownBy(() -> client.verifyTotp("u1", "f1", "000000")).extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.OTP_INVALID);
+    }
 }

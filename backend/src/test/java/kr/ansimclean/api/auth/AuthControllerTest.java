@@ -152,4 +152,25 @@ class AuthControllerTest {
         mvc.perform(post("/api/v1/auth/password/reset").contentType(MediaType.APPLICATION_JSON).content("{\"verificationToken\":\"\",\"password\":\"newpassword1\"}"))
                 .andExpect(status().isBadRequest());
     }
+
+    // 어드민 MFA 2단계 (rbac.md §2.1): 토큰이 있어야 하고, 6자리 숫자가 아니면 400, 맞으면 로그인과 같은 모양 + 서비스에 지금 토큰을 넘긴다
+    @Test
+    void MFA_확인은_토큰이_필요하고_6자리만_받고_지금_토큰을_넘긴다() throws Exception {
+        mvc.perform(post("/api/v1/auth/mfa/verify").contentType(MediaType.APPLICATION_JSON).content("{\"code\":\"123456\"}"))
+                .andExpect(status().isUnauthorized());
+        UUID id = UUID.randomUUID();
+        org.springframework.security.oauth2.jwt.Jwt jwt = org.springframework.security.oauth2.jwt.Jwt.withTokenValue("aal1").header("alg", "HS256").subject(id.toString())
+                .claim("aud", java.util.List.of("authenticated")).claim("aal", "aal1")
+                .issuedAt(java.time.Instant.now()).expiresAt(java.time.Instant.now().plusSeconds(60)).build();
+        when(jwtDecoder.decode("aal1")).thenReturn(jwt);
+        when(resolver.resolve(id)).thenReturn(java.util.Optional.of(new kr.ansimclean.api.common.security.CurrentUser(id, "admin", true)));
+        mvc.perform(post("/api/v1/auth/mfa/verify").header("Authorization", "Bearer aal1").contentType(MediaType.APPLICATION_JSON).content("{\"code\":\"12a456\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("VALIDATION"));
+        when(service.verifyMfa(id, "aal1", "123456")).thenReturn(new AuthResponse("aal2-token", "r2", 3600, new UserResponse(id, "admin", "운영자", true, null)));
+        mvc.perform(post("/api/v1/auth/mfa/verify").header("Authorization", "Bearer aal1").contentType(MediaType.APPLICATION_JSON).content("{\"code\":\"123456\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("aal2-token"))
+                .andExpect(jsonPath("$.refreshToken").value("r2"))
+                .andExpect(jsonPath("$.user.role").value("admin"));
+    }
 }

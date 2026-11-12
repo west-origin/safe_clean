@@ -24,11 +24,11 @@ class RolesTest {
     }
 
     @Test
-    void 지역_매니저는_매니저_앱으로_어드민은_아직_어느_앱과도_맞지_않는다() {
+    void 지역_매니저와_어드민은_매니저_앱으로_로그인한다() {
         assertThat(Roles.appOf(Roles.CUSTOMER)).isEqualTo("customer");
         assertThat(Roles.appOf(Roles.MANAGER)).isEqualTo("manager");
         assertThat(Roles.appOf(Roles.REGIONAL_MANAGER)).isEqualTo("manager");
-        assertThat(Roles.appOf(Roles.ADMIN)).isEqualTo("admin");
+        assertThat(Roles.appOf(Roles.ADMIN)).isEqualTo("manager");
     }
 
     @Test

@@ -7,6 +7,7 @@ import kr.ansimclean.api.auth.dto.CompleteSignupRequest;
 import kr.ansimclean.api.auth.dto.CompleteSignupResponse;
 import kr.ansimclean.api.auth.dto.DeleteAccountRequest;
 import kr.ansimclean.api.auth.dto.LoginRequest;
+import kr.ansimclean.api.auth.dto.MfaVerifyRequest;
 import kr.ansimclean.api.auth.dto.OkResponse;
 import kr.ansimclean.api.auth.dto.OtpRequest;
 import kr.ansimclean.api.auth.dto.OtpResponse;
@@ -110,6 +111,16 @@ public class AuthController {
             service.logout(user.id(), jwt.getClaimAsString("session_id"), jwt.getTokenValue());
         }
         return OkResponse.OK;
+    }
+
+    /**
+     * POST /auth/mfa/verify — 어드민이 매니저 앱 비밀번호 로그인 뒤 인증앱 6자리를 보내 aal2(MFA) 토큰을 받는다. 앱 verifyAdminMfa.
+     * 지금 토큰(aal1)이 있어야 한다(SecurityConfig 의 anyRequest = 로그인만). 응답은 로그인과 같은 AuthResponse
+     */
+    @PostMapping("/mfa/verify")
+    public AuthResponse verifyMfa(@CurrentSecurityContext SecurityContext context, @Valid @RequestBody MfaVerifyRequest req) {
+        var authentication = context.getAuthentication();
+        return service.verifyMfa(((CurrentUser) authentication.getPrincipal()).id(), ((Jwt) authentication.getCredentials()).getTokenValue(), req.code());
     }
 
     /** GET /auth/me — 지금 로그인한 사용자 정보(가입 단계 signupStep 포함). 앱 refreshMe */

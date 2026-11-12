@@ -240,6 +240,66 @@ public class SupabaseAuthClient {
         }
     }
 
+    // ── 어드민 MFA (rbac.md §2.1, 배너·공지 관리 2회차) ──
+    // Supabase MFA 는 사용자 토큰으로 부른다: 인증앱(TOTP) factor 조회 → challenge → 6자리 verify → 같은 세션이 aal2 로 올라간 새 토큰.
+    // 앱은 Supabase 를 직접 부르지 않으므로(CLAUDE.md §1) 서버가 대신 부른다. factor 등록은 개발자가 runbook 절차로 한다.
+
+    /** 이 사용자의 인증앱(TOTP) factor 중 등록이 끝난(verified) 것의 id. 없으면 null. 토큰이 거부되면 UNAUTHENTICATED */
+    public String verifiedTotpFactorId(String userAccessToken) {
+        try {
+            JsonNode user = client.get().uri("/user")
+                    .header("apikey", serviceRoleKey)
+                    .header("Authorization", "Bearer " + userAccessToken)
+                    .retrieve().body(JsonNode.class);
+            JsonNode factors = user == null ? null : user.get("factors");
+            if (factors == null || !factors.isArray()) return null;
+            for (JsonNode f : factors) {
+                if ("totp".equals(text(f, "factor_type")) && "verified".equals(text(f, "status"))) return text(f, "id");
+            }
+            return null;
+        } catch (HttpStatusCodeException e) {
+            if (e.getStatusCode().value() == 401 || e.getStatusCode().value() == 403) throw new ApiException(ErrorCode.UNAUTHENTICATED);
+            throw upstream("MFA 조회", e);
+        } catch (ResourceAccessException e) {
+            throw unreachable(e);
+        }
+    }
+
+    /**
+     * 6자리로 MFA 를 통과한다: challenge 를 만들고 바로 verify. 성공하면 aal2 세션(새 access·refresh 토큰).
+     * 6자리가 틀리면 OTP_INVALID, Supabase 한도면 RATE_LIMITED, 토큰이 거부되면 UNAUTHENTICATED
+     */
+    public Session verifyTotp(String userAccessToken, String factorId, String code) {
+        try {
+            JsonNode challenge = client.post().uri("/factors/{id}/challenge", factorId)
+                    .header("apikey", serviceRoleKey)
+                    .header("Authorization", "Bearer " + userAccessToken)
+                    .retrieve().body(JsonNode.class);
+            JsonNode body = client.post().uri("/factors/{id}/verify", factorId)
+                    .header("apikey", serviceRoleKey)
+                    .header("Authorization", "Bearer " + userAccessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("challenge_id", text(challenge, "id"), "code", code))
+                    .retrieve().body(JsonNode.class);
+            return session(body);
+        } catch (HttpStatusCodeException e) {
+            int s = e.getStatusCode().value();
+            if (s == 429) throw new ApiException(ErrorCode.RATE_LIMITED);
+            if (s == 401) throw new ApiException(ErrorCode.UNAUTHENTICATED);
+            // 틀린 6자리 = 422 mfa_verification_failed (다른 4xx 도 사용자가 고칠 수 있는 입력 문제로 본다)
+            if (s == 400 || s == 403 || s == 422) throw new ApiException(ErrorCode.OTP_INVALID);
+            throw upstream("MFA 확인", e);
+        } catch (ResourceAccessException e) {
+            throw unreachable(e);
+        }
+    }
+
+    /** JSON 노드의 글자 값 (없으면 null) */
+    private static String text(JsonNode node, String field) {
+        JsonNode v = node == null ? null : node.get(field);
+        return v == null || v.isNull() ? null : v.asString();
+    }
+
     /** 400·401·403 만 '자격 증명 문제' 로 본다. 429(한도)·422(형식)·기타는 우리 쪽·Supabase 쪽 문제라 UPSTREAM/한도로 구분한다 */
     private static boolean isCredentialError(HttpStatusCodeException e) {
         int s = e.getStatusCode().value();

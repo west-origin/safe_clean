@@ -306,6 +306,23 @@ public class AuthService {
         supabase.logout(accessToken);
     }
 
+    /**
+     * 어드민 로그인 2단계 — 인증앱 6자리로 MFA 를 통과해 aal2 세션을 받는다 (rbac.md §2.1·§15-20, POST /auth/mfa/verify).
+     * 어드민만 부를 수 있다(그 밖은 FORBIDDEN). 같은 사용자의 시간당 시도 수를 센다(6자리 맞히기 방지, 성공하면 지운다).
+     * 인증앱이 등록되지 않은 계정이면 INVALID_STATE — 등록은 개발자가 runbook 절차로 한다(앱에 등록 화면이 없다).
+     * @param accessToken 지금 요청의 aal1 토큰 (Supabase MFA 는 사용자 토큰으로 부른다)
+     */
+    public AuthResponse verifyMfa(UUID userId, String accessToken, String code) {
+        Profile p = profiles.requireLive(userId);
+        if (!Roles.ADMIN.equals(p.getRole())) throw new ApiException(ErrorCode.FORBIDDEN);
+        rateLimiter.check("mfa", userId.toString(), RateLimiter.VERIFY_PER_HOUR);
+        String factorId = supabase.verifiedTotpFactorId(accessToken);
+        if (factorId == null) throw new ApiException(ErrorCode.INVALID_STATE, "인증앱이 등록되지 않은 관리자 계정이에요. 개발자에게 등록을 요청해주세요");
+        SupabaseAuthClient.Session session = supabase.verifyTotp(accessToken, factorId, code);
+        rateLimiter.reset("mfa", userId.toString());
+        return new AuthResponse(session.accessToken(), session.refreshToken(), session.expiresIn(), profiles.userResponse(p));
+    }
+
     /** GET /auth/me: 지금 사용자 정보 (가입 도중이면 signupStep 에 다음 화면) */
     public UserResponse me(UUID userId) {
         return profiles.userResponse(profiles.requireLive(userId));

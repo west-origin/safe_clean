@@ -89,7 +89,7 @@ Cloud Run 시크릿에 `ADMIN_TOKEN` 이 남아 있어도 서버가 읽지 않�
    ```
    이어서 아래 "토큰 받기" 의 challenge·verify 를 한 번 하면 factor 가 verified 가 된다.
 
-**토큰 받기(aal2, 1시간 유효)** — 매니저 앱 관리자 로그인(2회차)이 생기기 전까지는 curl 로:
+**토큰 받기(aal2, 1시간 유효)** — 매니저 앱은 로그인 뒤 6자리 화면이 서버 `POST /auth/mfa/verify` 로 받는다. 화면이 없는 관리 API(재매칭·면제 등)를 curl 로 부를 때는:
 ```bash
 FACTOR=<factor id>   # curl -s "$SB/auth/v1/user" -H "apikey: $KEY" -H "Authorization: Bearer $AAL1" | jq '.factors'
 CH=$(curl -s -X POST "$SB/auth/v1/factors/$FACTOR/challenge" -H "apikey: $KEY" -H "Authorization: Bearer $AAL1" | jq -r .id)

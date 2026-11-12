@@ -194,4 +194,34 @@ class AuthFlowIT {
         // 가입을 끝낸 매니저는 manager 경로를 통과한다 (B4 에서 홈 컨트롤러가 생겨 200 — 미승인이어도 홈은 열린다)
         mvc.perform(get("/api/v1/manager/home").header("Authorization", "Bearer m-access")).andExpect(status().isOk());
     }
+
+    @Autowired
+    kr.ansimclean.api.profile.ProfileService profiles;
+
+    // 어드민 매니저 앱 로그인 (rbac.md §15-20): 비밀번호 로그인 → aal1 토큰으로는 관리자 API 403 → 6자리 확인 → aal2 토큰으로 통과
+    // (없는 작업 id 라 통과하면 404). Supabase 의 MFA 호출은 가짜
+    @Test
+    void 어드민은_비밀번호_로그인_뒤_6자리를_거쳐야_관리자_API_가_열린다() throws Exception {
+        UUID admin = UUID.randomUUID();
+        String phone = "+821087654321";
+        profiles.createForSignup(admin, "admin", "운영자", null, phone);
+        profiles.completeSignup(admin);
+        when(supabase.passwordGrant(eq(phone), anyString())).thenReturn(new SupabaseAuthClient.Session("admin-aal1", "r1", 3600, admin));
+        for (String[] t : new String[][] { { "admin-aal1", "aal1" }, { "admin-aal2", "aal2" } }) {
+            when(jwtDecoder.decode(t[0])).thenReturn(Jwt.withTokenValue(t[0]).header("alg", "HS256").subject(admin.toString()).claim("aud", List.of("authenticated"))
+                    .claim("aal", t[1]).issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(3600)).build());
+        }
+        when(supabase.verifiedTotpFactorId("admin-aal1")).thenReturn("f1");
+        when(supabase.verifyTotp("admin-aal1", "f1", "123456")).thenReturn(new SupabaseAuthClient.Session("admin-aal2", "r2", 3600, admin));
+
+        mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"phone\":\"87654321\",\"password\":\"password1\",\"role\":\"manager\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.accessToken").value("admin-aal1")).andExpect(jsonPath("$.user.role").value("admin"));
+        String adminApi = "/api/v1/admin/jobs/" + UUID.randomUUID() + "/complete";
+        mvc.perform(post(adminApi).header("Authorization", "Bearer admin-aal1")).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/manager/home").header("Authorization", "Bearer admin-aal1")).andExpect(status().isForbidden()); // 어드민은 매니저 업무를 하지 않는다
+
+        mvc.perform(post("/api/v1/auth/mfa/verify").header("Authorization", "Bearer admin-aal1").contentType(MediaType.APPLICATION_JSON).content("{\"code\":\"123456\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.accessToken").value("admin-aal2")).andExpect(jsonPath("$.user.role").value("admin"));
+        mvc.perform(post(adminApi).header("Authorization", "Bearer admin-aal2")).andExpect(status().isNotFound());
+    }
 }

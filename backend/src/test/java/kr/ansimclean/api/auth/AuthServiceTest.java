@@ -263,14 +263,45 @@ class AuthServiceTest {
         assertThat(res.user().role()).isEqualTo("regional_manager");
     }
 
-    // 어드민의 매니저 앱 로그인(MFA)은 2회차 — 그 전에는 매니저 앱 비밀번호 로그인으로 들어오지 못한다
+    // 어드민도 매니저 앱 비밀번호로 로그인한다(aal1 토큰) — 관리자 API 는 6자리(verifyMfa) 뒤 aal2 토큰에서만 열린다 (rbac.md §15-20)
     @Test
-    void 어드민은_아직_매니저_앱으로_로그인하지_못하고_세션을_끊는다() {
+    void 어드민은_매니저_앱_비밀번호_로그인으로_aal1_세션을_받는다() {
         Profile a = Profile.create(USER, "admin", "운영자", null, PHONE);
         when(profiles.findLive(USER)).thenReturn(Optional.of(a));
-        assertThatThrownBy(() -> service.login(new LoginRequest("12345678", "password1", "manager"), null))
-                .extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.LOGIN_FAILED);
-        verify(supabase).logout(SESSION.accessToken());
+        when(profiles.userResponse(a)).thenReturn(new UserResponse(USER, "admin", "운영자", true, null));
+        assertThat(service.login(new LoginRequest("12345678", "password1", "manager"), null).user().role()).isEqualTo("admin");
+        verify(supabase, never()).logout(anyString());
+    }
+
+    @Test
+    void MFA_확인은_어드민만_인증앱이_없으면_INVALID_STATE_맞으면_aal2_세션() {
+        // 매니저는 403 — Supabase 를 부르지 않는다
+        assertThatThrownBy(() -> service.verifyMfa(USER, "aal1", "123456")).extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.FORBIDDEN);
+        verify(supabase, never()).verifiedTotpFactorId(anyString());
+
+        Profile a = Profile.create(USER, "admin", "운영자", null, PHONE);
+        when(profiles.requireLive(USER)).thenReturn(a);
+        when(profiles.userResponse(a)).thenReturn(new UserResponse(USER, "admin", "운영자", true, null));
+        when(supabase.verifiedTotpFactorId("aal1")).thenReturn(null);
+        assertThatThrownBy(() -> service.verifyMfa(USER, "aal1", "123456")).extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.INVALID_STATE);
+
+        when(supabase.verifiedTotpFactorId("aal1")).thenReturn("f1");
+        when(supabase.verifyTotp("aal1", "f1", "123456")).thenReturn(new SupabaseAuthClient.Session("aal2", "r2", 3600, USER));
+        AuthResponse res = service.verifyMfa(USER, "aal1", "123456");
+        assertThat(res.accessToken()).isEqualTo("aal2");
+        assertThat(res.user().role()).isEqualTo("admin");
+    }
+
+    @Test
+    void MFA_확인은_사용자당_시간당_10회까지() { // 6자리 맞히기 방지
+        Profile a = Profile.create(USER, "admin", "운영자", null, PHONE);
+        when(profiles.requireLive(USER)).thenReturn(a);
+        when(supabase.verifiedTotpFactorId("aal1")).thenReturn("f1");
+        when(supabase.verifyTotp(eq("aal1"), eq("f1"), anyString())).thenThrow(new ApiException(ErrorCode.OTP_INVALID));
+        for (int i = 0; i < RateLimiter.VERIFY_PER_HOUR; i++) {
+            assertThatThrownBy(() -> service.verifyMfa(USER, "aal1", "000000")).extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.OTP_INVALID);
+        }
+        assertThatThrownBy(() -> service.verifyMfa(USER, "aal1", "123456")).extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.RATE_LIMITED);
     }
 
     @Test
