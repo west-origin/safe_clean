@@ -35,3 +35,34 @@
   flex-direction: column;
   gap: var(--spacing-sm);
 }
+
+/* 배너 목록 (ol) — 기본 번호·여백을 없애고 세로로 쌓는다 */
+.bannerList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 배너 이미지 — 고객 앱 홈 배너와 같은 360:108 비율로 잘라 보인다 (HomePromotions.module.css .card) */
+.bannerImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 360 / 108;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+
+/* 수정·위로·아래로 버튼 줄 — 같은 폭으로 나눈다 */
+.bannerActions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.bannerActions > * {
+  flex: 1 1 0;
+  min-width: 0;
+}

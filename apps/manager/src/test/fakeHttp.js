@@ -12,6 +12,10 @@ import {
   MANAGER_NOTIFICATION_SETTINGS, MANAGER_NOTIFICATION_ROWS,
   MANAGER_NOTICES, ADMIN_NOTICES,
 } from '../api/mock.js';
+// 배너 관리 미리보기 이미지 — 서버로 옮기기 전 고객 앱에 있던 배너 3장 (가짜 서버의 처음 목록)
+import couponBanner from '@ansimclean/ui/assets/home-banner-coupon.png';
+import dailyBanner from '@ansimclean/ui/assets/home-banner-daily.png';
+import giftBanner from '@ansimclean/ui/assets/home-banner-gift.png';
 
 /**
  * http.js 의 ApiError 와 같은 모양 (status 0 = 네트워크 실패). vi.mock 으로 http.js 가 통째로 바뀌므로
@@ -89,6 +93,12 @@ export function fakeHttpModule() {
     inquiries: [], // 접수된 문의 내용(문자열)
     adminNotices: ADMIN_NOTICES.map((n) => ({ ...n })), // 어드민 공지 관리 (최신순)
     noticeKeys: {}, // 공지 올리기 멱등 키 → 만든 공지 id
+    // 어드민 배너 관리 (순서대로). 서버 AdminBannerService 와 같은 모양. 기간 문구·상태는 처음 값 그대로 둔다(가짜 서버는 날짜 계산을 흉내 내지 않는다)
+    adminBanners: [
+      { id: 'banner-1', title: '첫 청소 15,000원 쿠폰팩', description: '즉시 지급 · 신규 고객 웰컴', imageUrl: couponBanner, startsOn: null, endsOn: null, periodLabel: '기간 제한 없음', state: 'live', stateLabel: '게시 중' },
+      { id: 'banner-2', title: '청소는 맡기고, 일상은 여유롭게', description: '우리 집에 맞는 청소를 만나보세요', imageUrl: dailyBanner, startsOn: null, endsOn: null, periodLabel: '기간 제한 없음', state: 'live', stateLabel: '게시 중' },
+      { id: 'banner-3', title: '소중한 사람에게 깨끗한 하루', description: '깨끗함을 넘어, 안심을 전해요', imageUrl: giftBanner, startsOn: '2026-12-01', endsOn: '2026-12-31', periodLabel: '12월 1일 ~ 12월 31일', state: 'scheduled', stateLabel: '게시 예정' },
+    ],
     cancelledJobs: [], // 방문 취소 요청 { id, reason, detail } 기록
     homeManager: {}, // __fake.homeManager = { suspension: '…' } → 홈 매니저 필드 덮어쓰기
     jobDetail: {}, // __fake.jobDetail = { status: 'inProgress' } → 업무 상세 필드 덮어쓰기
@@ -117,6 +127,23 @@ export function fakeHttpModule() {
   };
   // 올린 사진 파일의 주소: 브라우저(VITE_API_MOCK=1)에서는 찍은 사진을 그대로 보이게 blob: 주소, 테스트(jsdom)에는 없어 예시 주소
   const photoUrl = (file, name) => globalThis.URL?.createObjectURL?.(file) ?? `https://example.com/photos/${name}.jpg`;
+  const adminBannerOf = (id) => state.adminBanners.find((b) => b.id === id) ?? (() => { throw notFound(id); })();
+  // 올린 파일의 미리보기 주소 (테스트 환경에 URL.createObjectURL 이 없으면 파일 이름)
+  const previewUrl = (file) => (typeof URL !== 'undefined' && URL.createObjectURL ? URL.createObjectURL(file) : file.name);
+  /** 서버 AdminBannerService.clean 과 같은 검사. 통과하면 공백을 뗀 문구·기간과 기간 문구 */
+  const checkBanner = (b) => {
+    const title = (b?.title ?? '').trim();
+    const description = (b?.description ?? '').trim();
+    const startsOn = b?.startsOn || null;
+    const endsOn = b?.endsOn || null;
+    if (!title) throw new ApiError(400, 'VALIDATION', '배너 제목을 입력해주세요');
+    if (title.length > 40) throw new ApiError(400, 'VALIDATION', '배너 제목은 40자까지 쓸 수 있어요');
+    if (description.length > 60) throw new ApiError(400, 'VALIDATION', '배너 설명은 60자까지 쓸 수 있어요');
+    if (startsOn && endsOn && startsOn > endsOn) throw new ApiError(400, 'VALIDATION', '게시 종료일은 시작일과 같거나 뒤여야 해요');
+    const md = (d) => `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일`;
+    const periodLabel = !startsOn && !endsOn ? '기간 제한 없음' : !endsOn ? `${md(startsOn)}부터` : !startsOn ? `${md(endsOn)}까지` : `${md(startsOn)} ~ ${md(endsOn)}`;
+    return { title, description, startsOn, endsOn, periodLabel };
+  };
   const adminNoticeOf = (id) => state.adminNotices.find((n) => n.id === id) ?? (() => { throw notFound(id); })();
   /** 서버 AdminNoticeService.clean 과 같은 검사. 통과하면 공백을 뗀 { audience, title, body } */
   const checkNotice = (b) => {
@@ -196,6 +223,23 @@ export function fakeHttpModule() {
     ],
     'GET /manager/penalties': () => state.penalties,
     'GET /auth/me': () => state.user,
+    // 어드민 배너 관리 (서버 AdminBannerService 와 같은 검사 문구). 올린 파일은 그 자리 미리보기 URL 로 보여 준다
+    'GET /admin/banners': () => state.adminBanners.map((b) => ({ ...b })),
+    'POST /admin/banners': (form) => {
+      const file = form.get?.('file');
+      if (!file || !file.size) throw new ApiError(400, 'VALIDATION', '배너 이미지를 골라주세요');
+      const b = { id: `banner-${state.adminBanners.length + 1}`, imageUrl: previewUrl(file), ...checkBanner(Object.fromEntries(form.entries())), state: 'live', stateLabel: '게시 중' };
+      state.adminBanners.push(b);
+      return { ...b };
+    },
+    'PUT /admin/banners/order': (b) => {
+      const ids = b.ids ?? [];
+      if (ids.length !== state.adminBanners.length || !ids.every((id) => state.adminBanners.some((x) => x.id === id))) {
+        throw new ApiError(400, 'VALIDATION', '배너 목록이 바뀌었어요. 화면을 새로고침해주세요');
+      }
+      state.adminBanners = ids.map((id) => state.adminBanners.find((x) => x.id === id));
+      return state.adminBanners.map((x) => ({ ...x }));
+    },
     // 어드민 공지 관리 (서버 AdminNoticeService 와 같은 검사 문구)
     'GET /admin/notices': () => state.adminNotices.map((n) => ({ ...n, body: null })),
     'POST /admin/notices': (b, opts) => {
@@ -265,6 +309,18 @@ export function fakeHttpModule() {
   // 경로에 id 가 들어가는 요청. [메서드, 정규식, 처리 함수] — 정규식 괄호로 잡은 값들이 첫 인자 배열로 온다.
   // exact 를 먼저 보므로 '/manager/jobs/active' 는 아래 '/manager/jobs/:id' 에 id='active' 로 걸리지 않는다.
   const patterns = [
+    ['GET', /^\/admin\/banners\/([^/?]+)$/, ([id]) => ({ ...adminBannerOf(id) })],
+    ['PUT', /^\/admin\/banners\/([^/?]+)\/image$/, ([id], form) => {
+      const file = form.get?.('file');
+      if (!file || !file.size) throw new ApiError(400, 'VALIDATION', '배너 이미지를 골라주세요');
+      return { ...Object.assign(adminBannerOf(id), { imageUrl: previewUrl(file) }) };
+    }],
+    ['PUT', /^\/admin\/banners\/([^/?]+)$/, ([id], b) => ({ ...Object.assign(adminBannerOf(id), checkBanner(b)) })],
+    ['DELETE', /^\/admin\/banners\/([^/?]+)$/, ([id]) => {
+      adminBannerOf(id);
+      state.adminBanners = state.adminBanners.filter((x) => x.id !== id);
+      return { ok: true };
+    }],
     ['GET', /^\/admin\/notices\/([^/?]+)$/, ([id]) => ({ ...adminNoticeOf(id) })],
     ['PUT', /^\/admin\/notices\/([^/?]+)$/, ([id], b) => Object.assign(adminNoticeOf(id), checkNotice(b))],
     ['DELETE', /^\/admin\/notices\/([^/?]+)$/, ([id]) => {

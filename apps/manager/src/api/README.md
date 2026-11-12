@@ -117,6 +117,10 @@ CompleteConfirm 의 "아직 완료하지 않은 항목" 은 InProgress 체크리
 서버 `/admin/notices` (`backend/docs/api.md` "어드민 공지"). 한 건 `{ id, audience: 'customer'|'manager'|'all', title, date: '2026.11.12', body }` — 목록은 `body: null`.
 쓰기 본문 `{ audience, title, body }`, 올리기는 화면을 열 때 만든 `submitKey` 를 `Idempotency-Key` 로. 문구 `mock.js ADMIN_NOTICE_COPY`, 가짜 서버 처음 목록 `ADMIN_NOTICES`.
 
+## `getAdminBanners()` / `getAdminBanner(id)` / `createAdminBanner()` / `updateAdminBanner()` / `replaceAdminBannerImage()` / `reorderAdminBanners()` / `deleteAdminBanner()` → Admin/Banners · Admin/BannerEdit (코드에서 정함)
+서버 `/admin/banners` (`backend/docs/api.md` "홈 혜택 배너"). 한 장 `{ id, title, description, imageUrl, startsOn: '2026-11-12'|null, endsOn, periodLabel, state: 'live'|'scheduled'|'ended', stateLabel }`.
+올리기·이미지 교체는 FormData(`file` + 문구·기간 — 비운 날짜는 보내지 않는다), 문구 수정은 JSON(비운 날짜는 null), 순서는 `{ ids }`. 문구 `mock.js ADMIN_BANNER_COPY`, 가짜 서버 처음 목록은 배너 3장(`@ansimclean/ui/assets/home-banner-*.png`).
+
 ## 매니저 데이터 (B4 부터 실서버 — 경로·응답은 `backend/docs/api.md` §5.3)
 | 함수 | 서버 | 화면 계약 |
 |---|---|---|

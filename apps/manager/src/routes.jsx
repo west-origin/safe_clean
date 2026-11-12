@@ -21,6 +21,7 @@
 //   로그인·회원가입은 Figma 에 없어 코드에서 정함: /auth/login → (회원가입) /auth/signup → /auth/signup/info → /auth/signup/complete → /
 //   위 22개 화면은 전부 RequireAuth 안 (로그인 전이면 /auth/login 으로, 로그인 후 원래 주소로 복귀)
 //   [코드에서 정함, rbac.md §15-20] 어드민: /auth/login → /auth/mfa(인증앱 6자리) → /admin(관리자 홈). 어드민은 매니저 화면 대신 /admin… 만 (RequireAuth)
+//     /admin ─ 배너 관리 → /admin/banners ─ 배너 올리기 → /admin/banners/new · 수정 → /admin/banners/:id ─ 올리기·저장·삭제 → /admin/banners (위로·아래로는 목록에서)
 //     /admin ─ 공지 관리 → /admin/notices ─ 공지 올리기 → /admin/notices/new · 공지 한 줄 → /admin/notices/:id ─ 올리기·저장·삭제 → /admin/notices
 import { createBrowserRouter } from 'react-router';
 import RouteError from './screens/RouteError.jsx';
@@ -76,6 +77,8 @@ const protectedRoutes = [
   { path: '/profile/:key', lazy: page(() => import('./screens/profile/ProfileDetail.jsx')) }, // info · area · identity · education · account
   // 관리자 화면 (코드에서 정함, rbac.md §15-20) — 어드민 + MFA 만 (RequireAuth)
   { path: '/admin', lazy: page(() => import('./screens/admin/AdminHome.jsx')) },
+  { path: '/admin/banners', lazy: page(() => import('./screens/admin/AdminBanners.jsx')) }, // 배너 관리 목록 (고객 앱 홈 혜택 배너)
+  { path: '/admin/banners/:id', lazy: page(() => import('./screens/admin/AdminBannerEdit.jsx')) }, // :id = 'new' 면 새 배너
   { path: '/admin/notices', lazy: page(() => import('./screens/admin/AdminNotices.jsx')) }, // 공지 관리 목록
   { path: '/admin/notices/:id', lazy: page(() => import('./screens/admin/AdminNoticeEdit.jsx')) }, // :id = 'new' 면 새 공지
 ];

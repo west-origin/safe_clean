@@ -3,7 +3,7 @@
 // (요일 번호, 반복 문구, 날짜·시각 형식, 서버가 null 로 주는 선택 문구 → undefined).
 // 로그인·가입의 세션 저장(session.js)과 가입 초안(localStorage), DEV 확인용 ?scenario=empty|error 도 여기서 처리한다.
 // 부르는 곳은 대부분 screens/* 화면이다. 화면 밖의 예: live/liveClient.js(라이브 세션 함수), App.jsx(refreshMe).
-import { REPEAT_OPTIONS, SUPPORT_COPY, AUTH_COPY, ADMIN_COPY, ADMIN_NOTICE_COPY, MANAGER_PASSWORD_OK_MESSAGE, PHOTO_COPY } from './mock.js';
+import { REPEAT_OPTIONS, SUPPORT_COPY, AUTH_COPY, ADMIN_COPY, ADMIN_NOTICE_COPY, ADMIN_BANNER_COPY, MANAGER_PASSWORD_OK_MESSAGE, PHOTO_COPY } from './mock.js';
 import { deviceToken } from '../push/deviceToken.js';
 
 import { http, ApiError, newIdempotencyKey } from './http.js';
@@ -461,6 +461,50 @@ export async function deleteAdminNotice(id) {
 }
 /** 새 공지 화면의 멱등 키 */
 export const newNoticeKey = () => newIdempotencyKey();
+
+// ── 관리자 › 배너 관리 (코드에서 정함, 서버 /admin/banners — backend/docs/api.md "홈 혜택 배너") ──
+/** 배너 관리 화면 문구 (api/mock.js ADMIN_BANNER_COPY) */
+export async function getAdminBannerCopy() {
+  return ADMIN_BANNER_COPY;
+}
+/** 모든 배너(지난·예정 포함), 고객 앱에 보이는 순서대로 → [{ id, title, description, imageUrl, startsOn, endsOn, periodLabel, state, stateLabel }] */
+export async function getAdminBanners() {
+  return http.get('/admin/banners');
+}
+/** 배너 한 장 */
+export async function getAdminBanner(id) {
+  return http.get(`/admin/banners/${encodeURIComponent(id)}`);
+}
+/** 날짜 칸이 비었으면 null (게시 기간 제한 없음) */
+const dateOrNull = (value) => (value ? value : null);
+/** 새 배너 올리기 (이미지 + 문구 + 기간). FormData 라 http.js 가 파일 업로드로 보낸다 */
+export async function createAdminBanner({ file, title, description, startsOn, endsOn }) {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('title', title ?? '');
+  form.append('description', description ?? '');
+  if (startsOn) form.append('startsOn', startsOn);
+  if (endsOn) form.append('endsOn', endsOn);
+  return http.post('/admin/banners', form);
+}
+/** 대체 문구·게시 기간 고치기 */
+export async function updateAdminBanner(id, { title, description, startsOn, endsOn }) {
+  return http.put(`/admin/banners/${encodeURIComponent(id)}`, { title, description, startsOn: dateOrNull(startsOn), endsOn: dateOrNull(endsOn) });
+}
+/** 이미지 바꾸기 */
+export async function replaceAdminBannerImage(id, file) {
+  const form = new FormData();
+  form.append('file', file);
+  return http.put(`/admin/banners/${encodeURIComponent(id)}/image`, form);
+}
+/** 순서 바꾸기 — 모든 배너 id 를 새 순서대로 → 새 순서의 목록 */
+export async function reorderAdminBanners(ids) {
+  return http.put('/admin/banners/order', { ids });
+}
+/** 배너 지우기 */
+export async function deleteAdminBanner(id) {
+  await http.delete(`/admin/banners/${encodeURIComponent(id)}`);
+}
 
 // ── Profile › 로그아웃. 서버 폐기가 실패해도 앱은 토큰을 지운다 ──
 /** 로그아웃 요청은 짧게 기다린다 — 서버가 느려도 5초 안에 세션을 지우고 화면을 넘긴다 */

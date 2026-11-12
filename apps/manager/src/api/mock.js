@@ -406,6 +406,42 @@ export const ADMIN_NOTICE_COPY = {
   saved: '공지를 저장했어요',
   deleted: '공지를 삭제했어요',
 };
+/** 관리자 › 배너 관리 문구 (Figma 에 없어 코드에서 정함, rbac.md §15-22). 서버 검사 문구는 backend/docs/api.md "홈 혜택 배너" */
+export const ADMIN_BANNER_COPY = {
+  menu: '배너 관리',
+  listTitle: '배너 관리',
+  description: '고객 앱 홈 위쪽 혜택 배너예요. 게시 기간 안의 배너가 이 순서대로 넘어가요.',
+  empty: '올린 배너가 없어요',
+  create: '배너 올리기',
+  newTitle: '새 배너',
+  editTitle: '배너 수정',
+  imageTitle: '배너 이미지 · 필수',
+  imageHelper: '가로 1080 × 세로 324px(360:108) 권장 · JPG·PNG·WebP 5MB 이하. 비율이 다르면 가운데를 기준으로 잘려 보여요.',
+  titleLabel: '제목',
+  titlePlaceholder: '이미지에 적힌 제목 그대로',
+  titleHint: '화면낭독기가 읽어요. 40자까지',
+  descriptionLabel: '설명 · 선택',
+  descriptionPlaceholder: '이미지에 적힌 설명 그대로',
+  startsOnLabel: '게시 시작일 · 선택',
+  startsOnHint: '비우면 바로 보여요',
+  endsOnLabel: '게시 종료일 · 선택',
+  endsOnHint: '비우면 계속 보여요',
+  submit: '올리기',
+  save: '저장하기',
+  edit: '수정',
+  moveUp: '위로',
+  moveDown: '아래로',
+  delete: '삭제하기',
+  deleteTitle: '이 배너를 삭제할까요?',
+  deleteDescription: '삭제하면 고객 앱 홈에서 바로 사라져요.',
+  deleteConfirm: '삭제',
+  cancel: '취소',
+  created: '배너를 올렸어요',
+  saved: '배너를 저장했어요',
+  deleted: '배너를 삭제했어요',
+  moved: '순서를 바꿨어요',
+};
+
 /** 가짜 서버(test/fakeHttp.js)의 어드민 공지 목록 처음 값 — 매니저 공지(Figma 문구 MANAGER_NOTICES)를 매니저 대상으로 */
 export const ADMIN_NOTICES = [
   { id: 'mn1', audience: 'manager', title: '추석 연휴 정산 일정 안내', date: '2026.09.10', body: '연휴 기간(9월 24일~27일) 정산은 9월 28일에 일괄 처리됩니다.' },
