@@ -17,6 +17,9 @@
   - [x] 매니저 앱: 관리자 홈 '관리 › 배너 관리'(공지 관리 위) → `/admin/banners`(고객에게 보이는 순서대로 카드: 360:108 이미지·번호·제목·'상태 · 기간', 수정·위로·아래로) → `/admin/banners/new`·`/:id`(PhotoPicker 1장 + 같은 비율 미리보기, 제목·설명·게시 시작일·종료일(date), 올리기·저장(문구 → 새 이미지면 교체), 삭제 확인 Sheet). 문구 `mock.js ADMIN_BANNER_COPY`(코드에서 정함). 확인: 화면 테스트 6 + manager-mock 393px 목록·수정 화면, 콘솔 오류 없음
   - [x] 고객 앱: `HomePromotions` 의 고정 3장을 없애고 `Home` 이 `getHomeBanners()`(GET /customer/banners)로 받아 넘긴다. 비었거나 실패하면 배너 영역을 숨기고, 한 장이면 자동으로 넘기지 않는다. 이미지 원본(`@ansimclean/ui/assets/home-banner-*.png`)은 seed 스크립트·가짜 서버가 쓴다. 확인: 화면 테스트(캐러셀 7·홈 2). **customer-mock 393px 확인은 못 함** — 모의 서버가 앱 시작 로그인 확인에서 멈춘다(이전부터 있던 문제)
   - 판단 항목: 이미지를 지우는 칸이 PhotoPicker 1장뿐이라 기존 배너도 '사진 1 삭제' 뒤 새로 골라야 바뀐다. 목록의 순서 바꾸기는 '위로·아래로' 버튼(끌어 옮기기 없음)
+- [x] 개발(테스트) 환경 배포(2026-11-12, 사용자 승인): `safe_clean_test` 에 비공개 버킷 `banners` 생성(JPG·PNG·WebP, 5MB). Cloud Run `ansimclean-api-test-00022-25d` 100%(시크릿 v5·수동 1대 유지, 되돌리기 = `update-traffic --to-revisions=ansimclean-api-test-00021-6th=100`). Flyway V064~V067 적용 확인, 역할 제약 4개·`approved` 칸 삭제·`activity_logs`/`home_banners` RLS·트리거 2개·앱 키 표 권한 0건. health UP, 로그인 없는 `/admin/banners`·`/admin/notices`·`/customer/banners`·`/auth/me` 401, 옛 `X-Admin-Token` 401, 카탈로그 200. 운영 미배포
+- [x] 테스트 어드민: 사용자가 지정한 기존 고객 계정(구글+휴대폰, 예약·주소 0건)을 사용자 결정으로 `role=admin` 으로 전환(프로필 번호는 인증된 휴대폰으로 채움). 그 계정의 고객 앱 로그인은 이제 막힌다
+- [ ] 남은 것(사용자): 이 계정 비밀번호 설정(대시보드) → 인증앱(TOTP) 등록(runbook) → 매니저 앱(새 빌드 필요 — 지금 설치된 APK 에는 관리자 화면이 없다)으로 로그인 → `scripts/seed-home-banners.mjs` 로 배너 3장 → 고객 앱에서 배너·공지 확인. 앱 전용 DB 계정 분리(R3)는 따로
 - 정한 것(판단 항목): 배너가 없거나 못 받으면 배너 영역을 숨긴다(지금 3장은 테스트 서버에 처음 한 번 등록). 배너 이미지는 JPG·PNG·WebP 5MB 이하, 비율 360:108(권장 1080×324). 관리자 화면은 Figma 에 없어 코드에서 정함(기존 ui 프리미티브만)
 
 ## RBAC 권한 체계 (2026-11-12 사용자 요청 — 사양 `backend/docs/rbac.md`, 단위 R0~R19)
