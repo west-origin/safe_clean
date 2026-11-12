@@ -9,6 +9,7 @@
   - [x] 매니저 앱: 어드민이 로그인하면 `/auth/mfa`(인증앱 6자리, `OtpCodeField`) → `/admin`(관리자 홈: 이름 + 로그아웃, 메뉴는 3·4회차). `RequireAuth` 가 어드민은 aal2 전이면 `/auth/mfa`, 뒤면 `/admin…` 만, 매니저가 `/admin` 이면 홈으로. MFA 여부는 토큰의 aal(서명 미확인 — 화면 이동용, 권한은 서버). 문구 `mock.js AUTH_COPY.mfa`·`ADMIN_COPY`(코드에서 정함). 가짜 서버: `ADMIN_PHONE`(11112222) 로그인 → 6자리 `123456`. 확인: 화면 테스트 + manager-mock 393px 에서 로그인 → 오답(빨간 칸·안내·칸 비움) → 정답 → 관리자 홈, `/call` 로 가도 `/admin` 으로. 콘솔 오류 없음
   - [x] 서버 `POST /auth/mfa/verify`: 어드민만, 서버가 Supabase TOTP factor 조회 → challenge → verify 를 사용자 토큰으로 대신 불러 aal2 토큰을 돌려준다(앱은 Supabase 를 부르지 않는다). 어드민도 매니저 앱 비밀번호 로그인(`Roles.appOf(admin)=manager`, aal1). 인증앱 미등록 INVALID_STATE "인증앱이 등록되지 않은 관리자 계정이에요. 개발자에게 등록을 요청해주세요"(코드에서 정함), 틀린 6자리 OTP_INVALID, 사용자당 시간당 10회. 테스트: 클라이언트(MockRestServiceServer)·서비스·컨트롤러 슬라이스 + `AuthFlowIT` 어드민 흐름(**IT 미실행**)
 - [ ] 3회차: 어드민 공지 API(대상·등록·수정·삭제, 활동 이력) + 매니저 앱 공지 관리 화면
+  - [x] 서버 `/admin/notices`(GET 목록·한 건, POST(+Idempotency-Key), PUT, DELETE) — `AdminNoticeService`: `AccessPolicy` `NOTICE_MANAGE`(어드민 + MFA), 공백 제거·대상 3값·제목 100자·내용 5,000자(코드에서 정함), 등록·수정·삭제마다 `activity_logs`(변경 전·후). 수정은 게시 날짜 유지. 테스트: 서비스 5·컨트롤러 슬라이스 2·`AdminNoticeIT`(고객 목록 즉시 반영·대상 변경·삭제·이력·멱등, **IT 미실행**)
 - [ ] 4회차: `home_banners` 표·비공개 버킷·서명 URL·어드민 배너 API + 매니저 앱 배너 관리 화면 + 고객 앱 배너 서버 연결
 - 정한 것(판단 항목): 배너가 없거나 못 받으면 배너 영역을 숨긴다(지금 3장은 테스트 서버에 처음 한 번 등록). 배너 이미지는 JPG·PNG·WebP 5MB 이하, 비율 360:108(권장 1080×324). 관리자 화면은 Figma 에 없어 코드에서 정함(기존 ui 프리미티브만)
 

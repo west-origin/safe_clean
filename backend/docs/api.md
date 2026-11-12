@@ -246,6 +246,19 @@ CheckoutResponse: `{ id, bookingId, orderId, amount, currency: "KRW", status, re
 | `registerPushToken({ platform, token })` | `PUT /push/token` `{ platform: ios\|android\|web, token }` | `{ ok }` — 앱 시작·로그인 후. 같은 토큰이 다른 사용자에게 남아 있으면 그쪽에서 지운다(기기 공유) |
 | `unregisterPushToken({ token })` | `DELETE /push/token` `{ platform, token }` | `{ ok }` — 로그아웃 직전 (이 기기로 앞 사람의 푸시가 오지 않게). 401 강제 로그아웃(refresh 도 거부)은 로그인이 필요해 이 요청을 보낼 수 없다 — 두 경우 모두 세션이 지워지면 앱(`push/pushClient.js`)이 기기의 푸시 등록을 풀고(unregister) 다음 로그인 때 새 토큰을 받는다. 남은 행은 다음 발송 때 FCM 이 무효 토큰으로 답하면 `PushService.send` 가 지운다 |
 
+#### 어드민 공지 (매니저 앱 관리자 화면, `rbac.md` §10·§15-23 — 2026-11-12)
+모두 admin + MFA(aal2) 토큰만(아니면 401/403). 등록·수정·삭제는 같은 트랜잭션에서 `activity_logs`(`notice.create|update|delete`, 변경 전·후)를 남긴다. 고객·매니저 앱은 위 `GET /support/notices` 를 화면을 열 때마다 다시 부르므로 올리면 바로 보인다.
+
+| 앱 함수 (매니저 앱) | 메서드 · 경로 | 요청 | 응답 |
+|---|---|---|---|
+| `getAdminNotices()` | `GET /admin/notices` | — | `[{ id, audience: "customer"\|"manager"\|"all", title, date: "2026.11.12", body: null }]` 모든 대상, 최신순 |
+| `getAdminNotice(id)` | `GET /admin/notices/{id}` | — | `{ id, audience, title, date, body }`. 없으면 `NOT_FOUND` |
+| `createAdminNotice(draft)` | `POST /admin/notices` (+ `Idempotency-Key`) | `{ audience, title, body }` | 위 한 건 모양. 게시 시각 = 지금(목록 맨 위) |
+| `updateAdminNotice(id, draft)` | `PUT /admin/notices/{id}` | `{ audience, title, body }` | 위 한 건 모양. 게시 날짜는 그대로 |
+| `deleteAdminNotice(id)` | `DELETE /admin/notices/{id}` | — | `{ ok: true }`. 지운 내용은 활동 이력에만 남는다 |
+
+검사(`VALIDATION`, 문구 그대로 화면에): 대상이 세 값이 아니면 "공지 대상을 골라주세요", 제목·내용은 앞뒤 공백을 뗀 뒤 비면 "제목을 입력해주세요"·"내용을 입력해주세요", 제목 100자·내용 5,000자 초과면 "제목은 100자까지 쓸 수 있어요"·"내용은 5,000자까지 쓸 수 있어요"(상한은 코드에서 정함). 권역 지정(`notices.region_id`)은 R16.
+
 푸시 문구·받는 사람(`push/PushCopy`, `PushHandler`): 새 콜(후보 매니저, 설정 `call`) · 매니저 배정(고객) · 청소 시작 = 바디캠 첫 연결(고객) · 완료(고객 + 매니저 `settlement`) · 취소·일정 변경(배정됐던 매니저) · 미배정 취소(고객) · 정기청소 종료 7일 전(고객) · 바디캠 끊김/5분 대기(매니저) · 녹화본 준비(고객). 알림 설정 `push` 가 꺼져 있으면 보내지 않는다. `data: { type, bookingId }` 로 화면 이동.
 
 

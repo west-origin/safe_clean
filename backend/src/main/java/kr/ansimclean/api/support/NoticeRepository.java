@@ -12,4 +12,8 @@ public interface NoticeRepository extends JpaRepository<Notice, UUID> {
     // @Query 의 글은 JPQL(엔티티·필드 이름으로 쓰는 쿼리). 게시 시각이 같으면 id 순으로 둬서 목록 순서가 매번 같다
     @Query("select n from Notice n where n.audience = :audience or n.audience = 'all' order by n.publishedAt desc, n.id")
     List<Notice> findVisible(String audience);
+
+    /** 어드민 공지 관리: 모든 대상, 최신순 */
+    @Query("select n from Notice n order by n.publishedAt desc, n.id")
+    List<Notice> findAllLatestFirst();
 }
