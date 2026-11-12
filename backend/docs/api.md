@@ -4,6 +4,18 @@
 
 2026-10-24 필수 사진/영상 라벨 변경: [recording-labels.md](recording-labels.md). 전 사진 필수 검사 후 송출, 영상 종료 후 후 사진 필수 검사 후 완료한다. 사진 목록 응답에 `requiredRooms`, `phase`가 추가되며 `/rooms`, `/photos/confirm-before`, `/finish-video` API와 `recording_segments` 저장이 추가되었다. 아래 2026-10-23 사진 설명보다 이 변경 계약이 우선한다.
 
+## 고객 휴대폰 인증 (첫 1회 청소, 2026-11-10)
+
+로그인 수단이 아니다. 카카오·구글로 로그인한 고객 계정에 번호를 확인해 붙인다. 인증번호 생성·발송·검증은 **Supabase Auth 기본 기능(phone_change)** — 서버가 사용자 토큰으로 대신 부른다. 설정·운영 전환은 `docs/auth/phone-otp.md`.
+
+| 앱 함수 | 메서드·경로 | 요청 | 응답 |
+|---|---|---|---|
+| `getFirstCleaningEligibility()` | `GET /customer/identity/first-cleaning` | — | `{ verified, eligible, reason: "eligible\|phone_required\|already_used", completedOneTime }` |
+| `requestCustomerPhoneProof(phone)` | `POST /customer/identity/phone/otp` | `{ phone }` (010 뒤 8자리 또는 11자리) | `{ expiresIn: 180, resendAfter: 60, verified: false }` — `verified=true` 면 Supabase 에 이미 확인된 번호라 문자 없이 끝났다. 오류: `OTP_RATE_LIMITED`(60초 안 재요청·시간당 5회), `VALIDATION`(이미 인증함·다른 계정 번호), `UPSTREAM`(발송 실패) |
+| `verifyCustomerPhoneProof(phone, code)` | `POST /customer/identity/phone/verify` | `{ phone, code: 6자리 }` | 첫 요청과 같은 자격 모양. 오류: `OTP_INVALID`(틀림, 5번째면 "너무 여러 번 틀렸어요" + 새 인증번호 필요), `OTP_EXPIRED`(3분 지남), `VALIDATION`(요청 안 함·다른 번호) |
+| `createBooking` (home·oneTime) | `POST /customer/bookings` | (위 예약 생성) | 첫 1회 청소는 **번호 하나·집 하나에 한 번**(다른 계정이어도, 2026-11-11). 같은 번호면 `INVALID_STATE` "휴대폰 인증이 필요하거나 첫 1회 청소 혜택을 이미 이용했어요", 같은 집의 취소 안 된 1회 가정 청소가 있으면 `INVALID_STATE` "이 주소는 이미 첫 1회 청소 혜택을 이용했어요". 같은 집 = 카카오 주소 API 로 찾은 필지 고유값(`bookings.building_key`, V063 — 도로명·지번 어느 쪽으로 적어도 같다. 못 찾으면 `VALIDATION` "주소를 찾지 못했어요. 주소 검색에서 고른 주소로 예약해주세요", 카카오 장애면 `UPSTREAM` "주소를 확인하지 못했어요. 잠시 뒤 다시 시도해주세요". 고유값이 없는 옛 예약은 같은 시·군·구에서 그때 채운다. 키가 없는 로컬은 시·도 + 도로명·건물번호 글자 비교 — 띄어쓰기·괄호·구 생략·앞 0 무시) + 상세주소 숫자(한쪽 숫자가 다른 쪽에 모두 들어 있으면 같다: "1001오" = "101동 1001호", 상세 생략 = 건물 전체). 예약이 취소되면 혜택은 돌아온다 (`FirstCleaningService`) |
+| (Supabase → 서버) | `POST /hooks/supabase/send-sms` | Standard Webhooks 서명 + `{ user, sms: { otp } }` | 200 `{}` / 오류 `{ error: { http_code, message } }`. `SUPABASE_SMS_HOOK_SECRET` 이 비면 404(꺼짐). 우리 서버가 1분 안에 시작한 요청(같은 계정·번호)일 때만 `SmsSender` 로 보낸다 |
+
 ## 청소 전·후 사진 추가 (2026-10-23)
 
 매니저가 청소 진행 중(`in_progress`·`paused`)에 위치마다 '전' 사진을 찍고, 완료 직전에 같은 위치의 '후' 사진을 찍는다. 고객은 청소가 끝난(`done`) 뒤에만 비교해 본다.

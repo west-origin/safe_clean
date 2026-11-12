@@ -71,6 +71,28 @@ public class AddressSearchService {
         return new AddressSearchResponse(q, out);
     }
 
+    /**
+     * 주소 글자 → 그 땅(필지)의 고유값 "법정동코드-산여부-본번-부번" (예: 1168010100-N-825-2). 도로명으로 적든 지번으로 적든 같은 건물이면 같은 값.
+     * 첫 1회 청소 주소 대조(FirstCleaningService)가 쓴다. 키가 없으면(로컬·테스트) null — 글자 비교로 대신한다.
+     * 카카오가 못 찾으면 VALIDATION, 카카오 장애면 UPSTREAM (사용자 결정 2026-11-11: 확인 못 한 주소로는 첫 1회 청소를 받지 않는다)
+     */
+    public String buildingKey(String roadAddress) {
+        if (key.isBlank()) return null;
+        JsonNode docs;
+        try {
+            docs = call("address", roadAddress.replaceAll("\\([^)]*\\)", " ").trim());
+        } catch (ApiException e) {
+            throw new ApiException(ErrorCode.UPSTREAM, "주소를 확인하지 못했어요. 잠시 뒤 다시 시도해주세요");
+        }
+        for (JsonNode d : docs) {
+            JsonNode a = d.path("address");
+            if (!text(a, "b_code").isEmpty() && !text(a, "main_address_no").isEmpty()) {
+                return text(a, "b_code") + "-" + text(a, "mountain_yn") + "-" + text(a, "main_address_no") + "-" + text(a, "sub_address_no");
+            }
+        }
+        throw ApiException.validation("주소를 찾지 못했어요. 주소 검색에서 고른 주소로 예약해주세요");
+    }
+
     // GET {KAKAO_URL}/{kind}.json?query=…&size=10, 헤더 Authorization: KakaoAK {키}. 응답 { meta, documents: [...] } 의 documents.
     // 키 오류(401)·사용량 초과(429)·연결 실패 모두 UPSTREAM — 화면은 결과 없음처럼 안내하고 직접 입력으로 진행한다
     private JsonNode call(String kind, String q) {

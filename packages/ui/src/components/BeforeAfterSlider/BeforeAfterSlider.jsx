@@ -1,7 +1,7 @@
 // (코드에서 정함 — Figma 에 없음, 2026-10-23 사용자 요청) 청소 전·후 비교 사진 한 장.
 // 같은 위치에서 찍은 두 사진을 겹쳐 두고, 가운데 세로 막대를 좌우로 밀면 막대 왼쪽은 '청소 전', 오른쪽은 '청소 후' 가 보인다.
 // 쓰는 곳 예: 고객 앱 녹화본 화면(ServiceLivePortrait) — 매니저가 청소를 완료한 뒤에만 보인다.
-// 구조: .frame(3:4) > 청소 후 사진(바닥) + 청소 전 사진(위, 막대 위치까지만 보이게 잘림) + 막대·손잡이 + 라벨 2개 + 숨긴 range input.
+// 구조: .frame(3:4) > 청소 후 사진(바닥) + 청소 전 사진(위, 막대 위치까지만 보이게 잘림) + 구분선 + 라벨 2개 + 숨긴 range input.
 // 3:4 는 매니저 앱 CameraFrame 과 같은 비율이다 — 매니저가 찍은 화면 그대로 보인다 (liveClient.capturePhoto 가 같은 비율로 잘라 저장한다).
 // 손가락으로 끄는 것은 .frame 의 pointer 이벤트로, 키보드·스크린리더는 숨긴 <input type="range">(slider 역할)로 움직인다.
 import { useRef, useState } from 'react';
@@ -47,7 +47,7 @@ export default function BeforeAfterSlider({ beforeSrc, afterSrc, location, befor
     <div
       ref={frame}
       className={cx(styles.frame, className)}
-      // 막대 위치를 CSS 변수로 넘긴다 — 잘림(clip-path)·막대·손잡이가 모두 이 값을 쓴다. 색·글꼴이 아니라 위치 값이다
+      // 막대 위치를 CSS 변수로 넘긴다 — 잘림(clip-path)·구분선가 모두 이 값을 쓴다. 색·글꼴이 아니라 위치 값이다
       style={{ '--position': `${position}%` }}
       onPointerDown={down}
       onPointerMove={move}
@@ -56,11 +56,7 @@ export default function BeforeAfterSlider({ beforeSrc, afterSrc, location, befor
     >
       <img src={afterSrc} alt={`${location} ${afterLabel}`} onError={onImageError} className={styles.image} draggable={false} />
       <img src={beforeSrc} alt={`${location} ${beforeLabel}`} onError={onImageError} className={cx(styles.image, styles.before)} draggable={false} />
-      <span className={styles.divider} aria-hidden="true">
-        <span className={styles.handle}>
-          <span className={cx('text-caption-l-bold', styles.arrows)}>‹ ›</span>
-        </span>
-      </span>
+      <span className={styles.divider} aria-hidden="true" />
       <span className={cx('text-caption-l-bold', styles.label, styles.labelBefore)} aria-hidden="true">{beforeLabel}</span>
       <span className={cx('text-caption-l-bold', styles.label, styles.labelAfter)} aria-hidden="true">{afterLabel}</span>
       {/* 키보드(←→)·스크린리더용. 눈에는 보이지 않고 틀 전체를 덮지도 않는다 — 끌기는 위 pointer 이벤트가 맡는다 */}

@@ -1,3 +1,4 @@
+import { seedSocialSession } from '../../../test/socialSession.js';
 // 수리 예약 플로우 화면 테스트: 가전 → 증상 이동, 가전수리 외 카테고리의 6단계 진행, 사진 업로드와 초안 저장,
 // 24시간 지난 사진(만료) 처리, 현장 상황 선택 → 확인 → 예약 생성 요청 본문 → 완료 화면 → 초안 삭제까지를 실제 화면 컴포넌트로 확인한다.
 // 서버는 test/fakeHttp.js(메모리 안의 가짜 서버)로 바꿔, 보낸 요청은 __fake.calls 로 읽는다.
@@ -11,7 +12,7 @@ import RepairNotes from './RepairNotes.jsx';
 import RepairConfirm from './RepairConfirm.jsx';
 import RepairComplete from './RepairComplete.jsx';
 import { __fake } from '../../../api/http.js';
-import { loginWithPhone, cancelReservation } from '../../../api/customer.js';
+import { cancelReservation } from '../../../api/customer.js';
 import { setBookingDraft } from '../../booking/bookingDraft.js';
 import { draftKey, PHOTO_TTL_MS } from './repairFlow.js';
 
@@ -43,7 +44,7 @@ describe('수리 예약 플로우 (Figma rGCjx3zWMBk18fXgNZ9UYX)', () => {
     sessionStorage.clear();
     localStorage.clear();
     __fake.calls.length = 0;
-    await loginWithPhone({ phone: '12345678', password: 'password1' });
+    await seedSocialSession();
   });
 
   it('가전 종류 → 증상: 고르기 전엔 다음이 막히고, 고르면 증상 화면에 "가전수리 · 냉장고"', async () => {

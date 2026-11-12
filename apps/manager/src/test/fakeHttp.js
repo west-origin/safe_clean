@@ -106,7 +106,7 @@ export function fakeHttpModule() {
     /** 청소 전·후 사진 [{ id, location, beforeUrl, afterUrl }] — __fake.jobPhotos = [...] 로 미리 채운다 */
     jobPhotos: [],
     photoPhase: 'live', // 기존 진행 중 작업 fixture. 새 작업은 start에서 before로 바뀐다.
-    requiredRooms: ['거실', '주방', '욕실'],
+    requiredRooms: [],
   };
   // 올린 사진 파일의 주소: 브라우저(VITE_API_MOCK=1)에서는 찍은 사진을 그대로 보이게 blob: 주소, 테스트(jsdom)에는 없어 예시 주소
   const photoUrl = (file, name) => globalThis.URL?.createObjectURL?.(file) ?? `https://example.com/photos/${name}.jpg`;
@@ -275,7 +275,7 @@ export function fakeHttpModule() {
     ['GET', /^\/manager\/jobs\/([^/]+)$/, ([id]) => (state.jobError ? (() => { throw new ApiError(state.jobError.status, state.jobError.code, state.jobError.message); })() : id === UNSTARTABLE_JOB_ID ? { ...JOB_DETAIL, id, today: false, startLabel: '9월 16일 (수) 10:00 시작', scope: [] } : { ...JOB_DETAIL, id, ...state.jobDetail })],
     ['POST', /^\/manager\/jobs\/([^/]+)\/start$/, ([id]) => {
       if (id === UNSTARTABLE_JOB_ID) throw new ApiError(409, 'INVALID_STATE', '작업 당일에만 시작할 수 있어요');
-      state.photoPhase = 'before';
+      state.photoPhase = 'before'; state.requiredRooms = [];
       return { jobId: id, startedAt: '2026-09-15T05:02:00Z' };
     }],
     // 작업 일시정지(② 단계). ① 은 라이브 영상 차단(POST /live/sessions/:id/pause)이다.
@@ -299,9 +299,9 @@ export function fakeHttpModule() {
       return { jobId, itemId, done: Boolean(b.done) };
     }],
     // 청소 전·후 사진 (본문은 FormData — location·file). 서버의 진행 중 작업·10곳 검사는 흉내 내지 않는다
-    ['GET', /^\/manager\/jobs\/([^/]+)\/photos$/, () => ({ photos: state.jobPhotos.map((p) => ({ ...p })), max: 10, phase: state.photoPhase, requiredRooms: [...state.requiredRooms] })],
+    ['GET', /^\/manager\/jobs\/([^/]+)\/photos$/, () => ({ photos: state.jobPhotos.map((p) => ({ ...p })), max: 30, phase: state.photoPhase, requiredRooms: [...state.requiredRooms] })],
     ['POST', /^\/manager\/jobs\/([^/]+)\/photos\/confirm-before$/, () => {
-      if (state.requiredRooms.some((room) => !state.jobPhotos.some((p) => p.location === room))) throw new ApiError(400, 'VALIDATION', '모든 공간의 청소 전 사진을 찍어주세요');
+      if (!state.requiredRooms.length || state.requiredRooms.some((room) => state.jobPhotos.filter((p) => p.location === room).length < 3)) throw new ApiError(400, 'VALIDATION', '모든 공간의 청소 전 사진을 찍어주세요');
       state.photoPhase = 'live'; return { ok: true };
     }],
     ['POST', /^\/manager\/jobs\/([^/]+)\/finish-video$/, ([id]) => { state.photoPhase = 'after'; return { jobId: id }; }],

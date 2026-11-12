@@ -82,6 +82,12 @@ public class ProfileService {
         return findLive(id).orElseThrow(ApiException::notFound);
     }
 
+    /** 이 id 의 프로필 행이 있는가 (탈퇴 표시 포함) — AuthService.signup 이 다른 계정의 Supabase 사용자를 재사용하지 않게 */
+    @Transactional(readOnly = true)
+    public boolean exists(UUID id) {
+        return profiles.existsById(id);
+    }
+
     /** 탈퇴(익명화)한 계정의 id 인가 — 가입 (a) 경로가 옛 id 를 재사용하지 않게 */
     @Transactional(readOnly = true)
     public boolean isDeleted(UUID id) {
@@ -138,6 +144,7 @@ public class ProfileService {
     @Transactional(readOnly = true)
     public SignupStep signupStep(Profile p) {
         if (p.isSignupComplete()) return null;
+        if (p.isSocialAccount()) return SignupStep.COMPLETE;
         // 고객은 주소 → 주거 정보 순서로 빠진 것을 찾는다. 둘 다 있거나 매니저면 마지막 단계(complete)
         if (p.getRole().equals(Roles.CUSTOMER)) {
             if (!addresses.existsByCustomerId(p.getId())) return SignupStep.ADDRESS;
@@ -193,12 +200,19 @@ public class ProfileService {
 
     // ── 고객 설정 화면 (B3) ──
 
+    /** Verified reservation phone; no cross-account lookup or profile merging. */
+    @Transactional(readOnly = true)
+    public String contactPhone(UUID id) {
+        Profile p = requireLive(id);
+        return profiles.verifiedCustomerPhone(id).orElse(p.getPhone());
+    }
+
     /** Settings › ProfileCard */
     @Transactional(readOnly = true)
     public SettingsProfile settingsProfile(UUID id) {
         Profile p = requireLive(id);
         // CustomerScreenService 가 설정 화면 응답에 넣는다. 프로필 사진(avatarSrc)은 지금 항상 빈 문자열이다
-        return new SettingsProfile(p.getName() + " 님", KoreanFormat.phoneDisplay(p.getPhone()), "");
+        return new SettingsProfile(p.getName() + " 님", KoreanFormat.phoneDisplay(contactPhone(id)), "");
     }
 
     /** Settings › 알림 토글 현재 값 { push: true, marketing: false } (없는 키는 기본값으로 채운다) */
@@ -231,7 +245,7 @@ public class ProfileService {
     public ProfileFormResponse profileForm(UUID id) {
         Profile p = requireLive(id);
         // phoneLocal: 국제 형식 번호에서 앞 "+8210" 을 뗀 8자리 (앱 PhoneField 형식)
-        return new ProfileFormResponse(p.getName(), p.getNickname(), KoreanFormat.phoneLocal(p.getPhone()));
+        return new ProfileFormResponse(p.getName(), p.getNickname(), KoreanFormat.phoneLocal(contactPhone(id)));
     }
 
     /** Settings › 내 정보 수정 — 저장 (이름·닉네임만. 휴대폰은 §13-7) */
@@ -604,8 +618,12 @@ public class ProfileService {
     }
 
     /** JWT → CurrentUser (JwtToCurrentUserConverter 가 CurrentUserCache 를 통해 부른다) */
-    @Transactional(readOnly = true)
     public Optional<CurrentUser> currentUser(UUID id) {
-        return findLive(id).map(p -> new CurrentUser(p.getId(), p.getRole(), p.isSignupComplete()));
+        Optional<Profile> profile = findLive(id);
+        if (profile.isEmpty() && !profiles.existsById(id)) {
+            if (profiles.provisionSocial(id) > 0) cache.evict(id);
+            profile = findLive(id);
+        }
+        return profile.map(p -> new CurrentUser(p.getId(), p.getRole(), p.isSignupComplete()));
     }
 }

@@ -1,0 +1,45 @@
+/* 휴대폰 인증 화면 레이아웃만 (모양은 프리미티브, 글꼴은 .text-* 클래스). 바깥 여백은 ScreenLayout 기본값 */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.title,
+.description {
+  margin: 0;
+}
+
+.description {
+  color: var(--color-text-secondary);
+  white-space: pre-line; /* 문구의 \n 줄바꿈 */
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xl);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* '휴대폰 번호 수정하기': 밑줄 글자 버튼 (가운데) */
+.link {
+  align-self: center;
+  min-height: var(--touch-target);
+  padding: 0 var(--spacing-md);
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.privacy {
+  margin-top: var(--spacing-md);
+}

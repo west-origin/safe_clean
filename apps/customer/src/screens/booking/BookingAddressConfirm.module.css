@@ -1,21 +1,45 @@
-/* 주소 확인 화면(BookingAddressConfirm.jsx) 레이아웃. 시트 틀·CTA 는 booking.module.css 공통 */
-/* AddressForm: 간격 51 */
-.form {
+.page {
+  padding-top: var(--spacing-3xl);
+  padding-bottom: 40px;
+}
+.address {
   display: flex;
   flex-direction: column;
-  gap: 51px; /* Figma 원본값 */
+  gap: var(--spacing-lg);
+  margin-top: 40px;
 }
-
-/* TitleRow: 높이 100, 제목 ↔ 아이콘 30, 세로 가운데 */
-.titleRow {
-  display: flex;
-  align-items: center;
-  gap: 30px; /* Figma 원본값 */
-  height: 100px;
-}
-
-/* 제목 옆 체크 아이콘(VerifiedIcon): 제목이 길어도 줄어들지 않는다. 여기 color 가 아이콘의 원 색이 된다 */
-.verified {
-  flex-shrink: 0;
+.road {
+  margin: 0;
   color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+.sub {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-auto);
+}
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-lg);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+.input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+.input:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+.alias {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3xl);
+  margin-top: 48px;
 }

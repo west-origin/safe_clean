@@ -9,7 +9,7 @@
 //   [코드에서 정한 순서] Booking/Frequency → DateTime → Step2 → AddressSearch → AddressConfirm → Options → NotesRequests → Confirm → Complete (4 카테고리 공통)
 //   [코드에서 정한 순서] Service/Start → Service/LivePortrait ⇄ Service/LiveLandscape(전체 화면). 진입 화면은 Figma 에 없음 (PROGRESS.md)
 // 여기서 만든 router 는 App.jsx 가 RouterProvider 로 그리고, 푸시 알림을 탭하면 App.jsx 가 router.navigate 로 이동시킨다.
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter, Navigate } from 'react-router';
 import RouteError from './screens/RouteError.jsx';
 import RouteShell from './screens/RouteShell.jsx';
 import RequireAuth from './screens/RequireAuth.jsx';
@@ -24,9 +24,10 @@ const routes = [
   { path: '/', lazy: page(() => import('./screens/onboarding/Start.jsx')) }, // C1 Onboarding/Slide1~3 (로그인 상태면 /home, 가입 중이면 남은 화면 — Start.jsx)
   { path: '/signup', lazy: page(() => import('./screens/auth/SignUp.jsx')) }, // C1 Auth/SignUp
   { path: '/auth/terms', lazy: page(() => import('./screens/auth/TermsConsent.jsx')) }, // C2 Auth/TermsConsent
-  { path: '/auth/login', lazy: page(() => import('./screens/auth/LoginPhone.jsx')) }, // C2 Auth/LoginPhone
-  { path: '/auth/reset-password', lazy: page(() => import('./screens/auth/ResetPassword.jsx')) }, // 코드에서 정함 (사용성 검토 2026-09-22)
-  { path: '/auth/profile-info', lazy: page(() => import('./screens/auth/ProfileInfo.jsx')) }, // C2 Auth/ProfileInfo-Phone (?method=phone) · -Social (그 외)
+  { path: '/auth/login', lazy: page(() => import('./screens/auth/SignUp.jsx')) }, // C2 Auth/LoginPhone
+  { path: '/auth/callback', lazy: page(() => import('./screens/auth/AuthCallback.jsx')) },
+  { path: '/auth/reset-password', element: <Navigate to="/auth/login" replace /> }, // 코드에서 정함 (사용성 검토 2026-09-22)
+  { path: '/auth/profile-info', element: <Navigate to="/auth/login" replace /> }, // C2 Auth/ProfileInfo-Phone (?method=phone) · -Social (그 외)
   { path: '/auth/profile-address', lazy: page(() => import('./screens/auth/ProfileAddress.jsx')) }, // C3 Auth/ProfileAddress
   { path: '/auth/profile-housing', lazy: page(() => import('./screens/auth/ProfileHousing.jsx')) }, // C3 Auth/ProfileHousing
   { path: '/auth/complete', lazy: page(() => import('./screens/auth/SignUpComplete.jsx')) }, // C3 Auth/SignUpComplete
@@ -50,6 +51,7 @@ const routes = [
       { path: '/settings/notices', lazy: page(() => import('./screens/settings/Notices.jsx')) },
       { path: '/settings/notices/:id', lazy: page(() => import('./screens/settings/NoticeDetail.jsx')) },
       { path: '/booking/:category/frequency', lazy: page(() => import('./screens/booking/BookingFrequency.jsx')) }, // C5 */Frequency (step 1)
+      { path: '/booking/:category/phone-verify', lazy: page(() => import('./screens/booking/PhoneVerify.jsx')) }, // 첫 1회 청소 휴대폰 인증 (코드에서 정함, 2026-11-10) — 안내 시트 '휴대폰 인증하기'
       { path: '/booking/:category/datetime', lazy: page(() => import('./screens/booking/BookingDateTime.jsx')) }, // C5 */DateTime (2)
       { path: '/booking/:category/address', lazy: page(() => import('./screens/booking/BookingAddress.jsx')) }, // 주소 선택 (코드에서 정함, 2026-10-31 사용자 시안) — 주소 없으면 address-search 로
       { path: '/booking/:category/address-edit/:id', lazy: page(() => import('./screens/booking/BookingAddressEdit.jsx')) }, // 주소 수정·삭제 (코드에서 정함, 2026-10-31)

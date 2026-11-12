@@ -1,3 +1,4 @@
+import { Circle, Plus, Pause, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Sheet, cx } from '@ansimclean/ui';
 // TODO(asset): 임시 배너 이미지 (기존 3D 에셋 + 문구를 Edge 로 렌더링한 PNG). 디자인 배너가 오면 WebP 로 교체
@@ -128,22 +129,9 @@ export default function HomePromotions() {
             <span className="text-caption-l-bold">
               {index + 1}/{BANNERS.length}
             </span>
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <circle cx="12" cy="12" r="11" fill="currentColor" />
-              <path
-                d="M7 12h10M12 7v10"
-                stroke="var(--color-text-inverse)"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
+            <Circle size={18} strokeWidth={2} fill="currentColor" aria-hidden="true" focusable="false">
+              <Plus width={24} height={24} strokeWidth={2} color="var(--color-text-inverse)" />
+            </Circle>
           </button>
           <button
             type="button"
@@ -152,23 +140,7 @@ export default function HomePromotions() {
             aria-pressed={paused}
             onClick={() => setPaused((p) => !p)}
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 32 32"
-              fill="currentColor"
-              aria-hidden="true"
-              focusable="false"
-            >
-              {paused ? (
-                <path d="M11 6 26 16 11 26Z" />
-              ) : (
-                <>
-                  <rect x="8" y="6" width="6" height="20" rx="2" />
-                  <rect x="19" y="6" width="6" height="20" rx="2" />
-                </>
-              )}
-            </svg>
+            {paused ? <Play size={16} strokeWidth={2} aria-hidden="true" focusable="false" /> : <Pause size={16} strokeWidth={2} aria-hidden="true" focusable="false" />}
           </button>
         </div>
       </div>

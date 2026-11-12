@@ -30,6 +30,15 @@ class LiveSessionServiceTest {
     ManagerDeviceRepository devices = mock(ManagerDeviceRepository.class);
     LiveSessionService service = new LiveSessionService(sessions, devices);
 
+    @org.junit.jupiter.api.Test
+    void 실제_시작된_세션만_고객_실시간_상태로_표시한다() {
+        var created = LiveSession.create(UUID.randomUUID());
+        var started = LiveSession.create(BOOKING);
+        started.startWaiting(null, java.time.Instant.now());
+        when(sessions.findAllById(java.util.List.of(BOOKING, created.getBookingId()))).thenReturn(java.util.List.of(created, started));
+        org.assertj.core.api.Assertions.assertThat(service.startedBookingIds(java.util.List.of(BOOKING, created.getBookingId()))).containsExactly(BOOKING);
+    }
+
     // 처음엔 행이 없어 새로 저장하고, 두 번째엔 있는 행을 그대로 돌려주는지(save 는 한 번뿐) 본다.
     // 덤으로 세션이 막 만들어진 상태면 '영상이 나가는 중' 이 아니고, 행이 없는 예약의 녹화 상태는 none 인지 확인한다
     @Test

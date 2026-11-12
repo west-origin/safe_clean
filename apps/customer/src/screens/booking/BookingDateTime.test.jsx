@@ -12,7 +12,7 @@ import { __fake } from '../../api/http.js';
 vi.mock('../../api/http.js', async () => (await import('../../test/fakeHttp.js')).fakeHttpModule());
 
 describe('Booking/DateTime 예약 변경', () => {
-  beforeEach(() => sessionStorage.clear());
+  beforeEach(() => { sessionStorage.clear(); vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-11-04T00:00:00Z')); });
   afterEach(() => vi.useRealTimers());
 
   it.each(['10월 24일', '10월 25일'])('%s: 주말 날짜와 방문 시간을 선택할 수 있다', async (label) => {

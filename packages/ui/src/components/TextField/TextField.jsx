@@ -32,6 +32,7 @@ import styles from './TextField.module.css';
  * @param {string} [props.type='text'] input type (text, tel, email, number, password …)
  * @param {'titleCard'|'labelM'} [props.textStyle='titleCard'] 입력 글꼴. Field/Text 는 Title/Card, Auth/ProfileHousing › Section/Size 의 Input 은 Label/M
  * @param {boolean} [props.hideLabel] 라벨을 눈에서 숨기고(.sr-only) 보조기기만 읽게 — 화면에 같은 뜻의 제목이 이미 있을 때 (코드에서 정함, 2026-11-03 주의사항 화면 비밀번호 칸)
+ * @param {import('react').ReactNode} [props.icon] 입력칸 앞 아이콘 (장식용, 코드에서 정함 — 2026-11-10 휴대폰 인증 시안의 전화 아이콘)
  * @param {string} [props.className] 레이아웃용 추가 클래스
  * 그 밖의 props(name, inputMode, maxLength, autoComplete, onBlur …)는 <input> 에 그대로 전달된다.
  */
@@ -49,6 +50,7 @@ export default function TextField({
   type = 'text',
   textStyle = 'titleCard',
   hideLabel = false,
+  icon,
   className,
   ...inputProps
 }) {
@@ -73,6 +75,7 @@ export default function TextField({
         {label}
       </label>
       <div className={styles.inputBox}>
+        {icon && <span className={styles.icon} aria-hidden="true">{icon}</span>}
         <input
           id={inputId}
           type={type}

@@ -36,6 +36,29 @@ class PricingServiceTest {
     }
 
     @Test
+    void 선택한_시간과_옵션으로_앞_화면과_같은_금액을_계산한다() {
+        CatalogPrice original = price(80000);
+        when(prices.findById(any())).thenReturn(Optional.of(original));
+        when(settings.integer("cleaning_hourly_amount")).thenReturn(20800);
+        when(settings.integer("cleaning_recurring_discount")).thenReturn(2000);
+        when(settings.decimal(PricingService.SETTING_FEE_RATE)).thenReturn(0.1);
+        PriceQuote q = service.quote("home", "recurring", List.of(option(false, 3000)), 2);
+        assertThat(q.base()).isEqualTo(39600);
+        assertThat(q.total()).isEqualTo(42600);
+        assertThat(q.platformFee()).isEqualTo(4260);
+        assertThat(q.durationMinutes()).isEqualTo(120);
+        PriceQuote oneTime = service.quote("store", "oneTime", List.of(), 4);
+        assertThat(oneTime.total()).isEqualTo(83200);
+        assertThat(oneTime.durationMinutes()).isEqualTo(240);
+    }
+
+    @Test
+    void 시간_선택은_유효한_범위만_요금에_반영한다() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.quote("home", "oneTime", List.of(), 1)).isInstanceOf(kr.ansimclean.api.common.error.ApiException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.quote("home", "oneTime", List.of(), 9)).isInstanceOf(kr.ansimclean.api.common.error.ApiException.class);
+    }
+
+    @Test
     void 금액은_기본_더하기_유료_옵션이고_무료_옵션은_0원() {
         CatalogPrice base = price(80000);
         List<CatalogOption> chosen = List.of(option(true, 0), option(false, 3000), option(false, 2500));

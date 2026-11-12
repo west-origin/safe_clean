@@ -1,7 +1,7 @@
 // Figma: Booking/AddressSearch (64:136) — Sheet(흰 배경 + 1px 테두리) 안에 SheetHeader(StepProgress 4) + "주소를 검색해주세요" + 검색창 + 결과 목록. 4 카테고리 동일.
 // Figma 의 MapPreview (flat image) 는 '검색 결과가 이미 있는' 그림이라, 진짜 결과인 줄 알게 했다 → 그리지 않는다 (사용성 검토 2026-09-22).
 //   검색어가 없으면 입력 안내, 있는데 결과가 0이면 '검색 결과가 없다' 를 말하고 입력한 대로 진행하게 한다. _Keyboard 는 OS 가 그림.
-// 결과를 고르면 도로명주소를 채워 /address-confirm 으로. "다음" 은 결과 없이 직접 입력한 검색어를 그대로 쓴다 (코드에서 정함)
+// 결과를 선택한 뒤 하단 다음 버튼으로 주소 확인 화면에 간다.
 // 예약 플로우 4단계(/booking/:category/address-search). 검색어·고른 주소는 예약 초안(sessionStorage)에 둔다.
 // 검색은 searchAddress → GET /catalog/address → 서버가 카카오 로컬 API(주소 + 장소 이름)로 찾는다 (backend/docs/api.md).
 //   글자를 칠 때마다 부르지 않게, 입력이 SEARCH_DELAY_MS 동안 멈추면 검색한다 (코드에서 정함).
@@ -18,15 +18,17 @@ import { useBookingDraft } from './bookingDraft.js';
 import common from './booking.module.css';
 import { useReturnTo } from './useReturnTo.js';
 import styles from './BookingAddressSearch.module.css';
+import KeyboardAwareFooter from '../../components/KeyboardAwareFooter.jsx';
 
 const SEARCH_DELAY_MS = 300; // 마지막 글자 입력 뒤 이만큼 기다렸다가 검색한다
 
-/** 주소 검색 화면. 검색 결과를 누르거나, 결과 없이 "다음" 을 누르면 그 주소로 주소 확인 화면에 간다 */
+/** 주소 검색 결과를 선택하고 다음 버튼으로 확정한다. */
 export default function BookingAddressSearch() {
   const navigate = useNavigate();
   const { category } = useParams();
   const back = useReturnTo(); // 확인 화면 '수정하기'(또는 수리 예약)에서 왔으면 그 화면으로 돌아간다
   const [draft, update] = useBookingDraft(category);
+  const [selected, setSelected] = useState(null);
   const query = draft.addressQuery ?? ''; // 검색창 글자는 초안에 바로 저장한다 — 새로고침·뒤로 가기에도 남는다
   // searchQuery = 입력이 잠깐 멈춘 뒤의 검색어. 이 값이 바뀔 때 다시 검색한다 (두 글자 미만이면 searchAddress 가 서버를 부르지 않고 빈 목록을 준다).
   // 검색 실패(error)는 따로 그리지 않는다 — 결과가 없는 것처럼 안내 문구가 보이고 직접 입력으로 진행할 수 있다
@@ -41,9 +43,9 @@ export default function BookingAddressSearch() {
 
   // 고른 도로명주소를 초안에 넣고 주소 확인 화면으로.
   // carry: returnTo 가 있으면(확인 화면 '수정하기'·수리 예약 주소 변경) 다음 화면에도 이어 붙여, 주소 확인 화면의 "다음" 이 그리로 돌아간다
-  const goConfirm = async (roadAddress) => {
+  const goConfirm = async (roadAddress, addressSub = '') => {
     await saveBookingStep(category, 'address-search', { addressQuery: query, roadAddress });
-    update((prev) => ({ roadAddress, detailAddress: prev.roadAddress === roadAddress ? prev.detailAddress : '' })); // 새 도로명에 옛 동·호수가 붙지 않게 (검수 3차)
+    update((prev) => ({ roadAddress, addressSub, detailAddress: prev.roadAddress === roadAddress ? prev.detailAddress : '' })); // 새 도로명에 옛 동·호수가 붙지 않게 (검수 3차)
     navigate(back.carry(`/booking/${category}/address-confirm`));
   };
 
@@ -54,21 +56,17 @@ export default function BookingAddressSearch() {
       noPadding
       gap="none"
       navBar={<NavBar icon="close" onBack={() => navigate(-1)} />}
-      stickyCta={
-        // 결과를 고르지 않고 "다음" 을 누르면 적은 검색어(앞뒤 공백 제거)를 도로명주소로 쓴다. 검색어가 있을 때만 (시안의 빈 화면엔 버튼이 없다)
-        hasQuery && (
-          <Button variant="primary" chevron={false} className={common.ctaRounded} onClick={() => goConfirm(query.trim())}>
-            다음
-          </Button>
-        )
-      }
+      tabBar={<KeyboardAwareFooter visible={hasQuery}>
+        <Button variant="primary" chevron={false} className={common.ctaRounded} disabled={!selected}
+          onClick={() => goConfirm(selected.main, selected.sub)}>다음</Button>
+      </KeyboardAwareFooter>}
     >
       <div className={cx(common.page, styles.page)}>
         <h1 className={cx('text-heading-m', common.pageTitle)}>{ADDRESS_SEARCH_COPY.title}</h1>
-        <SearchField filled ariaLabel="주소 검색" placeholder={ADDRESS_SEARCH_COPY.placeholder} value={query} onChange={(e) => update({ addressQuery: e.target.value })} autoComplete="street-address" />
+        <SearchField filled ariaLabel="주소 검색" placeholder={ADDRESS_SEARCH_COPY.placeholder} value={query} onChange={(e) => { setSelected(null); update({ addressQuery: e.target.value }); }} autoComplete="street-address" />
         {/* 결과가 있으면 목록, 검색어가 비었으면 '서비스 가능지역', 적었는데 결과가 0이면 '결과 없음' 안내. 검색 중이면 아무것도 */}
-        {results.length > 0 ? (
-          <AddressResultList results={results} onSelect={(r) => goConfirm(r.main)} />
+        {selected ? null : results.length > 0 ? (
+          <AddressResultList results={results} selectedId={selected?.id} onSelect={(r) => { setSelected(r); update({ addressQuery: r.main }); document.activeElement?.blur(); }} />
         ) : !hasQuery ? (
           <div className={styles.empty}>
             {/* TODO(figma): '서비스 가능지역' 을 누르면 보여 줄 화면·내용이 시안에 없다 (PROGRESS.md 판단 항목) */}

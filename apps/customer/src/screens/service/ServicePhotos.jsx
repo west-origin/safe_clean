@@ -20,7 +20,6 @@ export default function ServicePhotos() {
         <EmptyState icon="calendar" title="등록된 청소 전·후 사진이 없어요" />
       ) : (
         <>
-          <p className="text-body-s">{CLEANING_PHOTOS_COPY.hint}</p>
           <CleaningPhotoGallery photos={data.photos} onRetry={reload} />
         </>
       )}

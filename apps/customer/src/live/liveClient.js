@@ -23,6 +23,7 @@ let state = {
   /** getLiveSession() 결과 (매니저·시작 시각·상태 문구·live 상태) */
   session: null,
   muted: true,
+  volume: 1,
   /** 들어가 있는 예약 id. undefined 면 DEV 에서만 mock 세션이고, 프로덕션은 getLiveSession 이 404 를 던져 error 가 된다 */
   bookingId: undefined,
   /** @type {HTMLVideoElement|null} 트랙 또는 녹화본을 붙일 <video> */
@@ -32,6 +33,7 @@ let state = {
 
 // 아래는 state 밖의 내부 값이다 — 바꿔도 구독자에게 알리지 않고, 화면은 읽지 못한다
 const listeners = new Set(); // subscribe 로 등록한 함수들 — set() 이 상태를 바꿀 때마다 부른다
+let lastAudibleVolume = 1;
 let room = null; // 지금 붙어 있는 LiveKit 방 (connectRoom 결과). 없으면 null
 let videoTrack = null; // 받은 실시간 영상 트랙 — <video> 가 바뀌면 새 <video> 에 다시 붙인다
 let replayUrl = null; // 재생 중인 녹화본의 서명 URL
@@ -210,6 +212,7 @@ export const liveClient = {
     set({ videoEl });
     if (!videoEl) return;
     videoEl.muted = state.muted;
+    videoEl.volume = state.volume;
     bindVideo(videoEl);
   },
 
@@ -438,8 +441,17 @@ export const liveClient = {
   /** 소리 켜기/끄기: <video>.muted 와 상태를 함께 바꾼다 (지금 두 화면의 음소거 버튼은 비활성) */
   toggleMute() {
     const muted = !state.muted;
-    if (state.videoEl) state.videoEl.muted = muted;
-    set({ muted });
+    const volume = !muted && state.volume === 0 ? lastAudibleVolume : state.volume;
+    if (state.videoEl) { state.videoEl.muted = muted; state.videoEl.volume = volume; }
+    set({ muted, volume });
+  },
+
+  setVolume(value) {
+    if (!Number.isFinite(value)) return;
+    const volume = Math.min(1, Math.max(0, value));
+    if (volume > 0) lastAudibleVolume = volume;
+    if (state.videoEl) { state.videoEl.volume = volume; state.videoEl.muted = volume === 0; }
+    set({ volume, muted: volume === 0 });
   },
 
   /** 현재 프레임을 PNG 로 저장 (canvas). 사진첩 저장(Capacitor, §13-15)은 B7 에서 */

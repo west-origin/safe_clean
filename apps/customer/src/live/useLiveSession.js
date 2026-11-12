@@ -22,7 +22,7 @@ import { liveClient } from './liveClient.js';
  */
 export function useLiveSession(bookingId, { replay = false } = {}) {
   // useSyncExternalStore: React 밖의 저장소(liveClient)를 구독해, 상태 객체가 바뀔 때마다 이 화면을 다시 그린다
-  const { status, mode, session, error, muted } = useSyncExternalStore(liveClient.subscribe, liveClient.getState);
+  const { status, mode, session, error, muted, volume } = useSyncExternalStore(liveClient.subscribe, liveClient.getState);
 
   useEffect(() => {
     liveClient.join(bookingId, { replay });
@@ -35,6 +35,8 @@ export function useLiveSession(bookingId, { replay = false } = {}) {
     session,
     error,
     muted,
+    volume,
+    setVolume: liveClient.setVolume,
     videoRef: liveClient.attachVideo, // ref callback: 마운트 시 엘리먼트, 언마운트 시 null
     toggleMute: liveClient.toggleMute,
     capture: liveClient.capture,

@@ -1,10 +1,10 @@
 /* 내 예약 화면(Reservations.jsx)의 머리글·예약 카드 목록·취소 시트 안 글의 배치 */
-/* PageHeader: 상 46 / 우 23 / 하 18 / 좌 24, 간격 8 */
+/* 주의사항·요청사항 화면과 같은 제목 여백(상 4 / 좌우 24 / 하 32). */
 .header {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
-  padding: 46px 23px var(--spacing-2xl) var(--spacing-4xl); /* Figma 원본값 46·23 */
+  gap: var(--spacing-4xl);
+  padding: var(--spacing-2xs) var(--spacing-4xl) 32px;
 }
 
 /* 제목·설명 글 공통: pre-line 으로 문구 안의 줄바꿈 문자를 화면에서도 줄을 바꿔 보이게 한다 */
@@ -38,4 +38,30 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+}
+
+.focusTarget {
+  scroll-margin-block: var(--spacing-4xl);
+}
+.focusTarget:focus {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 3px;
+}
+
+.calendar {
+  padding: var(--spacing-xl) var(--spacing-4xl);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.dateFilter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xl) var(--spacing-4xl) 0;
+}
+.dateFilter p { margin: 0; }
+
+
+.statusTabs [role='tab'] {
+  padding-top: calc(var(--spacing-sm) * 2);
 }

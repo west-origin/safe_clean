@@ -16,6 +16,12 @@ import java.util.UUID;
  * rows = 카드 안의 줄(label·value): 일정·주소·매니저, 매니저 소개가 있으면 한 줄 더.
  */
 public record ReservationResponse(UUID id, String tab, String category, String title, String status, String date, String time, boolean series, boolean recordingReady, boolean changeable, List<Row> rows,
-                                  String homeType, String endTime, String startedAt, String endedAt) {
+                                  String homeType, String endTime, String startedAt, String endedAt, boolean liveStarted) {
+    public ReservationResponse(UUID id, String tab, String category, String title, String status, String date, String time, boolean series, boolean recordingReady, boolean changeable, List<Row> rows, String homeType, String endTime, String startedAt, String endedAt) {
+        this(id, tab, category, title, status, date, time, series, recordingReady, changeable, rows, homeType, endTime, startedAt, endedAt, false);
+    }
+    public ReservationResponse withLiveStarted(boolean value) {
+        return new ReservationResponse(id, tab, category, title, status, date, time, series, recordingReady, changeable, rows, homeType, endTime, startedAt, endedAt, value);
+    }
     public record Row(String label, String value) {}
 }

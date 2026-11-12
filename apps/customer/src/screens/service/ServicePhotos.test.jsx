@@ -23,6 +23,17 @@ describe('녹화와 독립적인 고객 사진 비교', () => {
     expect(container.querySelector('video')).toBeNull();
   });
 
+  it('비교 안내는 모든 사진 카드 밖에서 첫 카드 위에 한 번만 표시한다', async () => {
+    getCleaningPhotos.mockResolvedValue({ ready: true, photos: [...photos, { ...photos[0], id: 'p2', location: '주방' }] });
+    const { container } = renderPhotos();
+    const guide = await screen.findByText('선을 좌우로 움직여 청소 전후를 비교해보세요');
+    const cards = container.querySelectorAll('figure');
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).not.toContainElement(guide);
+    expect(cards[1]).not.toContainElement(guide);
+    expect(guide.compareDocumentPosition(cards[0].querySelector('img')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('이미지 만료·실패 시 새 사진 URL을 받아 다시 표시한다', async () => {
     renderPhotos();
     fireEvent.error(await screen.findByAltText('거실 청소 전'));

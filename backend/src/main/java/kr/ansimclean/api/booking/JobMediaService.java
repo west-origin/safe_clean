@@ -41,9 +41,9 @@ public class JobMediaService {
     private void requirePhotos(Booking b, boolean after) {
         List<CleaningPhoto> rows = photos.findByBookingIdOrderBySortAsc(b.getId());
         if (b.getRequiredPhotoRooms().isEmpty() || b.getRequiredPhotoRooms().stream().anyMatch(room ->
-                rows.stream().noneMatch(p -> room.equals(p.getLocation()) && (!after || p.isPaired())))
+                rows.stream().filter(p -> room.equals(p.getLocation()) && (!after || p.isPaired())).count() < 3)
                 || (after && rows.stream().anyMatch(p -> !p.isPaired()))) {
-            throw ApiException.validation(after ? "모든 공간의 청소 후 사진을 찍어주세요" : "모든 공간의 청소 전 사진을 찍어주세요");
+            throw ApiException.validation(after ? "모든 공간의 청소 후 사진을 찍어주세요" : "각 공간의 청소 전 사진을 3장씩 찍어주세요");
         }
     }
 

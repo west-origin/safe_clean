@@ -5,21 +5,24 @@ import {
   BrandMarkIcon,
   ServiceHomeIcon,
   ServiceStudioIcon,
+  ServiceDisassemblyIcon,
+  ServiceRepairIcon,
+  ServicePhotoIcon,
   cx,
   useAsync,
   usePolling,
   ScreenError,
   ScreenLoading,
 } from '@ansimclean/ui';
-import { getHome, getNotices, getSupportPhone } from '../../api/customer.js';
-import { UPCOMING_HOME_COPY, CHANGE_LOCK_COPY, CHANGE_DEADLINE_HOURS, RESERVATIONS_COPY } from '../../api/mock.js';
+import { getHome, getNotices } from '../../api/customer.js';
+import { UPCOMING_HOME_COPY } from '../../api/mock.js';
 import CustomerFooter from '../CustomerFooter.jsx';
 import { onPushReceived } from '../../push/pushClient.js';
 import { setBookingDraft } from '../booking/bookingDraft.js';
 import homeArt from '@ansimclean/ui/assets/housing-house@3x.webp';
 import giftArt from '@ansimclean/ui/assets/gift-illustration@3x.webp';
 import HomePromotions from './HomePromotions.jsx';
-import ReservationTicketCard from '../reservations/ReservationTicketCard.jsx';
+import UpcomingVisitCard from './UpcomingVisitCard.jsx';
 import styles from './Home.module.css';
 
 // 기존 예약·실시간 상태 갱신은 새 홈에서도 유지한다.
@@ -30,11 +33,6 @@ export default function Home() {
     subscribe: onPushReceived,
   });
   const notices = useAsync(() => getNotices(), []);
-  const locked = data?.upcoming?.changeable === false;
-  const { data: supportPhone } = useAsync(
-    () => (locked ? getSupportPhone() : Promise.resolve(null)),
-    [locked]
-  );
   const tabBar = <CustomerFooter active="home" />;
   if (error) return <ScreenError error={error} onRetry={reload} tabBar={tabBar} />;
   if (!data) return <ScreenLoading tabBar={tabBar} />;
@@ -65,28 +63,28 @@ export default function Home() {
             <span className={styles.categoryIcon}><ServiceStudioIcon /></span>
             <span className={cx('text-body-default', styles.categoryLabel)}>원룸</span>
           </button>
+          {/* 둘째 줄 (2026-11-08 사용자 요청): 분해청소 = 가전청소 예약(appliance), 수리 = 수리 탭, 사진 문의 = 1:1 문의.
+              시안 문구는 '사진 견적' 이지만 사용자 지시로 '사진 문의'. '무료' 배지와 파란 강조도 시안 그대로 */}
+          <button type="button" className={styles.category} onClick={() => navigate('/booking/appliance/frequency')}>
+            <span className={styles.categoryIcon}><ServiceDisassemblyIcon /></span>
+            <span className={cx('text-body-default', styles.categoryLabel)}>분해청소</span>
+          </button>
+          <button type="button" className={styles.category} onClick={() => navigate('/repair')}>
+            <span className={styles.categoryIcon}><ServiceRepairIcon /></span>
+            <span className={cx('text-body-default', styles.categoryLabel)}>수리</span>
+          </button>
+          <button type="button" className={cx(styles.category, styles.categoryHighlight)} onClick={() => navigate('/settings/inquiry')}>
+            <span className={styles.categoryIcon}>
+              <ServicePhotoIcon />
+              <span className={cx('text-caption-bold', styles.freeBadge)}>무료</span>
+            </span>
+            <span className={cx('text-body-bold', styles.categoryLabel)}>사진 문의</span>
+          </button>
         </section>
-        {data.upcoming && (
           <section className={cx(styles.section, styles.upcoming)}>
             <h2 className="text-heading-s">{UPCOMING_HOME_COPY.title}</h2>
-            {/* 내 예약 화면과 같은 카드 (2026-11-03 사용자 요청). 진행 중이면 실시간 영상 버튼, 그 밖은 안내 한 줄 */}
-            <ReservationTicketCard
-              reservation={data.upcoming}
-              note={
-                data.upcoming.status === 'inProgress'
-                  ? undefined
-                  : locked
-                    ? CHANGE_LOCK_COPY.card(data.changeDeadlineHours ?? CHANGE_DEADLINE_HOURS, supportPhone)
-                    : UPCOMING_HOME_COPY.note
-              }
-              actions={
-                data.upcoming.status === 'inProgress'
-                  ? [{ label: RESERVATIONS_COPY.watch, tone: 'brand', onClick: () => navigate(`/service/live?booking=${data.upcoming.id}`) }]
-                  : undefined
-              }
-            />
+            <UpcomingVisitCard reservation={data.upcoming} onClick={() => navigate('/reservations', { state: { focusBookingId: data.upcoming.id } })} />
           </section>
-        )}
         <section className={styles.section} aria-labelledby="recommended-title">
           <div className={styles.sectionHeader}>
             <h2 id="recommended-title" className="text-heading-s">

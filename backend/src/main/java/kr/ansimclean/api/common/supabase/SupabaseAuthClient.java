@@ -20,7 +20,8 @@ import java.util.UUID;
 /**
  * Supabase Auth(GoTrue) REST 호출 — 서버만 부른다(service_role 키). BACKEND_PLAN.md §7.1.
  * 쓰는 것: admin 사용자 생성/비밀번호 변경/삭제, 휴대폰+비밀번호 로그인, refresh, logout.
- * 쓰지 않는 것: /otp, /signup (인증번호는 우리가 보내고, 가입은 admin API 로만).
+ * 쓰지 않는 것: /otp, /signup (매니저 가입 인증번호는 OtpService 가 보내고, 가입은 admin API 로만).
+ * 고객 휴대폰 인증(첫 1회 청소)은 Supabase 기본 기능 phone_change(PUT /user → POST /verify)를 쓴다 — 2026-11-10, docs/auth/phone-otp.md.
  * 부르는 곳 예: AuthService(가입·로그인 등), SupabaseUserDeletionHandler(탈퇴 뒤 아웃박스가 사용자 삭제를 다시 시도할 때).
  * 오류 처리: Supabase 가 오류로 답하거나 연결이 안 되면 ApiException 으로 바꿔 던진다
  * (이미 있는 번호 → PHONE_TAKEN, 자격 증명 오류 → LOGIN_FAILED/UNAUTHENTICATED, 한도 → RATE_LIMITED, 나머지 → UPSTREAM 502).
@@ -178,6 +179,64 @@ public class SupabaseAuthClient {
             log.warn("Supabase 다른 세션 로그아웃 실패 {}: {}", e.getStatusCode(), errorCode(e));
         } catch (ResourceAccessException e) {
             log.warn("Supabase 다른 세션 로그아웃 연결 실패: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 로그인한 사용자 계정에 휴대폰 번호 추가를 요청한다 → Supabase 가 6자리 인증번호를 만들어 문자로 보낸다(phone_change).
+     * 인증번호 생성·만료(sms_otp_exp)·길이(sms_otp_length)·재발송 간격(sms_max_frequency)은 Supabase Auth 설정이 정한다 (docs/auth/phone-otp.md).
+     * 개발 프로젝트의 테스트 번호는 문자를 보내지 않고 고정 인증번호를 쓴다. 실제 발송은 Send SMS Hook → SmsHookService.
+     * 사용자 access 토큰을 Authorization 에 싣는다 — 어느 계정에 번호를 붙일지는 Supabase 가 그 토큰으로 정한다.
+     * 부르는 곳: CustomerPhoneService.request
+     */
+    public void requestPhoneChange(String userAccessToken, String e164) {
+        try {
+            client.put().uri("/user")
+                    .header("apikey", serviceRoleKey)
+                    .header("Authorization", "Bearer " + userAccessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("phone", e164))
+                    .retrieve().toBodilessEntity();
+        } catch (HttpStatusCodeException e) {
+            String code = errorCode(e);
+            int status = e.getStatusCode().value();
+            // 다른 계정(매니저 포함)이 이미 쓰는 번호 — 누가 쓰는지는 알리지 않는다
+            if (code.equals("phone_exists")) throw ApiException.validation("이 번호로는 인증할 수 없어요. 고객센터에 문의해주세요");
+            if (status == 429 || code.equals("over_sms_send_rate_limit")) throw new ApiException(ErrorCode.OTP_RATE_LIMITED, "잠시 후 다시 요청해주세요");
+            if (status == 401) throw new ApiException(ErrorCode.UNAUTHENTICATED); // 토큰이 막 만료됨 — 앱이 갱신 후 다시 보낸다
+            log.error("Supabase Auth 휴대폰 인증 요청 실패 {} {}", e.getStatusCode(), code);
+            throw new ApiException(ErrorCode.UPSTREAM, "인증번호를 보내지 못했어요. 잠시 후 다시 시도해주세요");
+        } catch (ResourceAccessException e) {
+            throw unreachable(e);
+        }
+    }
+
+    /** phone_change 인증번호 확인 결과. ok=false 면 틀렸거나 만료(Supabase 는 둘을 구분하지 않는다) */
+    public record PhoneChangeResult(boolean ok, UUID userId, String accessToken) {}
+
+    /**
+     * phone_change 인증번호 확인 (Supabase POST /verify). 맞으면 Supabase 가 그 계정의 phone·phone_confirmed_at 을 채우고
+     * 새 세션을 하나 만들어 돌려준다 — 이 세션은 쓰지 않으니 부르는 쪽이 logout(accessToken) 으로 바로 끊는다.
+     * 틀림·만료는 예외가 아니라 ok=false (부르는 쪽이 실패 횟수를 센다). 한도 초과는 OTP_RATE_LIMITED.
+     */
+    public PhoneChangeResult verifyPhoneChange(String e164, String code) {
+        try {
+            JsonNode body = client.post().uri("/verify")
+                    .header("apikey", serviceRoleKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("type", "phone_change", "phone", e164, "token", code))
+                    .retrieve().body(JsonNode.class);
+            JsonNode user = body == null ? null : body.get("user");
+            JsonNode token = body == null ? null : body.get("access_token");
+            UUID id = user == null || user.get("id") == null ? null : UUID.fromString(user.get("id").asString());
+            return new PhoneChangeResult(true, id, token == null ? null : token.asString());
+        } catch (HttpStatusCodeException e) {
+            int status = e.getStatusCode().value();
+            if (status == 429) throw new ApiException(ErrorCode.OTP_RATE_LIMITED, "인증 시도가 너무 많아요. 잠시 후 다시 시도해주세요");
+            if (status == 400 || status == 401 || status == 403 || status == 404 || status == 422) return new PhoneChangeResult(false, null, null);
+            throw upstream("휴대폰 인증 확인", e);
+        } catch (ResourceAccessException e) {
+            throw unreachable(e);
         }
     }
 

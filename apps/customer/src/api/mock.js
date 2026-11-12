@@ -9,30 +9,10 @@
 // 문구 속 '\n' 은 줄바꿈 자리다.
 
 /** 가입 방법 키. api/customer.js 의 signUpWith 는 받은 method 가 이 목록에 없으면 오류를 던진다 */
-export const SIGN_UP_METHODS = ['kakao', 'google', 'naver', 'phone'];
+export const SIGN_UP_METHODS = ['kakao', 'google'];
 
 /** 첫 화면(/signup) 문구 — 2026-11-03 사용자 첨부 로그인 시안 그대로('이메일 아이디 입력' 은 사용자 요청으로 '전화번호를 입력해주세요').
  *  failed 는 예전 로그인 화면(LoginPhone)과 같은 문구 */
-export const ENTRY_COPY = {
-  phone: '전화번호를 입력해주세요',
-  password: '비밀번호 입력',
-  login: '로그인',
-  findPassword: '비밀번호 찾기',
-  signUp: '회원가입',
-  sns: 'SNS계정으로 간편로그인하세요.',
-  failed: '휴대폰 번호 또는 비밀번호를 확인해주세요.',
-  error: '로그인하지 못했어요. 잠시 후 다시 시도해주세요.',
-};
-
-/** 소셜 로그인은 아직 없다(결정 §13-1). 버튼을 누르면 조용히 전화번호 가입으로 가던 것을 안내로 바꿨다 (사용성 검토 2026-09-22) */
-export const SOCIAL_SIGNUP_COPY = {
-  title: '지금은 전화번호로만 가입할 수 있어요',
-  description: '카카오·구글·네이버 로그인은 준비하고 있어요. 전화번호로 계속하시겠어요?',
-  confirm: '전화번호로 계속하기',
-  back: '닫기',
-};
-
-/** 가입 완료 실패 문구 (코드에서 정함 — Figma 화면은 이미지 한 장). Auth/SignUpComplete 화면(SignUpComplete.jsx)이 쓴다 */
 export const SIGNUP_COMPLETE_ERROR = '가입을 마치지 못했어요. 잠시 후 다시 시도해주세요.';
 
 /**
@@ -52,28 +32,6 @@ export const TERMS = [
 export const PRIVACY_NOTE = '수집된 개인정보는 안전하게 보호되며, \n서비스 제공 목적 외로 사용되지 않습니다.';
 
 /** Auth/ProfileInfo-Phone › Field/비밀번호 › HelperText */
-export const PASSWORD_OK_MESSAGE = '사용가능한 비밀번호입니다!';
-/** 비밀번호 규칙을 입력 전부터 보여 준다 (코드에서 정함 — 사용성 검토 2026-09-22: 왜 '다음' 이 꺼져 있는지 알 수 없었다) */
-export const PASSWORD_HINT = '8자 이상 입력해주세요';
-
-/** Auth/ResetPassword (Figma 에 없어 코드에서 정함 — 로그인 화면 "비밀번호를 잊으셨나요?" 에서 온다) */
-export const RESET_PASSWORD_COPY = {
-  title: '비밀번호를\n다시 설정해주세요',
-  description: '가입한 휴대폰 번호로 인증하면\n새 비밀번호를 정할 수 있어요.',
-  phoneLabel: '휴대폰 번호',
-  codeLabel: '인증번호',
-  codePlaceholder: '문자로 받은 6자리',
-  passwordLabel: '새 비밀번호',
-  passwordPlaceholder: '8자 이상 입력해주세요',
-  passwordHint: '8자 이상 입력해주세요',
-  notFound: '가입되지 않은 번호예요',
-  signUpPrompt: '아직 계정이 없으신가요?',
-  signUpLink: '회원가입하기',
-  submit: '비밀번호 변경하기',
-  failed: '비밀번호를 바꾸지 못했어요. 잠시 후 다시 시도해주세요.',
-};
-
-/** Booking/Confirm — 고르지 않은 항목 (코드에서 정함, 전체 점검 G6) */
 export const CONFIRM_EMPTY_COPY = { options: '선택한 옵션이 없어요', notices: '해당하는 주의사항이 없어요', request: '남긴 요청사항이 없어요' };
 /**
  * 달력 아래 안내 — 왜 어떤 날이 회색인지 (서버 규칙 §6.1 과 같은 말, 코드에서 정함 — 사용성 검토 2026-09-22).
@@ -88,7 +46,7 @@ export const BOOKING_DATE_NOTE = '내일부터 예약할 수 있어요.';
  */
 export const CHANGE_LOCK_COPY = {
   picked: (hours) => `방문까지 ${hours}시간이 남지 않아, 예약한 뒤에는 바꾸거나 취소할 수 없어요.`,
-  card: (hours, phone) => `방문 ${hours}시간 전이 지나 앱에서는 바꾸거나 취소할 수 없어요. ${phone ? `고객센터(${phone})로 연락해주세요.` : '1:1 문의로 알려주세요.'}`,
+  card: () => '당일 청소 예약 취소는 문의를 통해 가능해요',
 };
 /**
  * 변경·취소 기한(방문 몇 시간 전까지)의 기본값 = 서버 app_settings.cancel_deadline_hours 의 시드 값.
@@ -151,7 +109,7 @@ export const RESERVATIONS = [
   { id: 'r1', tab: 'upcoming', category: 'home', homeType: 'house', title: '가정 청소', status: 'scheduled', date: '2026-11-01', time: '09:00', endTime: '12:00', rows: [{ label: '일정', value: '2026년 11월 1일 (일) 오전 9시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
   { id: 'r2', tab: 'upcoming', category: 'appliance', title: '가전청소', status: 'assigning', date: '2026-11-14', time: '14:00', endTime: '16:00', rows: [{ label: '일정', value: '2026년 11월 14일 (토) 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '배정 후 알려드려요' }] },
   // 아래 3건은 Figma 에 없음 — 진행 중(Service/Start 진입점)·완료·취소 탭을 채우려고 코드에서 정함
-  { id: 'r0', tab: 'upcoming', category: 'home', homeType: 'studio', title: '원룸 청소', status: 'inProgress', date: '2026-09-19', time: '14:00', endTime: '16:00', rows: [{ label: '일정', value: '오늘 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
+  { id: 'r0', liveStarted: true, tab: 'upcoming', category: 'home', homeType: 'studio', title: '원룸 청소', status: 'inProgress', date: '2026-09-19', time: '14:00', endTime: '16:00', rows: [{ label: '일정', value: '오늘 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
   { id: 'r3', tab: 'done', category: 'appliance', title: '가전청소', status: 'done', date: '2026-08-03', time: '14:00', endTime: '16:00', startedAt: '2026-08-03 14:05', endedAt: '2026-08-03 16:20', rows: [{ label: '일정', value: '2026년 8월 3일 (월) 오후 2시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '김미영 매니저' }] },
   { id: 'r4', tab: 'cancelled', category: 'office', title: '사무실 청소', status: 'cancelled', date: '2026-07-20', time: '10:00', endTime: '13:00', rows: [{ label: '일정', value: '2026년 7월 20일 (월) 오전 10시' }, { label: '주소', value: '부산광역시 중앙대로 2127-23' }, { label: '매니저', value: '배정 전 취소' }] },
 ];
@@ -160,10 +118,10 @@ export const RESERVATIONS = [
  *  onTheWayMinutes: 매니저가 수락한 예약을 방문 몇 분 전부터 '이동 중' 으로 보일지 — 서버에 출발 신호가 없어 시각으로 정한다 (판단 항목) */
 export const RESERVATIONS_COPY = {
   title: '내 예약을 확인해 주세요.',
-  start: '방문 시작',
+  start: '방문 예정',
   end: '종료 예정',
   matching: '매니저님을 매칭 중이에요', // 매칭 전 카드의 매니저 줄 (2026-11-03 사용자 요청 — 서버 '배정 후 알려드려요'·'매니저를 찾지 못했어요 …' 대신)
-  visited: '방문 시간', // 완료 탭: 실제 작업 시작(startedAt)
+  visited: '시작 시간', // 완료 탭: 실제 작업 시작(startedAt)
   finished: '종료 시간', // 완료 탭: 실제 작업 완료(endedAt)
   homeTypes: { house: '가정', studio: '원룸' },
   categories: { store: '매장', home: '가정/원룸' },
@@ -368,6 +326,14 @@ export const SERIES_TERM_MONTHS = 6;
 /** Booking/Address(주소 선택) 문구 — 2026-10-31 사용자 첨부 시안 그대로 (Figma 에 없음) */
 export const ADDRESS_SELECT_COPY = { title: '주소를 선택해 주세요.', add: '+ 주소추가' };
 
+/** Booking/AddressConfirm 상세주소를 비우고 '다음' 을 눌렀을 때의 확인 시트 — 2026-11-11 사용자 지정 문구 (Figma 에 없음, 단독주택은 적을 것이 없어 비워도 진행) */
+export const ADDRESS_DETAIL_SKIP_COPY = {
+  title: '상세주소 없이 진행할까요?',
+  description: '아파트·빌라라면 동·호수를 꼭 적어주세요. 매니저가 집을 찾는 데 필요해요.',
+  enter: '입력하기',
+  skip: '없이 진행',
+};
+
 /** Booking/AddressEdit(주소 수정) 문구 — 코드에서 정함 (2026-10-31 사용자 요청: 상세주소·별칭만 수정, 잘못 등록한 주소 삭제) */
 export const ADDRESS_EDIT_COPY = {
   title: '주소를 수정해 주세요.',
@@ -389,7 +355,7 @@ export const ADDRESS_EDIT_COPY = {
 /** Booking/Schedule(날짜/시간) 문구·임시 금액 — 2026-10-31 사용자 첨부 시안 그대로, 금액은 사용자 요청으로 임의 책정(화면 표시용.
  *  실제 결제 금액은 확인 화면의 서버 견적이 정한다). 서비스 시간은 기본 2시간, + 한 번에 1시간, 최대 8시간 */
 export const SCHEDULE_COPY = {
-  title: '날짜/시간을 선택해 주세요.',
+  title: '날짜와 시간을 선택해 주세요.',
   intro: '교육받은 매니저님이 방문합니다.',
   introLink: '어떤 교육을 받나요?',
   date: '방문 일',
@@ -420,10 +386,121 @@ export const FREQUENCY_SCREEN_COPY = {
   recurringBenefit: '10%할인',
 };
 
+/** 첫 1회 청소 휴대폰 인증 화면(PhoneVerify) 문구 — Figma 에 없어 2026-11-10 사용자 첨부 시안 2장 그대로 (코드에서 정함).
+ *  안내 시트(CustomerPhoneProof)의 '휴대폰 인증하기' 에서 온다. 1단계 번호 입력 → 전송 성공 시 2단계 인증번호 입력.
+ *  인증번호 3분·6자리는 서버(Supabase sms_otp_exp=180) 설정과 같다. expired·done 은 시안에 없어 코드에서 정함 */
+export const PHONE_VERIFY_COPY = {
+  phoneTitle: '휴대폰 번호 인증',
+  phoneDescription: '안전한 서비스 이용을 위해\n휴대폰 인증이 필요해요.',
+  phoneLabel: '휴대폰 번호',
+  phonePlaceholder: '010-1234-5678',
+  send: '인증번호 보내기',
+  privacy: { before: '입력하신 번호는 본인확인 용도로만 사용되며, 안심클린의 ', strong: '개인정보 보호정책에 따라 안전하게', after: ' 관리돼요.' },
+  codeTitle: '인증번호를 입력해주세요',
+  sentTo: (phone) => `${phone}로\n인증번호를 보냈어요.`,
+  codeLabel: '인증번호',
+  submit: '인증하고 계속하기',
+  resend: '인증번호 다시 받기',
+  editPhone: '휴대폰 번호 수정하기',
+  expired: '인증번호가 만료됐어요. 다시 받아주세요',
+  done: '휴대폰 인증이 완료됐어요',
+};
+
+/** 기본 청소(BookingFrequency) 아래 요금·견적 안내 — 2026-11-08 사용자 첨부 시안 문구·금액 그대로 (코드에서 정함, Figma 없음).
+ *  키: 가정 house · 원룸 studio (home 카테고리의 homeService) · 분해청소 appliance. PriceGuide(@ansimclean/ui) 가 그린다.
+ */
+export const PRICE_GUIDES = {
+  house: {
+    icon: 'house', eyebrow: '요금 안내', title: '가정 정기청소', subtitle: '1회 3시간 · 한 달 단위로 결제해요',
+    plans: [
+      { title: '주 1회', sub: '한 달 4회 방문', price: 329000 },
+      { title: '주 2회', sub: '한 달 8회 방문', price: 599000 },
+      { title: '주 3회', sub: '한 달 12회 방문', price: 889000 },
+      { title: '주 4회 이상', sub: '원하는 횟수만큼' },
+    ],
+    cards: [
+      { tone: 'default', pill: '처음이라면', title: '첫 1회 체험', amount: 50000, note: '1회 3시간 · 한 번만' },
+      { tone: 'brand', pill: '첫 결제 혜택', title: '청소 외 서비스 1회 무료', highlight: '후드·덕트는 전액 무료', note: '그 외 서비스는 15만 원까지' },
+    ],
+    scopeTitle: '3시간 동안 이렇게 청소해요', scope: ['현관', '거실', '주방', '욕실', '침실'],
+    footnote: '청소 도구·세제는 집에 있는 것을 사용해요. 방 1개 + 욕실 1개는 원룸 요금이에요.',
+  },
+  studio: {
+    icon: 'studio', eyebrow: '요금 안내', title: '원룸 정기청소', subtitle: '방 1개 + 욕실 1개 · 1회 2시간',
+    plans: [
+      { title: '주 1회', sub: '한 달 4회 방문', price: 229000, badge: '첫 달 199,000원' },
+      { title: '주 2회', sub: '한 달 8회 방문', price: 399000 },
+      { title: '주 3회', sub: '한 달 12회 방문', price: 599000 },
+      { title: '주 4회 이상', sub: '원하는 횟수만큼' },
+    ],
+    cards: [
+      { tone: 'default', pill: '필요할 때 한 번', title: '1회 청소', amount: 69000, note: '1회 2시간' },
+      { tone: 'brand', pill: '1.5룸 · 투룸 이상', title: '가정 정기청소 요금', highlight: '주 1회 329,000원부터', note: '1회 3시간' },
+    ],
+    scopeTitle: '2시간 동안 이렇게 청소해요', scope: ['현관', '방', '주방', '욕실', '쓰레기 정리'],
+    footnote: '청소 도구·세제는 집에 있는 것을 사용해요. 첫 달 할인은 주 1회 요금제에만 적용돼요.',
+  },
+  appliance: {
+    icon: 'disassembly', eyebrow: '견적 안내', title: '후드·덕트 분해청소', subtitle: '팬 분해 + 덕트 청소까지 포함된 요금이에요',
+    sizesTitle: '후드 크기별 요금',
+    sizes: [
+      { size: 's', title: '600mm', sub: '일반 주방', price: 130000 },
+      { size: 'm', title: '900mm', sub: '넓은 주방', price: 150000 },
+      { size: 'l', title: '1200mm', sub: '초대형', price: 200000 },
+    ],
+    extras: { title: '추가 요금', aside: '해당될 때만', rows: [{ label: '콘센트 가림판넬 분리', price: 20000 }, { label: '자동 소화장치 없는 경우', price: 20000 }] },
+    benefits: [
+      { icon: 'gift', caption: '가정 정기청소 첫 결제 시', title: '후드·덕트 분해청소 1회 무료' },
+      { icon: 'camera', caption: '후드 크기가 헷갈린다면', title: '사진 견적으로 무료 확인' },
+    ],
+    footnote: '표시된 금액 외 현장 추가 요금은 없어요.',
+  },
+};
+
+/** 수리 탭(Repair) 카테고리 아래 대리석 견적 안내 — 2026-11-08 사용자 첨부 시안 문구·금액 그대로 (코드에서 정함, Figma 없음). PriceGuide 가 그린다 */
+// (코드에서 정함, 2026-11-08) 수리 탭을 기본 청소 화면과 같은 틀로 바꾸며 정한 문구 — 시안에 없음 (PROGRESS.md 판단 항목)
+export const REPAIR_SCREEN_COPY = {
+  title: '수리',
+  description: '인조대리석 주방 상판의 코팅과 크랙 수리를 해 드려요. 종류를 고르면 견적을 안내해 드려요.',
+  sectionTitle: '수리 종류',
+};
+
+export const REPAIR_PRICE_GUIDES = [
+  {
+    icon: 'repair', eyebrow: '견적 안내', title: '대리석 코팅', subtitle: '인조대리석 주방 상판 · 모양별로 정해진 요금',
+    sizesTitle: '상판 모양별 요금',
+    sizes: [
+      { shape: 'i', title: '1자 상판', sub: '일자형 주방', price: 290000 },
+      { shape: 'l', title: 'ㄱ자 상판', sub: 'ㄱ자형 주방', price: 360000 },
+      { shape: 'u', title: 'ㄷ자 상판', sub: 'ㄷ자형 주방', price: 420000 },
+    ],
+    discount: { badge: '첫 결제 혜택', text: '가정 정기청소 첫 결제 시', strong: '15만 원 할인', items: [{ label: '1자', price: 140000 }, { label: 'ㄱ자', price: 210000 }, { label: 'ㄷ자', price: 270000 }] },
+    notes: { title: '알아 두세요', rows: [{ label: '천연대리석', value: '시공하지 않아요' }, { label: '크랙이 있다면', value: '크랙 수리도 함께 견적' }] },
+    footnote: '첫 결제 혜택은 가정 정기청소 첫 결제 고객 1가구 1회예요.',
+  },
+  {
+    icon: 'repair', eyebrow: '견적 안내', title: '대리석 크랙 수리', subtitle: '기본 요금에 크랙별 추가 요금을 더해요',
+    base: { caption: '기본 요금', title: '일자 크랙 1개', sub: '30cm 미만', price: 140000 },
+    extras: { title: '추가 요금', aside: '크랙이 늘어날 때마다', rows: [
+      { label: '일자 크랙 30cm 이상', hint: '연장분', price: 80000 },
+      { label: '사선 크랙', hint: '이어진 크랙, 1개당', price: 80000 },
+      { label: '모서리 크랙', hint: '소형', price: 80000 },
+      { label: '떨어진 일자 크랙', hint: '1개당', price: 140000 },
+    ] },
+    examples: { title: '이렇게 계산해요', legend: ['기본 요금', '추가 요금'], items: [
+      { crack: 'long', title: '일자 30cm 이상', formula: '140,000', added: '80,000', price: 220000 },
+      { crack: 'branch', title: '일자 + 사선', formula: '140,000', added: '80,000', price: 220000 },
+      { crack: 'apart', title: '일자 2개 (떨어짐)', formula: '140,000', added: '140,000', price: 280000 },
+      { crack: 'branch2', title: '일자 + 사선 2개', formula: '140,000', added: '80,000 × 2', price: 300000 },
+    ] },
+    footnote: '인조대리석만 시공해요.',
+  },
+];
+
 export const RECURRING_TERM_NOTE = (months) => `정기청소는 매월 같은 날짜·같은 시간에 한 번씩, ${months}개월 동안 ${months}회 방문해요. 주말에도 선택한 날짜를 유지해요. 회차마다 따로 변경·취소할 수 있어요.`;
 
 /** Booking/Confirm 문구 */
-export const CONFIRM_COPY = { title: '예약내용을\n확인해주세요', description: '아래 내용으로 예약을 진행할게요.\n다시 한번 확인해주세요.' };
+export const CONFIRM_COPY = { title: '예약 내용을\n확인해 주세요.', description: '예약을 확정하기 전 마지막으로 확인해 주세요.' };
 
 /** Booking/Complete 문구 — 2026-11-03 사용자 첨부 '예약 완료' 시안. description 은 사용자가 정한 문구 (시안의 '설레는 여행…' 대신) */
 export const BOOKING_COMPLETE_COPY = {

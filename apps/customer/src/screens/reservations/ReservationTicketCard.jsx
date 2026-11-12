@@ -10,6 +10,7 @@ const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 
 /** 카드 이름: 매장·가정·원룸 (home 은 서버 homeType 으로 나눈다. 옛 예약은 '가정/원룸'), 그 밖은 서버 이름. 정기 회차면 서버 이름의 ' · 정기 2/6회' 를 이어 붙인다 */
 function titleOf(r) {
+  if (r.addressLabel) return r.addressLabel;
   const short = r.category === 'home' ? COPY.homeTypes[r.homeType] ?? COPY.categories.home : COPY.categories[r.category] ?? r.title.split(' · ')[0];
   const series = r.title.split(' · ').slice(1).join(' · ');
   return series ? `${short} · ${series}` : short;
@@ -47,7 +48,7 @@ function timesOf(r) {
       .map((t) => ({ label: t.label, value: shortDateTime(...t.at.split(' ')) }));
   }
   return [
-    { label: COPY.start, value: shortDateTime(r.date, r.time) },
+    { label: r.liveStarted ? COPY.visited : COPY.start, value: shortDateTime(r.date, r.time) },
     ...(r.endTime ? [{ label: COPY.end, value: shortDateTime(r.date, r.endTime) }] : []),
   ];
 }
@@ -58,7 +59,7 @@ function timesOf(r) {
  * @param {string} [props.note] 구분선 아래 안내 한 줄
  * @param {{ label: string, onClick: () => void, tone?: 'brand' }[]} [props.actions] 구분선 아래 버튼들 (note 가 있으면 무시)
  */
-export default function ReservationTicketCard({ reservation: r, note, actions }) {
+export default function ReservationTicketCard({ reservation: r, note, actions, cardRef, tabIndex, className }) {
   // '이동 중' 판단에 쓰는 지금 시각 — 1분마다 다시 읽는다 (그리는 중에 Date.now() 를 부르지 않는다)
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -68,9 +69,12 @@ export default function ReservationTicketCard({ reservation: r, note, actions })
   const matching = r.status === 'assigning';
   return (
     <ReservationTicket
+      cardRef={cardRef}
+      tabIndex={tabIndex}
+      className={className}
       title={titleOf(r)}
       // 완료·취소 카드에는 알약이 없다
-      badge={r.status === 'cancelled' || r.status === 'done' ? undefined : matching ? 'assigning' : 'assigned'}
+      badge={r.status === 'cancelled' || r.status === 'done' ? undefined : r.liveStarted ? 'live' : matching ? 'assigning' : 'assigned'}
       schedule={r.rows?.[0]?.value ?? ''}
       avatar={ASSETS.managerAvatar}
       // 매칭 전에는 서버 안내('배정 후 알려드려요'·'매니저를 찾지 못했어요 · …') 대신 한 가지 문구 (2026-11-03 사용자 요청)

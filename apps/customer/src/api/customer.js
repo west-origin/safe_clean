@@ -2,7 +2,8 @@
 // 서버(backend)를 부르는 함수는 http.js 를 거치고, 서버 오류는 ApiError 로 던진다 (화면의 useAsync/useAction 이 받는다).
 // Figma 문구처럼 앱 안에 둔 값(mock.js)을 그대로 돌려주는 함수, 가입 초안(localStorage)·세션(session.js)을 다루는 함수도 여기 있다.
 // 화면 말고도 부르는 곳이 있다 (예: App.jsx 의 refreshMe, live/liveClient.js 의 라이브 세션·시청 토큰). 전부 찾으려면 검색한다.
-import { SIGN_UP_METHODS, PASSWORD_OK_MESSAGE, HOUSING_TYPES, PET_OPTIONS, FREQUENCY_OPTIONS, ADDRESS_REUSE_OPTIONS, COMPLETE_ROWS, LIVE_SESSION, LIVE_CHECKLIST, REPAIR_BOOKING } from './mock.js';
+import { HOUSING_TYPES, PET_OPTIONS, FREQUENCY_OPTIONS, ADDRESS_REUSE_OPTIONS, COMPLETE_ROWS, LIVE_SESSION, LIVE_CHECKLIST, REPAIR_BOOKING, SCHEDULE_PRICE } from './mock.js';
+import { startOfToday, toDateKey } from '@ansimclean/ui';
 import { deviceToken } from '../push/deviceToken.js';
 
 import { http, ApiError, newIdempotencyKey } from './http.js';
@@ -15,23 +16,22 @@ export const subscribeSession = session.subscribe;
 /** 가입 도중 앱을 닫았다 돌아온 사용자의 다음 화면 ('address' | 'housing' | 'complete' | null) */
 export const signupStep = () => session.signupStep();
 /** signupStep → 화면 경로 */
-export const SIGNUP_STEP_PATHS = { address: '/auth/profile-address', housing: '/auth/profile-housing', complete: '/auth/complete' };
+export const SIGNUP_STEP_PATHS = { address: '/auth/profile-address', housing: '/auth/profile-housing', complete: '/auth/terms?next=complete' };
 
-/** 가입 초안: 약관 체크·휴대폰 인증 토큰을 가입이 끝날 때까지 들고 있는다 (BACKEND_PLAN.md §5.1).
- *  localStorage — 가입 도중 앱을 닫았다 열거나 새 탭에서 이어가도 약관 동의가 남는다(sessionStorage 면 사라져 완료 요청이 빈 배열로 거부된다) */
+/** Terms drafts belong to the authenticated account, never to an SNS email/phone. */
 const SIGNUP_DRAFT_KEY = 'ansimclean.signup';
-let signupDraftMemory = null; // 저장소가 막힌 환경의 사본 — 인증 토큰이 저장되지 않아 '인증을 먼저 하라' 가 반복되지 않게 (session.js 와 같은 규칙, 검수 3차)
-// 가입 초안을 읽는다 → { agreedTermIds, verificationToken, phone } 중 저장된 것 (없으면 {})
+let signupDraftMemory = null;
+const draftOwnerId = () => session.get()?.authUserId ?? session.user()?.id ?? null;
 const readSignupDraft = () => {
-  try {
-    return JSON.parse(localStorage.getItem(SIGNUP_DRAFT_KEY)) ?? signupDraftMemory ?? {}; // 저장소가 진실, 메모리는 저장소가 비었거나 막혔을 때만
-  } catch {
-    return signupDraftMemory ?? {};
-  }
+  let value;
+  try { value = JSON.parse(localStorage.getItem(SIGNUP_DRAFT_KEY)) ?? signupDraftMemory; }
+  catch { value = signupDraftMemory; }
+  const owner = draftOwnerId();
+  return owner && value?.ownerId === owner ? value : {};
 };
 // patch 의 칸만 기존 초안에 덮어써서 저장한다 (메모리 사본도 같이 바꾼다)
 const updateSignupDraft = (patch) => {
-  const next = { ...readSignupDraft(), ...patch };
+  const next = { ...readSignupDraft(), ...patch, ownerId: draftOwnerId() };
   signupDraftMemory = next;
   try {
     localStorage.setItem(SIGNUP_DRAFT_KEY, JSON.stringify(next));
@@ -58,12 +58,6 @@ const failIfErrorScenario = () => {
   if (isErrorScenario()) throw new Error('DEV ?scenario=error');
 };
 
-/** 가입 방식 선택. 소셜 로그인은 결정(§13-1)대로 아직 없음 — 어느 버튼이든 휴대폰 가입 흐름으로 간다 */
-export async function signUpWith(method) {
-  if (!SIGN_UP_METHODS.includes(method)) throw new Error(`signUpWith: 알 수 없는 method "${method}"`);
-  return { method: 'phone' };
-}
-
 /** Auth/TermsConsent — 약관 목록 [{ id, label, required }] */
 export async function getTerms() {
   return http.get('/terms?audience=customer');
@@ -77,78 +71,6 @@ export async function agreeTerms(agreedIds) {
 /** 초안에 남은 약관 체크 (약관 본문을 보고 돌아왔을 때 복원) */
 export function getAgreedTermsDraft() {
   return readSignupDraft().agreedTermIds ?? [];
-}
-
-/** Auth/LoginPhone — 전화번호(앞자리 010 제외) + 비밀번호. 틀리면 { ok: false } (문구는 화면이 고른다), 그 외 오류는 던진다 */
-export async function loginWithPhone({ phone, password }) {
-  try {
-    const res = await http.post('/auth/login', { phone, password, role: 'customer' });
-    clearSignupDraft(); // 다른 사람이 남긴 약관 동의·인증 토큰으로 가입을 끝내지 않게
-    session.set(res);
-    return { ok: true, user: res.user };
-  } catch (e) {
-    if (e instanceof ApiError && e.code === 'LOGIN_FAILED') return { ok: false };
-    throw e;
-  }
-}
-
-/** Auth/ProfileInfo-* › 비밀번호 검사. 8자 이상이면 사용 가능 (서버도 같은 규칙으로 다시 검사한다) */
-export async function checkPassword(password) {
-  return { ok: password.length >= 8, message: password.length >= 8 ? PASSWORD_OK_MESSAGE : '' };
-}
-
-/** Auth/ProfileInfo-* › "인증하기" — 인증번호 문자 발송. 이미 가입한 번호면 { sent: false, reason: 'taken' } (화면이 로그인 안내) */
-export async function requestPhoneVerification(phone) {
-  try {
-    const res = await http.post('/auth/phone/otp', { phone, role: 'customer' });
-    return { phone, sent: res.sent, expiresIn: res.expiresIn, resendAfter: res.resendAfter ?? 60 };
-  } catch (e) {
-    if (e instanceof ApiError && e.code === 'PHONE_TAKEN') return { phone, sent: false, reason: 'taken', message: e.message };
-    throw e;
-  }
-}
-
-/** Auth/ProfileInfo-* › 인증번호 확인. 성공하면 가입에 쓸 토큰을 초안에 둔다. 틀리면 ApiError(OTP_INVALID | OTP_EXPIRED | OTP_RATE_LIMITED) */
-export async function verifyPhone(phone, code) {
-  const res = await http.post('/auth/phone/verify', { phone, code, role: 'customer' });
-  updateSignupDraft({ verificationToken: res.verificationToken, phone });
-  return { ok: true };
-}
-
-/** Auth/ResetPassword (코드에서 정함) › "인증번호 받기" — 가입된 번호에만 보낸다. 없는 번호면 { sent: false, reason: 'notFound' } */
-export async function requestPasswordReset(phone) {
-  try {
-    const res = await http.post('/auth/password/otp', { phone, role: 'customer' });
-    return { phone, sent: res.sent, resendAfter: res.resendAfter ?? 60 };
-  } catch (e) {
-    if (e instanceof ApiError && e.code === 'PHONE_NOT_FOUND') return { phone, sent: false, reason: 'notFound', message: e.message };
-    throw e;
-  }
-}
-
-/** Auth/ResetPassword › 인증번호 확인. 성공하면 재설정에 쓸 토큰을 돌려준다(초안에 저장하지 않는다 — 가입 토큰과 섞이지 않게) */
-export async function verifyPasswordReset(phone, code) {
-  const res = await http.post('/auth/phone/verify', { phone, code, role: 'customer' });
-  return { verificationToken: res.verificationToken };
-}
-
-/** Auth/ResetPassword › "비밀번호 변경하기" — 바꾸고 바로 로그인 상태가 된다 */
-export async function resetPassword({ verificationToken, password }) {
-  const res = await http.post('/auth/password/reset', { verificationToken, password });
-  clearSignupDraft(); // 공용 기기에서 다른 사람이 남긴 약관 동의로 가입을 끝내지 않게 — 로그인과 같다 (자체 점검 #39·#47)
-  session.set(res);
-  return res.user;
-}
-
-/** Auth/ProfileInfo-* › "다음" — 계정을 만든다(휴대폰 인증 토큰 + 이름·닉네임·비밀번호). 성공하면 로그인 상태(가입 중) */
-export async function saveProfileInfo({ name, nickname, password }) {
-  const { verificationToken } = readSignupDraft();
-  // 초안에 토큰이 없으면 서버의 '인증 만료' 와 같은 코드로 던진다 — ProfileInfo 화면이 OTP_EXPIRED 를 보고 재인증 칸을 다시 연다
-  if (!verificationToken) throw new ApiError(400, 'OTP_EXPIRED', '휴대폰 인증을 먼저 해주세요');
-  const res = await http.post('/auth/signup', { verificationToken, name, nickname, password });
-  session.set(res);
-  updateSignupDraft({ verificationToken: null }); // 가입에 쓴 인증 토큰은 초안에서 지운다 (약관 체크·전화번호는 남는다)
-  return res.user;
 }
 
 /** Auth/ProfileAddress › "다음" — 기본 주소 저장 */
@@ -194,6 +116,7 @@ export async function refreshMe() {
   if (!session.accessToken()) return null;
   const userBefore = session.user()?.id ?? null;
   const user = await http.get('/auth/me');
+  if (user?.role !== 'customer') { session.clear(); throw new ApiError(403, 'FORBIDDEN', '고객 계정으로 로그인해주세요'); }
   // 기다리는 사이 로그아웃됐거나(토큰 없음) 다른 계정으로 로그인했으면(user id 가 다름) 옛 응답으로 새 세션을 덮지 않는다 (검수 3차)
   if (!session.accessToken()) return null;
   const userNow = session.user()?.id ?? null;
@@ -204,8 +127,8 @@ export async function refreshMe() {
 }
 
 /** 설정 › 회원 탈퇴 (비밀번호 확인). 진행 중 예약이 있으면 ApiError(INVALID_STATE) */
-export async function deleteAccount(password) {
-  await http.delete('/auth/account', { password });
+export async function deleteAccount() {
+  await http.delete('/auth/account/social');
   clearSignupDraft();
   session.clear();
   return { ok: true };
@@ -214,7 +137,19 @@ export async function deleteAccount(password) {
 /** Home/Realtime · Home/Standard-A — { slides(히어로 문구·이미지), upcoming(다가오는 방문 카드 | null), changeDeadlineHours(변경·취소 기한 시간) } */
 export async function getHome() {
   failIfErrorScenario();
-  return http.get('/customer/home');
+  const home = await http.get('/customer/home');
+  let upcoming = home.upcoming;
+  const today = toDateKey(startOfToday());
+  const isUpcoming = (r) => r && r.date >= today && (r.status === 'scheduled' || r.status === 'inProgress');
+  if (!isUpcoming(upcoming)) {
+    const { reservations } = await getReservations();
+    upcoming = reservations
+      .filter(isUpcoming)
+      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))[0] ?? null;
+  }
+  if (!upcoming) return { ...home, upcoming: null };
+  const [visit] = await withAddressLabels([upcoming]);
+  return { ...home, upcoming: { ...visit, addressLabel: visit.addressLabel || '장소 별칭 없음' } };
 }
 
 /** Repair — 히어로 문구·이미지 */
@@ -229,7 +164,25 @@ export async function getRepair() {
 export async function getReservations() {
   failIfErrorScenario();
   const res = await http.get('/customer/reservations');
-  return isEmptyScenario() ? { ...res, reservations: [] } : res;
+  if (isEmptyScenario()) return { ...res, reservations: [] };
+  return { ...res, reservations: await withAddressLabels(res.reservations) };
+}
+
+// 홈과 내 예약이 같은 저장 주소 별칭을 사용한다.
+async function withAddressLabels(reservations) {
+  if (!reservations.length) return [];
+  const addresses = await getAddresses();
+  return Promise.all(reservations.map(async (r) => {
+    if (r.addressLabel) return r;
+    const road = r.rows?.find((row) => row.label === '주소')?.value;
+    const candidates = addresses.filter((a) => a.roadAddress === road);
+    let address = candidates[0];
+    if (candidates.length > 1) {
+      const booking = await getBooking(r.id);
+      address = candidates.find((a) => (a.detailAddress ?? '') === (booking.detailAddress ?? ''));
+    }
+    return { ...r, addressLabel: address?.label };
+  }));
 }
 
 /** Reservations › "예약 변경" — 날짜·시간을 바꾼다. 일정 행 문구는 서버가 만든다. 기한(방문 N시간 전)이 지났으면 ApiError(BOOKING_NOT_CHANGEABLE) */
@@ -285,7 +238,9 @@ export async function logout() {
   deviceToken.suspend(false);
   if (session.generation() !== generation) return { ok: true }; // 이전 로그아웃의 늦은 응답이 새 로그인·초안을 지우지 않게
   clearSignupDraft();
-  session.clear(); // 예약 초안(주소·요청사항)은 bookingDraft 가 세션 삭제를 구독해 지운다
+  const { signOutAuth } = await import('../auth/client.js');
+  await signOutAuth().catch(() => {});
+  session.clear(); // 예약 초안도 정리
   return { ok: true };
 }
 
@@ -372,8 +327,8 @@ const bookingBody = (category, draft) => ({
   paidOptions: draft.paidOptions ?? [],
   // 가정/원룸 구분 (홈의 '가정'·'원룸' 버튼이 초안 homeService 에 남긴 값) — home 카테고리일 때만. 서버가 내 예약 카드 이름을 가정·원룸으로 나눈다 (2026-11-03)
   ...(category === 'home' && draft.homeService ? { homeType: draft.homeService } : {}),
-  // 날짜/시간 화면에서 고른 청소 시간(시작~종료). 서버가 종료 시각(endTime)을 이 값으로 정한다 — 금액은 서버 견적 그대로 (2026-11-03)
-  ...(draft.durationHours ? { durationHours: draft.durationHours } : {}),
+  // 날짜/시간 화면에서 고른 청소 시간(시작~종료). 서버가 종료 시각(endTime)을 이 값으로 정한다 — 금액도 같은 시간 기준으로 서버에서 검증한다
+  ...(category !== 'repair' ? { durationHours: draft.durationHours ?? SCHEDULE_PRICE.standardHours } : {}),
 });
 
 /**
@@ -405,7 +360,7 @@ export async function createBooking(category, draft) {
     request: [draft.noticeSummary, draft.request?.trim()].filter(Boolean).join('\n'),
     // 수리 종류(repairType)는 보내지 않는다 — 수리는 수리 예약 플로우의 createRepairBooking 이 따로 만든다 (서버에서는 비어 있음 = 청소)
     // Step2 에서 '기존 주소 사용' 에 아니요(no)를 골랐으면 true — 서버가 새로 입력한 주소를 주소 목록에 남긴다 (BookingService)
-    saveAddress: draft.reuseAddress === 'no',
+    saveAddress: draft.reuseAddress === 'no' && !draft.addressId,
   };
   // submitKey 가 없으면 이번 호출에만 쓰는 새 키 — 화면이 다시 부르면 키가 달라 두 번 예약될 수 있다 (BookingConfirm 은 submitKey 를 초안에 둔다)
   return http.post('/customer/bookings', body, { idempotencyKey: draft.submitKey || newIdempotencyKey() });
@@ -609,3 +564,8 @@ export async function getSupportPhone() {
     return null;
   }
 }
+
+/** Reservation phone proof; never authenticates or links accounts. */
+export const getFirstCleaningEligibility = () => http.get('/customer/identity/first-cleaning');
+export const requestCustomerPhoneProof = (phone) => http.post('/customer/identity/phone/otp', { phone });
+export const verifyCustomerPhoneProof = (phone, code) => http.post('/customer/identity/phone/verify', { phone, code });

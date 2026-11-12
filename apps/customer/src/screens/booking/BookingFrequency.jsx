@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import CustomerPhoneProof from './CustomerPhoneProof.jsx';
 // Figma: Booking/Frequency (85:221) · Office/Frequency (2038:1015) · Appliance/Frequency (2038:805) · MoveIn/Frequency (2038:595)
 // 4개는 ServiceLabel 문구와 프로모션 배너만 다르다 → /booking/:category/frequency 하나. 프로토타입 연결 없음 → "다음"·날짜 필드 탭 = /datetime (PROGRESS.md 판단 항목)
 // 예약 플로우 1단계. 정기청소 / 1회 청소 중 하나를 골라 예약 초안(sessionStorage)에 둔다.
@@ -7,17 +9,19 @@
 //   하단 고정 '다음'. ('정기 서비스는?' 질문 카드는 2026-11-03 사용자 요청으로 뺐다.)
 //   시안에 없는 회차 안내(InfoNote)·날짜/시간 선택 섹션·프로모션 배너는 다른 화면에서 쓸 예정이라 지우지 않고 hidden 으로 숨겼다.
 import { Navigate, useNavigate, useParams } from 'react-router';
-import { ScreenLayout, NavBar, RadioOption, SelectField, PromoBanner, InfoNote, Button, cx, useAsync, ScreenError, ScreenLoading } from '@ansimclean/ui';
-import { getBookingCategory, getFrequencyOptions, getConfirmCopy, saveBookingStep } from '../../api/customer.js';
-import { RECURRING_TERM_NOTE, SERIES_TERM_MONTHS, FREQUENCY_SCREEN_COPY as COPY } from '../../api/mock.js';
+import { ScreenLayout, NavBar, RadioOption, SelectField, InfoNote, Button, SectionDivider, PriceGuide, cx, useAsync, ScreenError, ScreenLoading } from '@ansimclean/ui';
+import { getBookingCategory, getFirstCleaningEligibility, getFrequencyOptions, getConfirmCopy, saveBookingStep } from '../../api/customer.js';
+import { RECURRING_TERM_NOTE, SERIES_TERM_MONTHS, FREQUENCY_SCREEN_COPY as COPY, PRICE_GUIDES } from '../../api/mock.js';
 import { useBookingDraft, formatDateTime } from './bookingDraft.js';
 import common from './booking.module.css';
 import { useReturnTo } from './useReturnTo.js';
 import styles from './BookingFrequency.module.css';
 
-/** 서비스 주기 선택 화면. 제목·설명 + 주기 카드 라디오 + 하단 "다음" (날짜/시간 칸·프로모션 배너는 숨김) */
+/** 서비스 주기 선택 화면. 제목·설명 + 주기 카드 라디오 + 하단 "다음" (날짜/시간 칸은 숨김, 프로모션 배너는 2026-11-09 사용자 요청으로 삭제) */
 export default function BookingFrequency() {
   const navigate = useNavigate();
+  const [proofOpen, setProofOpen] = useState(false);
+  const eligibilityQ = useAsync(() => getFirstCleaningEligibility(), []);
   const { category } = useParams();
   const back = useReturnTo(); // 확인 화면 '수정하기'(?returnTo=)에서 왔으면 "다음" 이 그 화면으로 돌아간다
   const [draft, update] = useBookingDraft(category);
@@ -39,16 +43,22 @@ export default function BookingFrequency() {
   const retry = () => { // 실패한 쪽을 모두 다시 — 확인 문구만 실패했을 때 '다시 시도' 가 아무것도 하지 않았다 (자체 점검 #35)
     if (error) reload();
     if (optionsQ.error) optionsQ.reload();
+    if (eligibilityQ.error) eligibilityQ.reload();
   };
-  if (error || optionsQ.error) return <ScreenError error={error ?? optionsQ.error} onRetry={retry} navBar={navBar} />;
+  if (error || optionsQ.error || eligibilityQ.error) return <ScreenError error={error ?? optionsQ.error ?? eligibilityQ.error} onRetry={retry} navBar={navBar} />;
   if (info === null) return <Navigate to="/home" replace />; // 없는 카테고리(서버 404) — 스켈레톤이 영원히 남지 않게
-  if (!info || optionsQ.loading) return <ScreenLoading navBar={navBar} />;
+  if (!info || optionsQ.loading || eligibilityQ.loading) return <ScreenLoading navBar={navBar} />;
 
-  const frequency = draft.frequency ?? 'recurring'; // Figma 기본 선택: 정기청소
+  const guide = PRICE_GUIDES[category === 'home' ? (draft.homeService ?? 'house') : category];
+  const trialCategory = category === 'home' || category === 'store';
+  const hideOneTime = trialCategory && eligibilityQ.data?.completedOneTime;
+  const trialBlocked = category === 'home' && !eligibilityQ.data?.eligible;
+  const frequency = hideOneTime && draft.frequency === 'oneTime' ? 'recurring' : (draft.frequency ?? 'recurring'); // Figma 기본 선택: 정기청소
 
   // "다음": 라디오를 한 번도 누르지 않았어도 지금 보이는 주기(기본값 포함)를 초안에 적고 주소 선택으로 (returnTo 가 있으면 그리로).
   // 주소 선택 화면은 저장한 주소가 없으면 바로 주소 검색으로 넘긴다 (2026-10-31 사용자 요청)
   const next = async () => {
+    if (category === 'home' && frequency === 'oneTime' && trialBlocked) { setProofOpen(true); return; }
     await saveBookingStep(category, 'frequency', { frequency });
     update({ frequency });
     navigate(back.next(`/booking/${category}/address`));
@@ -71,17 +81,20 @@ export default function BookingFrequency() {
           {COPY.description[category] && <p className={cx('text-body-default', styles.description)}>{COPY.description[category]}</p>}
         </header>
 
-        <section className={styles.section}>
+        <section className={cx(styles.section, guide && styles.sectionBeforeGuide)}>
           <h2 className={cx('text-heading-s', common.sectionTitle)}>서비스 주기</h2>
           <div className={styles.options} role="radiogroup" aria-label="서비스 주기">
-            {options.map((o) => (
+            {options.filter(o => o.key !== 'oneTime' || !hideOneTime).map((o) => (
               <RadioOption
                 key={o.key}
                 variant="card"
                 label={COPY.labels[o.key] ?? o.label}
                 description={o.key === 'recurring' ? COPY.recurringBenefit : undefined}
                 selected={frequency === o.key}
-                onSelect={() => update({ frequency: o.key })}
+                onSelect={() => {
+                  update({ frequency: o.key });
+                  if (category === 'home' && o.key === 'oneTime') setProofOpen(true);
+                }}
               />
             ))}
           </div>
@@ -93,6 +106,18 @@ export default function BookingFrequency() {
           </div>
         </section>
 
+        <CustomerPhoneProof open={proofOpen} onClose={() => setProofOpen(false)} onVerify={() => navigate(`/booking/${category}/phone-verify`)} />
+        {/* 요금·견적 안내 (2026-11-08 사용자 첨부 시안): 서비스 주기 아래, 띠 다음. 문항 섹션(common.page + .question)과 같은 틀.
+            가정/원룸은 홈에서 고른 homeService, 분해청소는 appliance 카테고리. 안내가 없는 카테고리(매장 등)는 그리지 않는다 */}
+        {guide && (
+          <>
+            <SectionDivider />
+            <div className={styles.question}>
+              <PriceGuide guide={guide} />
+            </div>
+          </>
+        )}
+
         {/* 시안에 없어 숨김 — 날짜/시간 선택 섹션은 다른 화면에서 처리한다 (2026-10-31 사용자 요청: 기능은 지우지 말 것) */}
         <div hidden>
           <section className={common.section}>
@@ -100,8 +125,6 @@ export default function BookingFrequency() {
             {/* 입력칸처럼 보이는 버튼. 고른 일정이 있으면 "2026년 9월 16일 (수) 11:00" 꼴로, 누르면 날짜 화면으로 */}
             <SelectField placeholder="날짜/시간을 선택해주세요" value={formatDateTime(draft.date, draft.time)} icon="calendar" onClick={() => navigate(`/booking/${category}/datetime`)} />
           </section>
-          {/* 서버가 준 promo 가 'recurring' 이면 정기청소 배너, 그 밖에는 혜택 알약만 있는 모양 */}
-          {info.promo === 'recurring' ? <PromoBanner /> : <PromoBanner variant="benefits" />}
         </div>
       </div>
     </ScreenLayout>

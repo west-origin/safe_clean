@@ -40,9 +40,20 @@ public class PricingService {
     // 방문 한 번(회당) 금액을 계산한다: 기본가(가격표) + 유료 옵션 합 = total, 수수료 = total × 수수료율(반올림), 소요 시간.
     // 가격표에 (카테고리, 주기) 행이 없으면 설정 누락으로 보고 INTERNAL(500).
     public PriceQuote quote(String category, String frequency, List<CatalogOption> paidOptions) {
+        return quote(category, frequency, paidOptions, null);
+    }
+
+    /** 시간 선택 예약은 고객 앱의 시간당 요금과 정기 할인으로 계산한다. */
+    public PriceQuote quote(String category, String frequency, List<CatalogOption> paidOptions, Integer hours) {
+        if (hours != null && !"repair".equals(category) && (hours < 2 || hours > 8)) throw ApiException.validation("청소 시간은 2~8시간 중에서 골라 주세요");
         long base = prices.findById(new CatalogPrice.Key(category, frequency))
                 .orElseThrow(() -> missingSetting("가격표", category + "/" + frequency))
                 .getBaseAmount();
+        if (hours != null && !"repair".equals(category)) {
+            base = Math.multiplyExact((long) settings.integer("cleaning_hourly_amount"), hours);
+            if ("recurring".equals(frequency)) base -= settings.integer("cleaning_recurring_discount");
+            if (base < 0) throw missingSetting("시간 요금", category);
+        }
         // 무료 옵션이 섞여 와도 유료(isFree 가 false)만 더한다. 지금 BookingService 는 무료+유료 목록을 통째로 넘긴다
         long options = paidOptions.stream().filter(o -> !o.isFree()).mapToLong(CatalogOption::getPrice).sum();
         long total = base + options;
@@ -50,7 +61,7 @@ public class PricingService {
         // (HALF_UP: .5 는 올림 — 예: 8555.5 → 8556). longValueExact 는 long 범위를 넘으면 잘라 내지 않고 예외를 던진다
         long fee = BigDecimal.valueOf(total).multiply(BigDecimal.valueOf(settings.decimal(SETTING_FEE_RATE)))
                 .setScale(0, RoundingMode.HALF_UP).longValueExact();
-        return new PriceQuote(base, options, total, fee, durationMinutes(category));
+        return new PriceQuote(base, options, total, fee, hours != null && !"repair".equals(category) ? hours * 60 : durationMinutes(category));
     }
 
     /** 같은 카테고리의 다른 주기 기본가 (정기 할인 안내용). 가격표에 없으면 비어 있다 */

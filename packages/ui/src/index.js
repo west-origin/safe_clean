@@ -18,6 +18,7 @@ export { ASSETS } from './assets/index.js'; // 래스터 이미지(WebP) 목록 
 // 공통
 export { default as Button } from './components/Button/index.js';
 export { default as TextField } from './components/TextField/index.js';
+export { default as OtpCodeField } from './components/OtpCodeField/index.js'; // 인증번호 6칸 (코드에서 정함, 2026-11-10)
 export { default as Sheet } from './components/Sheet/index.js';
 export { default as Skeleton } from './components/Skeleton/index.js';
 export { default as Card } from './components/Card/index.js';
@@ -61,6 +62,7 @@ export { default as DurationStepper } from './components/DurationStepper/index.j
 export { default as ScrollCalendar } from './components/ScrollCalendar/index.js';
 export { default as TimeChoiceGrid } from './components/TimeChoiceGrid/index.js';
 export { default as PriceCtaBar } from './components/PriceCtaBar/index.js';
+export { default as PriceGuide } from './components/PriceGuide/index.js';
 export { default as ManagerIntro } from './components/ManagerIntro/index.js';
 export { default as OptionCheckRow } from './components/OptionCheckRow/index.js';
 export { default as PaidOptionCard } from './components/PaidOptionCard/index.js';
@@ -143,3 +145,5 @@ export { default as WeekCalendar } from './components/WeekCalendar/index.js';
 export { default as ConfirmSummaryRow } from './components/ConfirmSummaryRow/index.js';
 export { default as SuccessHeader } from './components/SuccessHeader/index.js';
 export { default as StackedInfoCard } from './components/StackedInfoCard/index.js';
+
+export { ReservationMatchingBadge } from './components/ReservationTicket/ReservationTicket.jsx';

@@ -112,4 +112,55 @@ class SupabaseAuthClientTest {
         client.logout("user-token");
         server.verify();
     }
+
+    // 고객 휴대폰 인증: PUT /user 에 사용자 토큰(Authorization)과 번호를 보낸다. apikey 는 서버 키
+    @Test
+    void 휴대폰_인증_요청은_사용자_토큰으로_PUT_user() {
+        server.expect(requestTo(BASE + "/user")).andExpect(method(HttpMethod.PUT))
+                .andExpect(header("apikey", KEY)).andExpect(header("Authorization", "Bearer user-jwt"))
+                .andExpect(jsonPath("$.phone").value("+821000000001"))
+                .andRespond(withSuccess("{\"id\":\"" + USER + "\"}", MediaType.APPLICATION_JSON));
+        client.requestPhoneChange("user-jwt", "+821000000001");
+        server.verify();
+    }
+
+    // 이미 다른 계정의 번호(phone_exists)는 누구 번호인지 알리지 않는 VALIDATION, 재발송 간격(429)은 OTP_RATE_LIMITED
+    @Test
+    void 휴대폰_인증_요청_오류_매핑() {
+        server.expect(requestTo(BASE + "/user"))
+                .andRespond(withStatus(HttpStatus.UNPROCESSABLE_ENTITY).contentType(MediaType.APPLICATION_JSON).body("{\"error_code\":\"phone_exists\"}"));
+        assertThatThrownBy(() -> client.requestPhoneChange("t", "+821000000001"))
+                .extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.VALIDATION);
+        server.reset();
+        server.expect(requestTo(BASE + "/user"))
+                .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).contentType(MediaType.APPLICATION_JSON).body("{\"error_code\":\"over_sms_send_rate_limit\"}"));
+        assertThatThrownBy(() -> client.requestPhoneChange("t", "+821000000001"))
+                .extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.OTP_RATE_LIMITED);
+        server.reset();
+        server.expect(requestTo(BASE + "/user"))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON).body("{\"error_code\":\"sms_send_failed\"}"));
+        assertThatThrownBy(() -> client.requestPhoneChange("t", "+821000000001"))
+                .extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.UPSTREAM);
+    }
+
+    // POST /verify type=phone_change. 맞으면 ok + 새 세션 토큰, 틀림·만료(403 otp_expired)는 예외 없이 ok=false
+    @Test
+    void 휴대폰_인증_확인은_성공과_오답을_구분한다() {
+        server.expect(requestTo(BASE + "/verify")).andExpect(method(HttpMethod.POST)).andExpect(header("apikey", KEY))
+                .andExpect(jsonPath("$.type").value("phone_change")).andExpect(jsonPath("$.phone").value("+821000000001"))
+                .andExpect(jsonPath("$.token").value("123456"))
+                .andRespond(withSuccess("{\"access_token\":\"new-a\",\"user\":{\"id\":\"" + USER + "\"}}", MediaType.APPLICATION_JSON));
+        SupabaseAuthClient.PhoneChangeResult ok = client.verifyPhoneChange("+821000000001", "123456");
+        assertThat(ok.ok()).isTrue();
+        assertThat(ok.userId()).isEqualTo(USER);
+        assertThat(ok.accessToken()).isEqualTo("new-a");
+        server.reset();
+        server.expect(requestTo(BASE + "/verify"))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body("{\"error_code\":\"otp_expired\"}"));
+        assertThat(client.verifyPhoneChange("+821000000001", "000000").ok()).isFalse();
+        server.reset();
+        server.expect(requestTo(BASE + "/verify")).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+        assertThatThrownBy(() -> client.verifyPhoneChange("+821000000001", "000000"))
+                .extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.OTP_RATE_LIMITED);
+    }
 }

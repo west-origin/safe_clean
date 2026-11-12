@@ -21,5 +21,6 @@
         "alert"
       ]
     }
-  }
+  },
+  "loggingBehavior": "none"
 }

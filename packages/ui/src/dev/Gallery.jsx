@@ -22,6 +22,8 @@ import ConfirmSummaryRow from '../components/ConfirmSummaryRow/index.js';
 import SuccessHeader from '../components/SuccessHeader/index.js';
 import StackedInfoCard from '../components/StackedInfoCard/index.js';
 import TextField from '../components/TextField/index.js';
+import OtpCodeField from '../components/OtpCodeField/index.js';
+import { Phone, ShieldCheck } from 'lucide-react';
 import Sheet from '../components/Sheet/index.js';
 import Skeleton from '../components/Skeleton/index.js';
 import ErrorState from '../components/ErrorState/index.js';
@@ -45,6 +47,7 @@ import DurationStepper from '../components/DurationStepper/index.js';
 import ScrollCalendar from '../components/ScrollCalendar/index.js';
 import TimeChoiceGrid from '../components/TimeChoiceGrid/index.js';
 import PriceCtaBar from '../components/PriceCtaBar/index.js';
+import PriceGuide from '../components/PriceGuide/index.js';
 import ManagerIntro from '../components/ManagerIntro/index.js';
 import OptionCheckRow from '../components/OptionCheckRow/index.js';
 import PaidOptionCard from '../components/PaidOptionCard/index.js';
@@ -222,6 +225,20 @@ function ButtonGallery() {
 // TextField 의 Figma 상태(Default·Focused·Filled·Error·Disabled)와 컴포넌트에 없어 코드에서 더한 Success·Hint,
 // 그리고 직접 입력해 보는 제어 예시.
 // Focused 도 prop 이 아니라 CSS(:focus-within) 라서 입력칸을 눌러 확인한다.
+// OtpCodeField (코드에서 정함, 2026-11-10 휴대폰 인증 시안): 빈 칸 · 일부 입력 · 다 입력 · Error · Disabled
+function OtpCodeFieldGallery() {
+  const [code, setCode] = useState('');
+  return (
+    <Section title="OtpCodeField" figma="Figma 없음 — 2026-11-10 사용자 시안">
+      <Row label="입력해 보기"><OtpCodeField label="인증번호" value={code} onChange={setCode} /></Row>
+      <Row label="일부 입력"><OtpCodeField label="인증번호" value="12" /></Row>
+      <Row label="다 입력"><OtpCodeField label="인증번호" value="123456" /></Row>
+      <Row label="Error"><OtpCodeField label="인증번호" value="000000" error="인증번호가 맞지 않아요" /></Row>
+      <Row label="Disabled"><OtpCodeField label="인증번호" value="" disabled /></Row>
+    </Section>
+  );
+}
+
 function TextFieldGallery() {
   const [value, setValue] = useState('');
   const [phone, setPhone] = useState('');
@@ -250,6 +267,9 @@ function TextFieldGallery() {
       </Row>
       <Row label="Hint (코드에서 정함)">
         <TextField label="비밀번호" type="password" placeholder="비밀번호를 입력해주세요" hint="8자 이상 입력해주세요" />
+      </Row>
+      <Row label="icon (코드에서 정함 — 2026-11-10 휴대폰 인증 시안)">
+        <TextField label="휴대폰 번호" placeholder="010-1234-5678" type="tel" icon={<Phone size={20} />} />
       </Row>
       <Row label="제어 컴포넌트 (입력해 보기)">
         <TextField
@@ -652,6 +672,17 @@ function CustomerGallery() {
         </Row>
         <Row label="DurationStepper (2~8시간)">
           <DurationStepper hours={2} min={2} max={8} onChange={() => {}} priceLabel="41,600원" note="표준시간은 2시간 입니다." />
+        </Row>
+        <Row label="PriceGuide (2026-11-08 시안) — 요금표·카드·크기별·추가 요금·혜택 띠·범위">
+          <PriceGuide guide={{
+            icon: 'disassembly', eyebrow: '견적 안내', title: '후드·덕트 분해청소', subtitle: '팬 분해 + 덕트 청소까지 포함된 요금이에요',
+            plans: [{ title: '주 1회', sub: '한 달 4회 방문', price: 229000, badge: '첫 달 199,000원' }, { title: '주 4회 이상', sub: '원하는 횟수만큼' }],
+            cards: [{ tone: 'default', pill: '처음이라면', title: '첫 1회 체험', amount: 50000, note: '1회 3시간 · 한 번만' }, { tone: 'brand', pill: '첫 결제 혜택', title: '청소 외 서비스 1회 무료', highlight: '후드·덕트는 전액 무료', note: '그 외 서비스는 15만 원까지' }],
+            sizesTitle: '후드 크기별 요금', sizes: [{ size: 's', title: '600mm', sub: '일반 주방', price: 130000 }, { size: 'm', title: '900mm', sub: '넓은 주방', price: 150000 }, { size: 'l', title: '1200mm', sub: '초대형', price: 200000 }],
+            extras: { title: '추가 요금', aside: '해당될 때만', rows: [{ label: '콘센트 가림판넬 분리', price: 20000 }] },
+            benefits: [{ icon: 'gift', caption: '가정 정기청소 첫 결제 시', title: '후드·덕트 분해청소 1회 무료' }, { icon: 'camera', caption: '후드 크기가 헷갈린다면', title: '사진 견적으로 무료 확인' }],
+            scopeTitle: '3시간 동안 이렇게 청소해요', scope: ['현관', '거실'], footnote: '표시된 금액 외 현장 추가 요금은 없어요.',
+          }} />
         </Row>
         <Row label="PriceCtaBar">
           <PriceCtaBar priceLabel="41,600원" onDetail={() => {}}><Button chevron={false}>다음</Button></PriceCtaBar>
@@ -1118,6 +1149,7 @@ function RepairGallery() {
         <Row label="brand"><InfoNote glyph="ⓘ">정확한 방문을 위해 동·호수와 공동현관 정보를 확인해주세요.</InfoNote></Row>
         <Row label="brand inline"><InfoNote glyph="📅" layout="inline">9월 23일(수) 오전 11시</InfoNote></Row>
         <Row label="warning"><InfoNote tone="warning" glyph="!">냉장고 주변의 물건을 미리 정리하면 점검이 더 빠르게 진행돼요.</InfoNote></Row>
+        <Row label="neutral inline + icon (코드에서 정함 — 휴대폰 인증 시안)"><InfoNote tone="neutral" layout="inline" icon={<ShieldCheck size={20} />}>입력하신 번호는 본인확인 용도로만 사용되며, 안심클린의 <strong>개인정보 보호정책에 따라 안전하게</strong> 관리돼요.</InfoNote></Row>
         <Row label="warning titled"><InfoNote tone="warning" title="수리비는 현장 진단 후 확정돼요">출장 및 진단 후 필요한 부품과 작업 범위를 안내드리며, 고객님 동의 후 수리를 진행해요.</InfoNote></Row>
       </Section>
       <Section title="SelectedAddressCard" figma="주소 카드 1:439">
@@ -1156,6 +1188,7 @@ export default function Gallery() {
       </p>
       <ButtonGallery />
       <TextFieldGallery />
+      <OtpCodeFieldGallery />
       <ManagerGallery />
       <CustomerGallery />
       <RepairGallery />

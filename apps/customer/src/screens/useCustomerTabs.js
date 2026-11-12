@@ -15,5 +15,5 @@ export const TAB_PATHS = {
 /** @returns {(key: keyof typeof TAB_PATHS) => void} */
 export function useCustomerTabs() {
   const navigate = useNavigate();
-  return (key) => navigate(TAB_PATHS[key]);
+  return (key) => navigate(TAB_PATHS[key], key === 'reservations' ? { state: { calendarOnly: true } } : undefined);
 }

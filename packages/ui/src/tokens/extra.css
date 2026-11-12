@@ -13,6 +13,8 @@
   --home-line-height: 1.5;
   --home-counter-font: 32px;
   --home-control-size: 56px;
+  /* 2026-11-08 홈 '사진 문의' 동그라미 위 '무료' 배지 — 시안처럼 작게(본문 18px 확대에서 뺀다) */
+  --home-font-badge: 12px;
 
   /* 화면 폭 상한. Figma 는 393px 이지만 폰(360~430)에서는 가로를 꽉 채우고, 태블릿·PC 에서만 이 폭으로 가운데 정렬한다 (2026-09-21 결정 — 큰 폰에서 양옆 여백이 생기던 것).
    * 절대 위치 요소는 393 기준 px 대신 가운데(50%)·오른쪽 기준으로 두어 폭이 달라져도 같은 자리에 온다 */
@@ -152,4 +154,15 @@
   --raw-sunday: #e5484d; /* 일요일 */
   --raw-sunday-muted: #f6c4c5; /* 지난 일요일 */
   --raw-date-past: #d4d4d4; /* 지난 날·고를 수 없는 시간, 아직 안 고른 '방문 일' */
+}
+
+/* CHZZK 사운드 컨트롤에서 관찰한 중립색·전환 (2026-11-04). */
+:root {
+  --raw-player-hover: rgb(255 255 255 / 20%);
+  --raw-player-track: rgb(255 255 255 / 50%);
+  --raw-player-tooltip: rgb(0 0 0 / 60%);
+  --duration-player-fade: 200ms;
+  --duration-player-expand: 230ms;
+  --duration-player-hover: 330ms;
+  --ease-player: cubic-bezier(0.33, 1, 0.68, 1);
 }

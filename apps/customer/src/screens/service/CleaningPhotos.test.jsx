@@ -25,14 +25,15 @@ describe('고객 청소 전·후 비교', () => {
     expect(screen.getByAltText('주방 싱크대 청소 후')).toHaveAttribute('src', CLEANING_PHOTOS.photos[1].afterUrl);
   });
 
-  it('실시간 중에는 보이지 않다가 매니저가 완료하면 10초 안에 나타나고, 그 뒤로는 다시 묻지 않는다', async () => {
+  it('실시간 화면에는 전후 사진 영역을 추가하지 않는다', async () => {
     route(`/service/live?booking=${LIVE_BOOKING_ID}`);
     await advance();
     expect(screen.queryByRole('heading', { name: '청소 전·후 비교' })).toBeNull();
     __fake.cleaningPhotos[LIVE_BOOKING_ID] = CLEANING_PHOTOS;
     await advance(10_000);
-    expect(screen.getByRole('heading', { name: '청소 전·후 비교' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '청소 전·후 비교' })).toBeNull();
     const calls = photoCalls(LIVE_BOOKING_ID);
+    expect(calls).toBe(0);
     await advance(30_000);
     expect(photoCalls(LIVE_BOOKING_ID)).toBe(calls);
   });

@@ -36,3 +36,17 @@
   flex-direction: column;
   gap: 14px; /* 시안 원본값 */
 }
+
+/* 요금 안내가 있을 때 서비스 주기 아래(띠 위) 40.
+   띠(SectionDivider)·공통 .page 에 여백을 얹으면 빌드에서 CSS 순서가 바뀌어 덮어써지므로, 겹치지 않는 이 클래스들에만 둔다 */
+.sectionBeforeGuide {
+  margin-bottom: 40px; /* 시안 원본값 */
+}
+
+/* 요금 안내 섹션: 띠 아래 40, 좌우 24, 아래 32 */
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4xl);
+  padding: 40px var(--spacing-4xl) 32px; /* 시안 원본값 */
+}

@@ -77,13 +77,13 @@ class AuthServiceTest {
         service = new AuthService(otp, supabase, lookup, profiles, terms, availability, rateLimiter,
                 new TransactionTemplate(mock(PlatformTransactionManager.class)), outbox, List.of(guard), push, revocations, support, penalties);
         // 만료 검사는 OtpService(여기서는 mock)가 하므로 시각 값은 의미가 없다
-        PhoneVerification v = PhoneVerification.issue(PHONE, "customer", "hash", Instant.EPOCH, Instant.MAX);
+        PhoneVerification v = PhoneVerification.issue(PHONE, "manager", "hash", Instant.EPOCH, Instant.MAX);
         when(otp.peek("tok")).thenReturn(v);
-        when(otp.consume("tok", "customer")).thenReturn(v);
-        Profile p = Profile.create(USER, "customer", "김하늘", "하늘", PHONE);
+        when(otp.consume("tok", "manager")).thenReturn(v);
+        Profile p = Profile.create(USER, "manager", "김하늘", "하늘", PHONE);
         when(profiles.requireLive(USER)).thenReturn(p);
         when(profiles.findLive(USER)).thenReturn(Optional.of(p));
-        when(profiles.userResponse(p)).thenReturn(new UserResponse(USER, "customer", "김하늘", false, "address"));
+        when(profiles.userResponse(p)).thenReturn(new UserResponse(USER, "manager", "김하늘", false, "address"));
         when(supabase.passwordGrant(eq(PHONE), anyString())).thenReturn(SESSION);
     }
 
@@ -97,9 +97,9 @@ class AuthServiceTest {
         // 토큰 소비(consume)가 Supabase 사용자 생성보다 먼저여야 같은 토큰의 두 요청이 사용자를 두 번 만들지 못한다
         InOrder order = inOrder(otp, supabase, profiles);
         order.verify(otp).peek("tok");
-        order.verify(otp).consume("tok", "customer");
+        order.verify(otp).consume("tok", "manager");
         order.verify(supabase).createUser(PHONE, "password1");
-        order.verify(profiles).createForSignup(USER, "customer", "김하늘", "하늘", PHONE);
+        order.verify(profiles).createForSignup(USER, "manager", "김하늘", null, PHONE);
         order.verify(supabase).passwordGrant(PHONE, "password1");
         assertThat(res.accessToken()).isEqualTo("a");
         assertThat(res.user().signupStep()).isEqualTo("address");
@@ -115,22 +115,33 @@ class AuthServiceTest {
     }
 
     @Test
+    void 번호의_Supabase_사용자가_다른_살아있는_계정이면_비밀번호를_바꾸지_않고_PHONE_TAKEN() {
+        // 휴대폰 인증(phone_change)을 마친 소셜 고객의 번호로 매니저 가입을 시도한 경우 — 그 고객 계정에 비밀번호를 만들면 안 된다
+        when(lookup.findIdByPhone(PHONE)).thenReturn(Optional.of(USER));
+        when(profiles.exists(USER)).thenReturn(true);
+        assertThatThrownBy(() -> service.signup(new SignupRequest("tok", "김하늘", "하늘", "password1")))
+                .extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.PHONE_TAKEN);
+        verify(supabase, never()).updatePassword(any(), any());
+        verify(supabase, never()).createUser(any(), any());
+    }
+
+    @Test
     void 탈퇴_잔재_Supabase_사용자는_지우고_새_id_로_가입한다() {
         // 탈퇴 때 Supabase 삭제가 실패해 옛 사용자가 남은 경우 — 옛 id 를 다시 쓰면 익명화된 프로필·예약 이력이 되살아난다
         UUID fresh = UUID.randomUUID();
         when(lookup.findIdByPhone(PHONE)).thenReturn(Optional.of(USER));
         when(profiles.isDeleted(USER)).thenReturn(true);
         when(supabase.createUser(PHONE, "password1")).thenReturn(fresh);
-        Profile p = Profile.create(fresh, "customer", "김하늘", "하늘", PHONE);
+        Profile p = Profile.create(fresh, "manager", "김하늘", "하늘", PHONE);
         when(profiles.requireLive(fresh)).thenReturn(p);
-        when(profiles.userResponse(p)).thenReturn(new UserResponse(fresh, "customer", "김하늘", false, "address"));
+        when(profiles.userResponse(p)).thenReturn(new UserResponse(fresh, "manager", "김하늘", false, "address"));
         when(supabase.passwordGrant(eq(PHONE), anyString())).thenReturn(new SupabaseAuthClient.Session("a", "r", 3600, fresh));
 
         service.signup(new SignupRequest("tok", "김하늘", "하늘", "password1"));
 
         verify(supabase).deleteUser(USER);
         verify(supabase, never()).updatePassword(any(), any());
-        verify(profiles).createForSignup(fresh, "customer", "김하늘", "하늘", PHONE);
+        verify(profiles).createForSignup(fresh, "manager", "김하늘", null, PHONE);
     }
 
     @Test
@@ -167,11 +178,9 @@ class AuthServiceTest {
 
     @Test
     void 로그인은_역할이_다르면_LOGIN_FAILED_로_구분하지_않는다() {
-        // setUp 의 USER 는 고객 — 매니저 앱으로 로그인하면 번호·비밀번호 오류와 같은 LOGIN_FAILED, 고객 앱이면 성공
-        assertThatThrownBy(() -> service.login(new LoginRequest("12345678", "password1", "manager"), null))
-                .extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.LOGIN_FAILED);
-        AuthResponse ok = service.login(new LoginRequest("12345678", "password1", "customer"), null);
-        assertThat(ok.user().role()).isEqualTo("customer");
+        assertThatThrownBy(() -> service.login(new LoginRequest("12345678", "password1", "customer"), null))
+            .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.FORBIDDEN);
+        verify(supabase, never()).passwordGrant(anyString(), anyString());
     }
 
     @Test
@@ -179,10 +188,10 @@ class AuthServiceTest {
         // 틀린 비밀번호로 한도(10회)만큼 실패한 뒤 → 맞는 비밀번호도 한도에 걸린다 (시계가 고정이라 1시간 창이 지나지 않는다)
         when(supabase.passwordGrant(eq(PHONE), eq("wrong"))).thenThrow(new ApiException(ErrorCode.LOGIN_FAILED));
         for (int i = 0; i < RateLimiter.LOGIN_PER_HOUR; i++) {
-            assertThatThrownBy(() -> service.login(new LoginRequest("12345678", "wrong", "customer"), null))
+            assertThatThrownBy(() -> service.login(new LoginRequest("12345678", "wrong", "manager"), null))
                     .extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.LOGIN_FAILED);
         }
-        assertThatThrownBy(() -> service.login(new LoginRequest("12345678", "password1", "customer"), null))
+        assertThatThrownBy(() -> service.login(new LoginRequest("12345678", "password1", "manager"), null))
                 .extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.RATE_LIMITED); // 로그인 한도는 OTP 코드가 아니다
     }
 
@@ -258,19 +267,19 @@ class AuthServiceTest {
     @Test
     void 탈퇴는_비밀번호_확인_후_가드가_막으면_INVALID_STATE_아니면_익명화하고_Supabase_사용자를_지운다() {
         // 1회차: 가드가 사유를 돌려줘 막힌다 → 그 사유가 오류 문구로 나가고 익명화는 없다. 2회차: 가드 통과 → 익명화·정리·아웃박스·Supabase 삭제
-        when(guard.blockReason(USER, "customer")).thenReturn("진행 중인 예약을 먼저 취소해주세요");
+        when(guard.blockReason(USER, "manager")).thenReturn("진행 중인 예약을 먼저 취소해주세요");
         assertThatThrownBy(() -> service.deleteAccount(USER, "password1"))
                 .isInstanceOf(ApiException.class).hasMessage("진행 중인 예약을 먼저 취소해주세요");
         verify(profiles, never()).anonymize(any());
         verify(profiles).lockLive(USER); // 가드 검사는 프로필을 잠근 뒤(익명화와 같은 트랜잭션) — 검사 뒤 수락·예약이 끼어들지 못하게
 
-        when(guard.blockReason(USER, "customer")).thenReturn(null);
+        when(guard.blockReason(USER, "manager")).thenReturn(null);
         service.deleteAccount(USER, "password1");
         verify(profiles).anonymize(USER);
         verify(push).forget(USER); // 탈퇴한 기기로 푸시가 가지 않게
         verify(support).retainAfterDeletion(USER); // 1:1 문의는 3년 뒤 지운다 (자체 점검 #31)
-        verify(availability, never()).forget(any()); // 고객은 근무시간이 없다
-        verify(penalties, never()).forget(any());
+        verify(availability).forget(USER); // manager password flow
+        verify(penalties).forget(USER) ;
         verify(outbox).publish(new kr.ansimclean.api.common.events.AccountDeleted(USER)); // 삭제 실패 시 아웃박스가 재시도
         verify(supabase).deleteUser(USER);
     }
@@ -289,20 +298,20 @@ class AuthServiceTest {
     @org.junit.jupiter.api.Test
     void 비밀번호_재설정은_가입된_번호에만_인증번호를_보낸다() {
         // 준비: PHONE 은 살아 있는 고객 계정, 발송하면 유효 시간 5분 → 고객 앱 요청은 보내고 매니저 앱 요청은 PHONE_NOT_FOUND
-        Profile p = Profile.create(USER, "customer", "김하늘", "하늘", PHONE);
+        Profile p = Profile.create(USER, "manager", "김하늘", "하늘", PHONE);
         when(profiles.findLiveByPhone(PHONE)).thenReturn(Optional.of(p));
-        when(otp.request(PHONE, "customer")).thenReturn(java.time.Duration.ofMinutes(5));
+        when(otp.request(PHONE, "manager")).thenReturn(java.time.Duration.ofMinutes(5));
 
-        assertThat(service.requestPasswordOtp("12345678", "customer", "1.1.1.1").sent()).isTrue();
+        assertThat(service.requestPasswordOtp("12345678", "manager", "1.1.1.1").sent()).isTrue();
 
         // 매니저 앱에서 고객 번호로 요청하면 없는 번호와 같게 막는다
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.requestPasswordOtp("12345678", "manager", "1.1.1.1"))
-                .isInstanceOf(ApiException.class).extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.PHONE_NOT_FOUND);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.requestPasswordOtp("12345678", "customer", "1.1.1.1"))
+                .isInstanceOf(ApiException.class).extracting(e -> ((ApiException) e).code()).isEqualTo(ErrorCode.FORBIDDEN);
     }
 
     @org.junit.jupiter.api.Test
     void 비밀번호_재설정은_비밀번호를_바꾸고_토큰을_소비한_뒤_다른_기기_세션을_끊는다() {
-        Profile p = Profile.create(USER, "customer", "김하늘", "하늘", PHONE);
+        Profile p = Profile.create(USER, "manager", "김하늘", "하늘", PHONE);
         when(profiles.findLiveByPhone(PHONE)).thenReturn(Optional.of(p));
         // fresh = 재설정 뒤 새로 받는 세션의 토큰 (session_id=sid-new). 변경 전 세션 목록에는 옛 세션과 이 세션이 다 있다고 둔다
         String fresh = jwtWithSession("sid-new");
@@ -313,7 +322,7 @@ class AuthServiceTest {
 
         InOrder order = inOrder(otp, lookup, supabase);
         order.verify(otp).peek("tok");
-        order.verify(otp).consume("tok", "customer");
+        order.verify(otp).consume("tok", "manager");
         order.verify(lookup).sessionIds(USER); // 비밀번호 변경 전에 — Supabase 가 변경 때 세션 행을 지운다
         order.verify(supabase).updatePassword(p.getId(), "newpassword1");
         order.verify(supabase).passwordGrant(PHONE, "newpassword1");
@@ -334,9 +343,9 @@ class AuthServiceTest {
     @Test
     void 조회는_통과했어도_소비에_지면_비밀번호를_바꾸지_않는다() { // 같은 토큰 두 요청 (감사 H-01)
         // peek 는 setUp 대로 통과하지만, 다른 요청이 먼저 소비해 consume 이 OTP_EXPIRED 를 던지는 상황
-        Profile p = Profile.create(USER, "customer", "name", null, PHONE);
+        Profile p = Profile.create(USER, "manager", "name", null, PHONE);
         when(profiles.findLiveByPhone(PHONE)).thenReturn(Optional.of(p));
-        when(otp.consume("tok", "customer")).thenThrow(new ApiException(ErrorCode.OTP_EXPIRED));
+        when(otp.consume("tok", "manager")).thenThrow(new ApiException(ErrorCode.OTP_EXPIRED));
         assertThatThrownBy(() -> service.resetPassword("tok", "newpassword1", null))
                 .isInstanceOf(ApiException.class);
         verify(supabase, never()).updatePassword(any(), anyString());
@@ -346,7 +355,7 @@ class AuthServiceTest {
     void 가입도_소비에_지면_Supabase_사용자를_만들거나_바꾸거나_지우지_않는다() {
         // 번호로 찾은 잔재 사용자가 있어도, consume 에서 멈추므로 그 뒤의 Supabase 호출이 하나도 없어야 한다
         when(lookup.findIdByPhone(PHONE)).thenReturn(Optional.of(USER));
-        when(otp.consume("tok", "customer")).thenThrow(new ApiException(ErrorCode.OTP_EXPIRED));
+        when(otp.consume("tok", "manager")).thenThrow(new ApiException(ErrorCode.OTP_EXPIRED));
         assertThatThrownBy(() -> service.signup(new SignupRequest("tok", "name", null, "password1")))
                 .isInstanceOf(ApiException.class);
         verify(supabase, never()).updatePassword(any(), anyString());
@@ -356,7 +365,7 @@ class AuthServiceTest {
 
     @Test
     void 재설정_뒤_새_세션_발급이_실패해도_옛_세션은_이미_끊겼다() { // 전체 재점검 A1
-        Profile p = Profile.create(USER, "customer", "김하늘", "하늘", PHONE);
+        Profile p = Profile.create(USER, "manager", "김하늘", "하늘", PHONE);
         when(profiles.findLiveByPhone(PHONE)).thenReturn(Optional.of(p));
         // 비밀번호는 바뀌었는데 새 세션 발급(passwordGrant)이 Supabase 오류로 실패하는 상황
         when(lookup.sessionIds(USER)).thenReturn(List.of("sid-old"));
@@ -367,13 +376,9 @@ class AuthServiceTest {
     }
 
     @Test
-    void 역할이_다른_로그인과_탈퇴_비밀번호_확인은_만든_세션을_바로_끊는다() { // 전체 재점검 A2
-        // 매니저 계정으로 고객 앱 로그인 → LOGIN_FAILED 와 함께, 방금 받은 세션(access "a")을 Supabase 에서 끊는다.
-        // 이름의 '탈퇴 비밀번호 확인' 쪽(deleteAccount 의 logout)은 이 테스트에서 확인하지 않는다
-        Profile manager = Profile.create(USER, "manager", "김매니저", null, PHONE);
-        when(profiles.findLive(USER)).thenReturn(Optional.of(manager));
+    void 역할이_다른_로그인과_탈퇴_비밀번호_확인은_만든_세션을_바로_끊는다() {
         assertThatThrownBy(() -> service.login(new LoginRequest("12345678", "password1", "customer"), null))
-                .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.LOGIN_FAILED);
-        verify(supabase).logout("a");
+            .isInstanceOf(ApiException.class).extracting("code").isEqualTo(ErrorCode.FORBIDDEN);
+        verify(supabase, never()).passwordGrant(anyString(), anyString());
     }
 }

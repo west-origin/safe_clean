@@ -50,6 +50,8 @@ let refreshing = null; // 동시에 여러 요청이 401 을 받아도 refresh �
 /** @returns {Promise<'ok'|'invalid'|'transient'>} invalid = refresh 토큰이 무효(세션 지움) · transient = 네트워크·서버 장애(세션 유지) */
 async function refreshSession(generation) {
   if (session.generation() !== generation) return 'invalid';
+  const sdkRefresh = session.refreshWithSdk();
+  if (sdkRefresh) return sdkRefresh;
   // 같은 세션 번호의 갱신이 이미 진행 중이면 새로 보내지 않고 그 결과를 같이 기다린다
   if (!refreshing || refreshing.generation !== generation) {
     const flight = { generation };

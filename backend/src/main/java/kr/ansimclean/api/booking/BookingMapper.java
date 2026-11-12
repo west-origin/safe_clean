@@ -35,7 +35,7 @@ public final class BookingMapper {
                 BookingStatus.BEFORE_START.contains(b.getStatus()) && b.isBeforeDeadline(now, deadlineHours),
                 rows(schedule, b.getRoadAddress(), manager, b.getManagerId() == null ? null : managerIntros.get(b.getManagerId())),
                 b.getHomeType(), KoreanFormat.clock(b.getEndsAt()), // endTime = 끝 시각(서울) "13:00" — 일정 변경하면 ends_at 도 같이 옮겨진다
-                KoreanFormat.dateTimeKey(b.getStartedAt()), KoreanFormat.dateTimeKey(b.getEndedAt())); // 실제 작업 시작·완료 "2026-11-04 12:03", 아직이면 null
+                KoreanFormat.dateTimeKey(b.getStartedAt()), KoreanFormat.dateTimeKey(b.getEndedAt()), false); // 실제 작업 시작·완료 "2026-11-04 12:03", 아직이면 null
     }
 
     /**

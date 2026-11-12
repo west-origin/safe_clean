@@ -124,8 +124,8 @@ public class BookingService implements ManagerWorkLookup {
         LocalTime time = parseTime(req.time());
         requireBookableSchedule(req.category(), date, time, clock.today());
         List<CatalogOption> options = catalog.requireOptions(req.category(), distinct(req.freeOptions()), distinct(req.paidOptions()));
-        durationMinutes(req.category(), req.durationHours()); // 고른 청소 시간 검사만 (생성과 같은 오류를 확인 화면에서 먼저). 금액은 시간과 관계없다
-        PriceQuote q = pricing.quote(req.category(), req.frequency(), options);
+        durationMinutes(req.category(), req.durationHours()); // 생성과 같은 시간 범위를 확인한다.
+        PriceQuote q = priceQuote(req.category(), req.frequency(), options, req.durationHours());
         List<LocalDate> dates = "recurring".equals(req.frequency()) ? seriesDates(date) : List.of(date); // 정기청소면 회차 날짜 전부, 1회면 그날 하나
         long total = q.total() * dates.size(); // 총액 = 회당 금액 × 회차 수
         // 요금을 총액 한 줄로만 보여 줘서 옵션이 얼마인지·정기 할인이 얼마인지 알 수 없었다 (사용성 검토 2026-09-22)
@@ -133,7 +133,7 @@ public class BookingService implements ManagerWorkLookup {
                 KoreanFormat.won(q.base()), q.options() > 0 ? "+" + KoreanFormat.won(q.options()) : null);
         return new QuoteResponse(perVisit,
                 dates.stream().map(d -> new QuoteResponse.Visit(d.toString(), KoreanFormat.dateLongWeekday(d))).toList(),
-                dates.size(), total, KoreanFormat.won(total), settings.get(SETTING_PAYMENT_NOTE, String.class), savingNote(req.category(), req.frequency(), q.base()));
+                dates.size(), total, KoreanFormat.won(total), settings.get(SETTING_PAYMENT_NOTE, String.class), (req.durationHours() != null && !"repair".equals(req.category()) && "recurring".equals(req.frequency()) ? KoreanFormat.won(settings.integer("cleaning_recurring_discount")) + " 할인" : savingNote(req.category(), req.frequency(), q.base())));
     }
 
     /** 정기청소가 1회 청소보다 싼 만큼 — 배너는 '정기 이용 할인' 을 말하는데 확인 화면은 아무 말도 안 했다 (사용성 검토 2026-09-22) */
@@ -158,6 +158,10 @@ public class BookingService implements ManagerWorkLookup {
      * 중간에 오류가 나면 DB 변경(예: 시리즈·예약·콜·멱등 키 기록)은 모두 되돌려지지만 메모리의 횟수 제한은 센 채로 남는다 —
      * 그래서 고쳐서 다시 보낼 수 있는 주소 검사를 횟수 제한보다 먼저 한다. 결과는 첫 회차 기준 응답 + 회차 목록
      */
+    private kr.ansimclean.api.profile.FirstCleaningService firstCleaning;
+    @org.springframework.beans.factory.annotation.Autowired
+    void setFirstCleaning(kr.ansimclean.api.profile.FirstCleaningService service) { this.firstCleaning = service; }
+
     private BookingResponse doCreate(UUID customerId, CreateBookingRequest req) {
         // 탈퇴(lockLive, FOR UPDATE)와 같은 행을 잡는다(FOR SHARE) — 탈퇴 가드 검사 뒤에 예약이 끼어들어 탈퇴한 고객의 예약이 남지 않게 (감사 M-06)
         profiles.holdLive(customerId);
@@ -173,7 +177,7 @@ public class BookingService implements ManagerWorkLookup {
         List<CatalogOption> options = catalog.requireOptions(req.category(), freeOptions, paidOptions);
         catalog.requireNoticeKeys(req.category(), req.notices());
         String homeType = homeType(req.category(), req.homeType()); // 가정/원룸 중 어느 쪽인가 (home 만, 아니면 null)
-        PriceQuote quote = withDuration(pricing.quote(req.category(), req.frequency(), options), durationMinutes(req.category(), req.durationHours())); // 회당 금액·수수료·소요 시간 — 아래에서 모든 회차 행에 그대로 고정한다(고른 청소 시간이 있으면 그 시간, 금액은 카탈로그 그대로)
+        PriceQuote quote = withDuration(priceQuote(req.category(), req.frequency(), options, req.durationHours()), durationMinutes(req.category(), req.durationHours())); // 회당 금액·수수료·소요 시간 — 아래에서 모든 회차 행에 그대로 고정한다(시간 선택 예약은 시간 요금 적용)
         Instant now = clock.now();
         String road = req.roadAddress().trim();
         String detail = blankToNull(req.detailAddress());
@@ -201,6 +205,11 @@ public class BookingService implements ManagerWorkLookup {
             b = bookings.save(b);
             record(b, null, BookingStatus.REQUESTED, customerId, null, now); // 상태 이력 첫 줄: (없음) → requested
             visits.add(b);
+        }
+        if ("home".equals(req.category()) && "oneTime".equals(req.frequency())) {
+            if (firstCleaning == null) throw new IllegalStateException("FirstCleaningService required");
+            bookings.flush(); // JDBC claim references the booking inserted by Hibernate.
+            firstCleaning.claim(customerId, visits.get(0).getId(), road, detail); // 번호·주소당 한 번 (다른 계정이어도)
         }
         List<String> photos = visits.get(0).getRepairPhotos(); // 수리는 1회 예약만 되므로 첫 회차 것이 전부다 (수리가 아니면 빈 목록)
         photoUploads.attach(customerId, photos); // 예약에 붙은 사진은 24시간 정리에서 빠진다. 정리로 이미 지워졌으면 VALIDATION — 없는 파일을 가리키는 예약을 만들지 않는다 (감사 M-04·재감사 2차 #3)
@@ -265,9 +274,10 @@ public class BookingService implements ManagerWorkLookup {
         int deadline = catalog.cancelDeadlineHours();
         // 완료된 예약 id 만 골라 녹화본이 준비된 것을 한 번에 묻는다 (구현은 live 패키지)
         Set<UUID> ready = recordings.readyBookingIds(list.stream().filter(b -> b.getStatus() == BookingStatus.DONE).map(Booking::getId).toList());
+        Set<UUID> started = recordings.startedBookingIds(list.stream().filter(b -> BookingStatus.ACTIVE.contains(b.getStatus()) && b.getVideoFinishedAt() == null).map(Booking::getId).toList());
         Map<UUID, List<Booking>> seriesVisits = new HashMap<>(); // title() 이 채우는 시리즈별 회차 캐시
         return list.stream()
-                .map(b -> BookingMapper.toReservation(b, title(b, seriesVisits), names, intros, cleanerLabel(b, now, pending, failedLabel, failedFinalLabel), today, ready.contains(b.getId()), now, deadline)).toList();
+                .map(b -> BookingMapper.toReservation(b, title(b, seriesVisits), names, intros, cleanerLabel(b, now, pending, failedLabel, failedFinalLabel), today, ready.contains(b.getId()), now, deadline).withLiveStarted(started.contains(b.getId()))).toList();
     }
 
     /** 매니저가 없는 예약의 매니저 칸 — 예약 상세·생성 응답도 목록과 같은 기준 (예전에는 매칭 실패여도 '배정 후 알려드려요', 자체 점검 후속 검토) */
@@ -325,6 +335,10 @@ public class BookingService implements ManagerWorkLookup {
         if ("repair".equals(category) || durationHours == null) return null;
         if (durationHours < MIN_DURATION_HOURS || durationHours > MAX_DURATION_HOURS) throw ApiException.validation("청소 시간은 2~8시간 중에서 골라 주세요");
         return durationHours * 60;
+    }
+
+    private PriceQuote priceQuote(String category, String frequency, List<CatalogOption> options, Integer hours) {
+        return hours == null ? pricing.quote(category, frequency, options) : pricing.quote(category, frequency, options, hours);
     }
 
     /** 견적의 소요 시간만 바꾼 복사본 — 금액·수수료는 그대로 (가격은 카탈로그 기준). minutes 가 null 이면 원래 견적 */
@@ -663,7 +677,7 @@ public class BookingService implements ManagerWorkLookup {
         Map<UUID, String> names = b.getManagerId() == null ? Map.of() : profiles.namesOf(List.of(b.getManagerId()));
         Map<UUID, String> intros = b.getManagerId() == null ? Map.of() : profiles.managerIntros(List.of(b.getManagerId()));
         boolean ready = b.getStatus() == BookingStatus.DONE && !recordings.readyBookingIds(List.of(b.getId())).isEmpty();
-        return BookingMapper.toReservation(b, title(b, new HashMap<>()), names, intros, cleanerLabel(b, clock.now(), settings.get(SETTING_CLEANER_PENDING, String.class), settings.get(SETTING_CLEANER_MATCHING_FAILED, String.class), settings.get(SETTING_CLEANER_MATCHING_FAILED_FINAL, String.class)), clock.today(), ready, clock.now(), catalog.cancelDeadlineHours());
+        return BookingMapper.toReservation(b, title(b, new HashMap<>()), names, intros, cleanerLabel(b, clock.now(), settings.get(SETTING_CLEANER_PENDING, String.class), settings.get(SETTING_CLEANER_MATCHING_FAILED, String.class), settings.get(SETTING_CLEANER_MATCHING_FAILED_FINAL, String.class)), clock.today(), ready, clock.now(), catalog.cancelDeadlineHours()).withLiveStarted(BookingStatus.ACTIVE.contains(b.getStatus()) && b.getVideoFinishedAt() == null && recordings.startedBookingIds(List.of(b.getId())).contains(b.getId()));
     }
 
     /** 앱이 보낸 "YYYY-MM-DD" → 날짜. 형식이 틀리면 VALIDATION 오류(400)로 바꿔 던진다 */

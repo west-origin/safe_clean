@@ -60,8 +60,8 @@ export default function Settings() {
   // 회원 탈퇴 (Figma 에 없음 — 코드에서 정함, 앱스토어 요건). 비밀번호 확인 시트 → 탈퇴 → 가입 화면
   const [deleteOpen, setDeleteOpen] = useState(false);
   // 탈퇴 실행: 시트가 넘겨준 비밀번호로 DELETE /auth/account. 성공하면 세션이 지워지고 기록을 바꿔(replace) 가입 화면으로
-  const remove = useAction(async (password) => {
-    await deleteAccount(password);
+  const remove = useAction(async () => {
+    await deleteAccount();
     navigate('/signup', { replace: true });
   });
   const closeDelete = () => {
@@ -129,8 +129,8 @@ export default function Settings() {
           </button>
         </div>
       </div>
-      {/* 회원 탈퇴 비밀번호 확인 시트. '탈퇴하기' 를 누르면 입력한 비밀번호로 remove.run 을 부른다 */}
-      <DeleteAccountSheet open={deleteOpen} onClose={closeDelete} onConfirm={remove.run} loading={remove.loading} error={remove.error?.message} />
+      {/* 회원 탈퇴 확인 시트. '탈퇴하기' 를 누르면 입력한 비밀번호로 remove.run 을 부른다 */}
+      <DeleteAccountSheet requirePassword={false} open={deleteOpen} onClose={closeDelete} onConfirm={remove.run} loading={remove.loading} error={remove.error?.message} />
     </ScreenLayout>
   );
 }

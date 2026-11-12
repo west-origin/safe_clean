@@ -61,4 +61,59 @@ describe('Booking/Frequency', () => {
     expect(screen.queryByRole('heading', { name: '날짜/시간 선택' })).toBeNull(); // hidden 안이라 접근성 트리에서 빠진다
     expect(screen.getByText('날짜/시간 선택').closest('[hidden]')).not.toBeNull();
   });
+
+  // 2026-11-08 요금·견적 안내: 홈에서 고른 종류(가정/원룸)·분해청소에 맞는 안내, 매장은 없음
+  const at = (path) => render(
+    <MemoryRouter initialEntries={[path]}><Routes>
+      <Route path="/booking/:category/frequency" element={<BookingFrequency />} />
+    </Routes></MemoryRouter>,
+  );
+  it('카테고리에 맞는 요금 안내를 보인다', async () => {
+    at('/booking/home/frequency');
+    expect(await screen.findByRole('heading', { name: '가정 정기청소' })).toBeInTheDocument();
+    expect(screen.getByText('329,000')).toBeInTheDocument();
+  });
+  it('원룸을 고르고 왔으면 원룸 요금을 보인다', async () => {
+    sessionStorage.setItem('ansimclean.booking.home', JSON.stringify({ homeService: 'studio' }));
+    at('/booking/home/frequency');
+    expect(await screen.findByRole('heading', { name: '원룸 정기청소' })).toBeInTheDocument();
+    expect(screen.getByText('첫 달 199,000원')).toBeInTheDocument();
+  });
+  it('분해청소는 후드 크기별 요금, 매장은 안내 없음', async () => {
+    const { unmount } = at('/booking/appliance/frequency');
+    expect(await screen.findByRole('heading', { name: '후드·덕트 분해청소' })).toBeInTheDocument();
+    expect(screen.getByText('200,000')).toBeInTheDocument();
+    unmount();
+    at('/booking/store/frequency');
+    await screen.findByRole('heading', { name: '서비스 주기' });
+    expect(screen.queryByText(/요금 안내|견적 안내/)).toBeNull();
+  });
+});
+
+describe('첫 1회 청소 안내', () => {
+  beforeEach(() => { sessionStorage.clear(); vi.restoreAllMocks(); });
+  const renderFrequency = (category = 'home') => render(<MemoryRouter initialEntries={[`/booking/${category}/frequency`]}><Routes><Route path="/booking/:category/frequency" element={<BookingFrequency />} /></Routes></MemoryRouter>);
+  it('미인증 신규 고객은 1회 선택 때 안내를 열고, 인증 버튼은 휴대폰 인증 화면으로 간다', async () => {
+    const api = await import('../../api/customer.js');
+    vi.spyOn(api, 'getFirstCleaningEligibility').mockResolvedValue({ verified: false, eligible: false, reason: 'phone_required', completedOneTime: false });
+    render(<MemoryRouter initialEntries={['/booking/home/frequency']}><Routes>
+      <Route path="/booking/:category/frequency" element={<BookingFrequency />} />
+      <Route path="/booking/:category/phone-verify" element={<p>인증 화면</p>} />
+    </Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('radio', { name: '1회' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: '닫기' }).at(-1));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '다음' })); // 미인증이면 다음 단계 대신 안내가 다시 뜬다
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '휴대폰 인증하기' }));
+    expect(await screen.findByText('인증 화면')).toBeInTheDocument();
+  });
+  it.each(['home', 'store'])('완료 이력이 있으면 %s의 1회 카드를 숨긴다', async category => {
+    const api = await import('../../api/customer.js');
+    vi.spyOn(api, 'getFirstCleaningEligibility').mockResolvedValue({ verified: false, eligible: false, reason: 'already_used', completedOneTime: true });
+    renderFrequency(category);
+    await screen.findByRole('radio', { name: /정기/ });
+    expect(screen.queryByRole('radio', { name: '1회' })).toBeNull();
+  });
 });

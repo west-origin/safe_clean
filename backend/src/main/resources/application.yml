@@ -65,6 +65,7 @@ app:
     api-key: ${SMS_API_KEY:}
     api-secret: ${SMS_API_SECRET:}
     sender: ${SMS_SENDER:}
+    hook-secret: ${SUPABASE_SMS_HOOK_SECRET:}  # Supabase Send SMS Hook 서명 비밀(v1,whsec_…). 비면 Hook 꺼짐(404) — docs/auth/phone-otp.md
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:}
   supabase:

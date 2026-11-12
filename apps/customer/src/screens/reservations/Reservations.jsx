@@ -8,10 +8,14 @@
 //   완료 탭(사용자 요청): 배정 알약을 감추고, 시간 칸은 '방문 시간'·'종료 시간' = 매니저가 실제로 시작·완료한 시각(서버 startedAt·endedAt).
 // 고객 앱 '내 예약' 탭 화면 (/reservations). 데이터는 getReservations(GET /customer/reservations) 한 번으로
 // 헤더 문구·탭 목록·예약 목록을 받는다. 각 예약의 tab(어느 탭에 속하는지)·status·rows(카드 행 문구)는 서버가 정해 준다.
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router';
 import {
   ScreenLayout,
+  NavBar,
+  Calendar,
+  startOfToday,
+  formatDate,
   UnderlineTabs,
   EmptyState,
   Sheet,
@@ -36,6 +40,7 @@ import {
 } from '../../api/mock.js';
 import CustomerFooter from '../CustomerFooter.jsx';
 import ReservationTicketCard from './ReservationTicketCard.jsx';
+import { canEditReservation } from './reservationPolicy.js';
 import { onPushReceived } from '../../push/pushClient.js';
 
 import styles from './Reservations.module.css';
@@ -45,6 +50,11 @@ const REFRESH_MS = 30_000; // 배정·완료 상태를 화면에 머무는 동�
 /** 내 예약 화면: 탭(예정/완료/취소)별 예약 카드 목록 + 카드의 변경·취소·영상 보기 + 취소 확인 시트 */
 export default function Reservations() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const focusBookingId = location.state?.focusBookingId;
+  const calendarOnly = location.state?.calendarOnly === true;
+  const targetCard = useRef(null);
+  const focusedNavigation = useRef(null);
   // 30초마다·배정/완료 푸시가 오면·앱이 다시 보이면 조용히 갱신. 취소 뒤 invalidate 로 늦은 폴링 응답을 버린다 (외부 검토 4차)
   // 푸시 종류는 가리지 않는다 — 앱이 떠 있을 때 온 푸시면 무엇이든 목록을 다시 받는다 (pushClient.js onPushReceived)
   const { data, error, reload, refresh, invalidate } = usePolling(() => getReservations(), [], {
@@ -53,7 +63,25 @@ export default function Reservations() {
   });
   // 기한이 지난 카드에 "N시간 전까지 할 수 있어요" 만 있어 아직 되는 것처럼 읽혔다 → 안 된다는 것과 연락처 (직접 사용 점검 U2). 번호가 없으면 1:1 문의
   const { data: supportPhone } = useAsync(() => getSupportPhone(), []);
-  const [tab, setTab] = useState('upcoming'); // 보고 있는 탭 key: 'upcoming' 예정 | 'done' 완료 | 'cancelled' 취소
+  const [tabSelection, setTabSelection] = useState({ navigation: location.key, value: null });
+  const selectedTab = tabSelection.navigation === location.key ? tabSelection.value : null;
+  const setTab = (value) => setTabSelection({ navigation: location.key, value });
+  const tab = selectedTab ?? data?.reservations.find((r) => r.id === focusBookingId)?.tab ?? 'upcoming'; // 보고 있는 탭 key: 'upcoming' 예정 | 'done' 완료 | 'cancelled' 취소
+  const [dateSelection, setDateSelection] = useState({ navigation: location.key, value: undefined });
+  const dateFilter = dateSelection.navigation === location.key ? dateSelection.value : undefined;
+  const setDateFilter = (value) => setDateSelection({ navigation: location.key, value });
+  const selectedDate = dateFilter === undefined ? data?.reservations.find((r) => r.id === focusBookingId)?.date ?? null : dateFilter;
+  // 데이터 로딩이 끝난 뒤 해당 탭을 열고 카드로 이동한다. 폴링 갱신은 포커스를 빼앗지 않는다.
+  useEffect(() => {
+    if (!focusBookingId || focusedNavigation.current === location.key || !data) return;
+    const reservation = data.reservations.find((r) => r.id === focusBookingId);
+    if (!reservation) return;
+    if (tab !== reservation.tab) return;
+    if (!targetCard.current) return;
+    targetCard.current.focus({ preventScroll: true });
+    targetCard.current.scrollIntoView?.({ block: 'center', behavior: 'instant' });
+    focusedNavigation.current = location.key;
+  }, [data, tab, focusBookingId, location.key]);
   const [cancelId, setCancelId] = useState(null); // 취소 시트를 연 예약 id. null 이면 시트가 닫혀 있다
   const [scope, setScope] = useState('one'); // 정기청소: 'one' 이번 회차만 | 'all' 정기청소 전체
   // 시트의 취소 버튼. 성공하면 시트를 닫고 취소 탭으로 옮겨 알림(토스트)을 띄운다.
@@ -84,7 +112,8 @@ export default function Reservations() {
     label: t.key === 'upcoming' ? `${t.label} ${countOf(t.key)}` : t.label,
   }));
   // 서버 목록은 최신순(내림차순) — 예정 탭만 가까운 방문이 위로 오게 뒤집는다 (검증 검토)
-  const list = data.reservations.filter((r) => r.tab === tab);
+  const tabReservations = data.reservations.filter((r) => r.tab === tab);
+  const list = tabReservations.filter((r) => !selectedDate || r.date === selectedDate);
   // 'YYYY-MM-DD HH:mm' 문자열은 글자 순서가 곧 시간 순서라 문자열 비교로 이른 방문이 앞에 온다. filter 가 만든 새 배열이라 원본 목록은 그대로다
   if (tab === 'upcoming')
     list.sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
@@ -95,20 +124,26 @@ export default function Reservations() {
   const deadlineHours = data.changeDeadlineHours ?? CHANGE_DEADLINE_HOURS;
 
   return (
-    <ScreenLayout noPadding gap="none" tabBar={tabBar}>
+    <ScreenLayout noPadding gap="none" navBar={<NavBar onBack={() => navigate('/home')} />} tabBar={tabBar}>
       <header className={styles.header}>
         <h1 className={cx('text-heading-m', styles.title)}>{COPY.title}</h1>
       </header>
       {options.length > 0 && (
-        <UnderlineTabs options={options} value={tab} onChange={setTab} ariaLabel="예약 상태" />
+        <UnderlineTabs className={styles.statusTabs} options={options} value={tab} onChange={setTab} ariaLabel="예약 상태" />
       )}
-      <div className={styles.list}>
-        {list.length === 0 && <EmptyState icon="calendar" title={RESERVATIONS_EMPTY[tab]} />}
+      <Calendar responsive hideTitle swipeable subtleSelection title="예약 달력" value={selectedDate ?? undefined}
+        onChange={(date) => setDateFilter(date === selectedDate ? null : date)} markedDates={tabReservations.map((r) => r.date)}
+        isDisabled={() => false} initialMonth={selectedDate ? undefined : startOfToday()} className={styles.calendar} />
+      {selectedDate && <div className={styles.dateFilter}>
+        <p className="text-body-bold">{formatDate(selectedDate)} 예약</p>
+      </div>}
+      {(!calendarOnly || selectedDate) && <div className={styles.list}>
+        {list.length === 0 && <EmptyState icon="reservationCalendar" title={selectedDate ? '선택한 날짜에 예약이 없어요' : RESERVATIONS_EMPTY[tab]} />}
         {/* changeable 이 없으면 바꿀 수 있는 것으로 본다. false(기한 지남)면 카드가 버튼 대신 notChangeableNote 문구를 보여 준다.
             '녹화 영상 보기'(onReplay)는 같은 시청 화면에 &replay=1 을 붙여 녹화본으로 연다 */}
         {list.map((r) => {
           const before = r.status === 'scheduled' || r.status === 'assigning'; // 시작 전
-          const changeable = before && (r.changeable ?? true);
+          const changeable = canEditReservation(r);
           // 구분선 아래: 시작 전 → 변경·취소 버튼(기한이 지났으면 안내 한 줄), 진행 중 → 실시간 영상, 완료 → 녹화 영상·전후 사진
           const actions = changeable
             ? [
@@ -116,7 +151,7 @@ export default function Reservations() {
                 { label: COPY.change, onClick: () => navigate(`/booking/${r.category}/datetime?edit=${r.id}`, { state: { date: r.date, time: r.time } }) },
                 { label: COPY.cancel, onClick: () => openCancel(r.id) },
               ]
-            : r.status === 'inProgress'
+            : r.status === 'inProgress' && r.liveStarted
               ? [{ label: COPY.watch, tone: 'brand', onClick: () => navigate(`/service/live?booking=${r.id}`) }] // 소개 화면을 거치지 않고 바로 시청
               : r.status === 'done'
                 ? [
@@ -128,12 +163,15 @@ export default function Reservations() {
             <ReservationTicketCard
               key={r.id}
               reservation={r}
+              cardRef={r.id === focusBookingId ? targetCard : undefined}
+              tabIndex={r.id === focusBookingId ? -1 : undefined}
+              className={r.id === focusBookingId ? styles.focusTarget : undefined}
               note={before && !changeable ? CHANGE_LOCK_COPY.card(deadlineHours, supportPhone) : undefined}
               actions={actions}
             />
           );
         })}
-      </div>
+      </div>}
 
       {/* 취소 확인 시트. 정기청소 회차(series)면 범위 선택이 보이고, 버튼 문구도 고른 범위를 그대로 말한다 */}
       <Sheet open={cancelId !== null} onClose={() => setCancelId(null)} title={CANCEL_COPY.title}>

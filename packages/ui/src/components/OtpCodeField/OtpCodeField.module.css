@@ -1,0 +1,82 @@
+/* OtpCodeField: 숫자 칸 6개 + 그 위에 겹친 투명 입력칸 (코드에서 정함, 2026-11-10 시안) */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
+/* 칸 줄. 투명 input 을 겹치기 위한 기준(relative) */
+.boxes {
+  position: relative;
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+/* 숫자 칸 하나: 폭은 나눠 갖고 높이 56 */
+.box {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 56px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-default);
+  color: var(--color-text-primary);
+}
+
+/* 채운 칸·지금 입력할 칸은 brand 테두리 */
+.box[data-state='filled'],
+.box[data-state='active'] {
+  border-color: var(--color-brand-primary);
+}
+
+.box[data-state='active'] {
+  border-width: 1.5px;
+}
+
+.error .box {
+  border-color: var(--color-status-live);
+}
+
+.disabled .box {
+  border-color: var(--color-border-disabled);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-disabled);
+}
+
+/* 실제 입력칸: 칸들 위에 겹쳐 터치를 받고 글자·커서는 숨긴다 (오버레이라 absolute) */
+.input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  outline: none;
+  opacity: 0;
+}
+
+.helper {
+  margin: 0;
+  color: var(--color-status-live);
+}
+
+/* 칸 아래 줄: 왼쪽 오류 문구, 오른쪽 남은 시간 */
+.footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.timer {
+  margin: 0 0 0 auto;
+  color: var(--color-brand-primary);
+  font-variant-numeric: tabular-nums;
+}

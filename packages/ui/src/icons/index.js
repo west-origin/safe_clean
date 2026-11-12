@@ -86,6 +86,13 @@ export { default as CustomerTabSettingsIcon } from './CustomerTabSettingsIcon.js
 export { default as ServiceStoreIcon } from './ServiceStoreIcon.jsx';
 export { default as ServiceHomeIcon } from './ServiceHomeIcon.jsx';
 export { default as ServiceStudioIcon } from './ServiceStudioIcon.jsx';
+export { default as ServiceDisassemblyIcon } from './ServiceDisassemblyIcon.jsx';
+export { default as ServiceRepairIcon } from './ServiceRepairIcon.jsx';
+export { default as ServicePhotoIcon } from './ServicePhotoIcon.jsx';
+export { default as HoodSizeIcon } from './HoodSizeIcon.jsx';
+export { default as GiftBoxIcon } from './GiftBoxIcon.jsx';
+export { default as CountertopIcon } from './CountertopIcon.jsx';
+export { default as CrackIcon } from './CrackIcon.jsx';
 export { default as LivePauseIcon } from './LivePauseIcon.jsx';
 export { default as LivePlayIcon } from './LivePlayIcon.jsx';
 export { default as LiveBack15Icon } from './LiveBack15Icon.jsx';

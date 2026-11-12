@@ -4,7 +4,7 @@
 // 서버 대신 test/fakeHttp.js 의 가짜 서버를 쓴다 —
 // r0(LIVE_BOOKING_ID)은 라이브 진행 중, r3(READY_BOOKING_ID)은 녹화본이 준비된 예약.
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import ServiceLivePortrait from './ServiceLivePortrait.jsx';
 import ServiceLiveLandscape from './ServiceLiveLandscape.jsx';
@@ -35,10 +35,35 @@ describe('Service/Live 화면 — 모드별 컨트롤', () => {
     expect(await screen.findByText('내 예약 화면')).toBeInTheDocument();
   });
 
-  it('실시간: 안심 배너가 있고 재생·탐색 컨트롤은 없다', async () => {
+  it('실시간: 처음에는 UI가 없고 터치하면 음소거와 전체 화면만 표시한다', async () => {
     renderAt(`/service/live?booking=${LIVE_BOOKING_ID}`);
-    expect(await screen.findByText('안심하고 지켜보세요!')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '15초 뒤로' })).toBeNull();
+    const surface = await screen.findByRole('button', { name: '영상 컨트롤 표시' });
+    expect(screen.queryByRole('button', { name: '음소거' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '전체 화면' })).toBeNull();
+    expect(screen.queryByText('안심하고 지켜보세요!')).toBeNull();
+    expect(screen.queryByText('LIVE')).toBeNull();
+    fireEvent.click(surface);
+    const mute = screen.getByRole('button', { name: '음소거' });
+    const old = mute.getAttribute('aria-pressed');
+    fireEvent.click(mute);
+    expect(mute).toHaveAttribute('aria-pressed', old === 'true' ? 'false' : 'true');
+    fireEvent.click(screen.getByRole('button', { name: '전체 화면' }));
+    const fullscreenSurface = await screen.findByRole('button', { name: '영상 컨트롤 표시' });
+    expect(screen.queryByRole('button', { name: '전체 화면 닫기' })).toBeNull();
+    fireEvent.click(fullscreenSurface);
+    expect(screen.getByRole('button', { name: '전체 화면 닫기' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '캡처' })).toBeNull();
+  });
+
+  it('촬영 중단은 검정 화면 위에 안내만 표시한다', async () => {
+    const { __fake } = await import('../../api/http.js');
+    __fake.liveStates[LIVE_BOOKING_ID] = 'paused';
+    renderAt(`/service/live?booking=${LIVE_BOOKING_ID}`);
+    expect(await screen.findByText('촬영이 잠시 중단 됐어요')).toBeInTheDocument();
+    expect(screen.getByText('다시 시작되면 영상이 이어져요')).toBeInTheDocument();
+    expect(screen.getByRole('status').querySelector('svg')).toBeNull();
+    expect(screen.queryByRole('button', { name: '음소거' })).toBeNull();
+    delete __fake.liveStates[LIVE_BOOKING_ID];
   });
 
   // 세로 화면을 먼저 확인하고, 내린 뒤 같은 예약을 가로 화면으로 다시 띄워 15초 앞으로 버튼을 확인한다.

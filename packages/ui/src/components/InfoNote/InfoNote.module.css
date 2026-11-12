@@ -34,8 +34,18 @@
   background: var(--raw-repair-notice-bg);
 }
 
+.neutral {
+  background: var(--color-surface-subtle);
+}
+
 /* 앞 기호("ⓘ" "!" 등). brand 톤·제목 없음일 때만 .glyphBrand 로 브랜드색 */
 .glyph {
+  color: var(--color-text-primary);
+}
+
+.icon {
+  display: flex;
+  flex: none;
   color: var(--color-text-primary);
 }
 

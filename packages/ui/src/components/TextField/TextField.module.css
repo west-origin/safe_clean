@@ -55,6 +55,13 @@
   background: var(--color-surface-subtle);
 }
 
+/* 입력칸 앞 아이콘 (icon prop, 장식) */
+.icon {
+  display: flex;
+  flex: none;
+  color: var(--color-text-secondary);
+}
+
 /* 실제 입력 요소: 상자 안을 채우고 자체 테두리·배경·포커스 테두리는 없앤다(상자가 대신 그린다) */
 .input {
   flex: 1 1 0;

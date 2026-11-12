@@ -14,7 +14,7 @@ import {
   TERMS, TERM_BODIES, HOME_SLIDES, REPAIR_HERO, RESERVATIONS, RESERVATIONS_HEADER, RESERVATION_TABS, SETTINGS_HEADER, PROFILE, SETTINGS_GROUPS,
   NOTIFICATION_SETTINGS, BOOKING_CATEGORIES, TIME_SLOTS, BOOKABLE_DAYS, CHANGE_DEADLINE_HOURS, SERIES_TERM_MONTHS, BOOKING_OPTIONS, FREE_OPTION_LIMIT, NOTICE_CHIPS, NOTES_COPY, FREQUENCY_DESCRIPTIONS,
   CONFIRM_COPY, SAVED_ADDRESS, CLEANER_PENDING, ADDRESS_RESULTS, PROFILE_FORM, ADDRESSES, LIVE_SESSION, LIVE_CHECKLIST, CLEANING_PHOTOS,
-  FAQ, NOTICES,
+  FAQ, NOTICES, SCHEDULE_PRICE,
 } from '../api/mock.js';
 
 /**
@@ -95,10 +95,12 @@ const quoteOf = (b) => {
   const frequency = b.frequency ?? 'recurring';
   const paid = (BOOKING_OPTIONS[category]?.paid ?? []).filter((o) => (b.paidOptions ?? []).includes(o.key));
   const options = paid.reduce((sum, o) => sum + Number(o.price.replace(/[^\d]/g, '')), 0);
-  const total = PRICES[category][frequency] + options;
+  const base = b.durationHours ? b.durationHours * SCHEDULE_PRICE.hourly - (frequency === 'recurring' ? SCHEDULE_PRICE.recurringDiscount : 0) : PRICES[category][frequency];
+  const total = base + options;
   const dates = frequency === 'recurring' ? visitDates(b.date) : [b.date];
   return {
-    perVisit: { base: PRICES[category][frequency], options, total, label: won(total) },
+    perVisit: { base, options, total, label: won(total), baseLabel: won(base), optionsLabel: options ? `+${won(options)}` : null },
+    savingNote: b.durationHours && frequency === 'recurring' ? `${won(SCHEDULE_PRICE.recurringDiscount)} 할인` : null,
     visits: dates.map((date) => ({ date, label: dateLongWeekday(date) })),
     visitsPlanned: dates.length,
     totalAmount: total * dates.length,
@@ -115,6 +117,8 @@ export function fakeHttpModule() {
   // 가짜 서버의 DB 역할. 테스트에는 __fake 라는 이름으로 그대로 보인다
   const state = {
     user: user(), // 지금 로그인한 사용자. 가입 단계 요청·비밀번호 재설정이 바꾼다
+    phoneVerified: true, // 첫 1회 청소 휴대폰 인증을 마쳤는가 (GET /customer/identity/first-cleaning)
+    phoneOtpFor: null, // 인증번호를 요청한 번호
     calls: [], // 받은 요청 기록 { method, path, body, …opts(idempotencyKey 등) } — 테스트가 무엇을 보냈는지 확인한다
     inquiries: [], // 1:1 문의 내용(문자열). 목록에서는 첫 번째 것만 '답변 완료'로 보여준다
     pushTokens: [], // PUT /push/token 으로 받은 본문들. DELETE /push/token 은 token 이 같은 것을 뺀다
@@ -155,6 +159,23 @@ export function fakeHttpModule() {
   // 메서드 + 경로(쿼리 포함)가 글자 그대로 같을 때 쓰는 처리 함수들.
   // 각 함수는 (본문, opts) 를 받아 응답을 돌려주거나 ApiError 를 던진다 (본문이 없으면 {}).
   const exact = {
+    // 첫 1회 청소 휴대폰 인증 (서버는 Supabase phone_change). __fake.phoneVerified=false 로 미인증 고객을 만든다.
+    // 맞는 인증번호는 VALID_CODE, 이미 다른 계정이 쓰는 번호는 TAKEN_PHONE
+    'GET /customer/identity/first-cleaning': () => (state.phoneVerified
+      ? { verified: true, eligible: true, reason: 'eligible', completedOneTime: false }
+      : { verified: false, eligible: false, reason: 'phone_required', completedOneTime: false }),
+    'POST /customer/identity/phone/otp': (b) => {
+      if (String(b.phone).slice(-8) === TAKEN_PHONE) throw new ApiError(400, 'VALIDATION', '이 번호로는 인증할 수 없어요. 고객센터에 문의해주세요');
+      state.phoneOtpFor = b.phone;
+      return { expiresIn: 180, resendAfter: 60, verified: false };
+    },
+    'POST /customer/identity/phone/verify': (b) => {
+      if (state.phoneOtpFor !== b.phone) throw new ApiError(400, 'VALIDATION', '인증번호를 먼저 요청해주세요');
+      if (b.code !== VALID_CODE) throw new ApiError(400, 'OTP_INVALID', '인증번호가 맞지 않아요');
+      state.phoneVerified = true;
+      return { verified: true, eligible: true, reason: 'eligible', completedOneTime: false };
+    },
+    'DELETE /auth/account/social': () => ({ ok: true }),
     'GET /terms?audience=customer': () => TERMS,
     'POST /auth/login': (b) => {
       if (b.password === WRONG_PASSWORD) throw new ApiError(401, 'LOGIN_FAILED', '휴대폰 번호 또는 비밀번호를 확인해주세요');

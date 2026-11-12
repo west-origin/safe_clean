@@ -41,7 +41,7 @@ describe('공간별 필수 사진', () => {
   it('한 공간이라도 전 사진이 빠지면 송출 시작 불가', async () => {
     fake.jobPhotos = [photo('거실')]; renderAt('/job/photos/before');
     expect(await screen.findByRole('button', { name: '실시간 영상 시작' })).toBeDisabled();
-    expect(screen.getByRole('status')).toHaveTextContent('1곳');
+    expect(screen.getByRole('status')).toHaveTextContent('5장');
   });
   it('등록한 공간 촬영 후 저장하며 라이브 시작 API는 부르지 않는다', async () => {
     renderAt('/job/photo?room=안방');
@@ -52,7 +52,7 @@ describe('공간별 필수 사진', () => {
     expect(fake.calls.some((c) => c.path.includes('/live/') && c.path.endsWith('/start'))).toBe(false);
   });
   it('모든 전 사진이 있어야 서버 확인 후 진행 화면으로 간다', async () => {
-    fake.jobPhotos = fake.requiredRooms.map((r) => photo(r)); renderAt('/job/photos/before');
+    fake.jobPhotos = fake.requiredRooms.flatMap((r) => Array.from({ length: 3 }, (_, i) => ({ ...photo(r), id: `${r}-${i}` }))); renderAt('/job/photos/before');
     fireEvent.click(await screen.findByRole('button', { name: '실시간 영상 시작' }));
     expect(await screen.findByRole('button', { name: '실시간 영상 종료' })).toBeInTheDocument();
     const paths = fake.calls.map((c) => c.path);
@@ -62,11 +62,11 @@ describe('공간별 필수 사진', () => {
     renderAt('/job/photos/before');
     fireEvent.change(await screen.findByLabelText('추가 공간 이름'), { target: { value: '작은방' } });
     fireEvent.click(screen.getByRole('button', { name: '공간 추가' }));
-    expect(await screen.findByText('작은방')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('3곳');
+    expect(await screen.findByText('작은방 · 1/3')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('9장');
   });
   it('종료 의도 저장과 라이브 종료가 후 사진 화면보다 먼저다', async () => {
-    fake.photoPhase = 'live'; fake.jobPhotos = fake.requiredRooms.map((r) => photo(r)); renderAt('/job/in-progress');
+    fake.photoPhase = 'live'; fake.jobPhotos = fake.requiredRooms.flatMap((r) => Array.from({ length: 3 }, (_, i) => ({ ...photo(r), id: `${r}-${i}` }))); renderAt('/job/in-progress');
     fireEvent.click(await screen.findByRole('button', { name: '실시간 영상 종료' }));
     expect(await screen.findByRole('button', { name: '청소 완료' })).toBeDisabled();
     const paths = fake.calls.map((c) => c.path);

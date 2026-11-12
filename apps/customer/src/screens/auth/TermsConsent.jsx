@@ -4,9 +4,9 @@
 // 고객 앱 가입 1단계(/auth/terms). 약관 목록은 서버(GET /terms?audience=customer)에서 받는다.
 // 체크한 약관 id 는 서버로 바로 보내지 않고 가입 초안(localStorage)에만 둔다 — 서버에는 가입 완료 때 한꺼번에 간다.
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { ScreenLayout, BackButton, StepDots, Card, Checkbox, TermRow, NoteCard, Button, ASSETS, cx, useAsync, useAction, ScreenError, ScreenLoading } from '@ansimclean/ui';
-import { getTerms, agreeTerms, getAgreedTermsDraft } from '../../api/customer.js';
+import { getTerms, agreeTerms, getAgreedTermsDraft, completeSignUp } from '../../api/customer.js';
 import { PRIVACY_NOTE } from '../../api/mock.js';
 import auth from './auth.module.css';
 import styles from './TermsConsent.module.css';
@@ -14,15 +14,15 @@ import styles from './TermsConsent.module.css';
 /** 약관 동의 화면. 필수 약관을 모두 체크해야 "다음" 이 켜지고, 누르면 동의를 초안에 저장한 뒤 다음 가입 화면으로 간다 */
 export default function TermsConsent() {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const method = params.get('method') ?? 'phone'; // 가입 방법 (SignUp 화면이 붙여 보낸 값). 없으면 전화번호 가입
+
   const { data: terms, error, reload } = useAsync(() => getTerms(), []);
   const [agreed, setAgreed] = useState(() => new Set(getAgreedTermsDraft())); // '보기' 로 본문에 다녀와도 체크가 남는다
   const known = (set) => (terms ? [...set].filter((id) => terms.some((t) => t.id === id)) : [...set]); // 서버가 모르는 옛 초안 id 는 보내지 않는다
   // "다음": 체크 상태를 초안에 저장하고 다음 화면으로. 완료 화면에서 되돌아온 경우(?next=complete)는 완료 화면으로 돌아간다
   const next = useAction(async () => {
     await agreeTerms(known(agreed));
-    navigate(params.get('next') === 'complete' ? '/auth/complete' : `/auth/profile-info?method=${method}`);
+    await completeSignUp();
+    navigate('/home', { replace: true });
   });
   const persist = (set) => agreeTerms(known(set)).catch(() => {}); // 본문 보기로 나갔다 와도 유지되게 즉시 초안에
 

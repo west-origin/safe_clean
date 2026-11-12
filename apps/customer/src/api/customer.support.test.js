@@ -1,7 +1,8 @@
+import { seedSocialSession } from '../test/socialSession.js';
 // customer.js 의 고객지원 함수(FAQ·공지·1:1 문의) 테스트. 진짜 서버 대신 가짜 서버(test/fakeHttp.js)를 쓴다.
 // 확인하는 것: 경로에 audience=customer 가 붙는지, 문의의 빈 내용 차단·앞뒤 공백 자르기·멱등 키 헤더.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { getFaq, getNotices, getNotice, submitInquiry, loginWithPhone } from './customer.js';
+import { getFaq, getNotices, getNotice, submitInquiry } from './customer.js';
 import { session } from './session.js';
 import { __fake } from './http.js'; // vi.mock 때문에 가짜 서버 모듈의 호출 기록·상태(__fake)가 온다
 
@@ -14,7 +15,7 @@ describe('customer api — 지원 (B6, docs/api.md §5.5)', () => {
     session.clear();
     __fake.calls.length = 0;
     __fake.inquiries.length = 0;
-    await loginWithPhone({ phone: '12345678', password: 'password1' });
+    await seedSocialSession();
   });
 
   it('FAQ·공지는 audience=customer 로 읽고 본문은 id 로', async () => {

@@ -129,3 +129,15 @@ percent는 완료 비율을 버린 정수. 실제 파일 시작 시각·완료 �
 | `photos[].beforeUrl` / `afterUrl` | string | 서명 URL(1시간). 전·후가 다 있는 위치만 온다 |
 
 ServiceLivePortrait 가 완료 전에는 10초마다 묻고, `ready` 를 받으면 멈춘 뒤 위치마다 `BeforeAfterSlider` 를 그린다. 문구는 `mock.js` `CLEANING_PHOTOS_COPY`, 예시 응답은 `CLEANING_PHOTOS`.
+
+## 첫 1회 청소 휴대폰 인증 (2026-11-10 — Figma 에 없음, 코드에서 정함)
+화면 `screens/booking/PhoneVerify.jsx`(`/booking/:category/phone-verify`). 서버는 Supabase Auth phone_change 로 인증번호를 만든다 (`docs/auth/phone-otp.md`, `backend/docs/api.md` '고객 휴대폰 인증').
+
+| 함수 | 응답 필드 | 설명 |
+|---|---|---|
+| `requestCustomerPhoneProof(phone)` | `expiresIn` number | 인증번호 유효 초 (180) |
+| | `resendAfter` number | 재전송 가능까지 초 (60) |
+| | `verified` boolean | true 면 이미 확인된 번호라 문자 없이 끝 |
+| `verifyCustomerPhoneProof(phone, code)` / `getFirstCleaningEligibility()` | `verified`, `eligible` boolean, `reason` `'eligible'\|'phone_required'\|'already_used'`, `completedOneTime` boolean | 첫 1회 청소 자격 |
+
+문구는 `mock.js` `PHONE_VERIFY_COPY`. 가짜 서버는 `__fake.phoneVerified=false` 로 미인증 고객, 맞는 인증번호는 `VALID_CODE`.

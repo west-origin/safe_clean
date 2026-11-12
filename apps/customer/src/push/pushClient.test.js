@@ -1,3 +1,4 @@
+import { seedSocialSession } from '../test/socialSession.js';
 // pushClient 테스트: 권한 → 기기 토큰 → 로그인 때 서버 등록(PUT /push/token)·로그아웃 때 삭제(DELETE),
 // 로그아웃·401 강제 로그아웃 뒤 기기의 푸시 등록을 풀고 다음 로그인 때 새 토큰을 받는지(토큰이 오기 전에 강제 로그아웃된 콜드 스타트,
 // Android 에서 삭제가 끝나기 전에 다시 로그인해 옛 토큰이 오는 경우 포함),
@@ -6,7 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { initPush, getPushState, pushTarget, __resetPush, STALE_TOKEN_RETRY_MS } from './pushClient.js';
 import { deviceToken } from './deviceToken.js';
-import { loginWithPhone, logout } from '../api/customer.js';
+import { logout } from '../api/customer.js';
 import { session } from '../api/session.js';
 import { __fake } from '../api/http.js';
 
@@ -61,7 +62,7 @@ describe('pushClient — 기기 토큰 등록', () => {
     expect(deviceToken.get()).toBe('device-token-1');
     expect(__fake.pushTokens).toEqual([]); // 아직 로그인 전
 
-    await loginWithPhone({ phone: '12345678', password: 'password1' });
+    await seedSocialSession();
     await Promise.resolve(); // 로그인이 깨운 세션 구독 → syncToken(비동기)이 가짜 서버 요청을 마칠 틈을 준다
     expect(__fake.pushTokens).toEqual([{ platform: 'ios', token: 'device-token-1' }]);
 
@@ -73,14 +74,14 @@ describe('pushClient — 기기 토큰 등록', () => {
 
     // 같은 사람이 다시 로그인하면 다시 등록한다 (검수 4차: 중복 방지 키가 남아 앱을 껐다 켤 때까지 푸시가 끊겼다).
     // 등록을 풀었으므로 register() 를 다시 불러 받은 새 토큰으로 등록한다
-    await loginWithPhone({ phone: '12345678', password: 'password1' });
+    await seedSocialSession();
     await vi.waitFor(() => expect(__fake.pushTokens).toEqual([{ platform: 'ios', token: 'device-token-2' }]));
   });
 
   it('401 로 세션이 지워지면(강제 로그아웃) 기기의 푸시 등록을 풀고, 다음 로그인 때 새 토큰을 받아 등록한다 (문제 목록 17번)', async () => {
     const plugin = fakePlugin();
     await initPush({ plugin, platform: 'android' });
-    await loginWithPhone({ phone: '12345678', password: 'password1' });
+    await seedSocialSession();
     await vi.waitFor(() => expect(__fake.pushTokens).toEqual([{ platform: 'android', token: 'device-token-1' }]));
 
     // 강제 로그아웃: 토큰과 refresh 가 모두 401 이면 api/http.js 는 session.clear() 만 부른다(http.test.js 참고) — 그대로 흉내 낸다.
@@ -91,7 +92,7 @@ describe('pushClient — 기기 토큰 등록', () => {
     expect(__fake.calls.some((c) => c.method === 'DELETE' && c.path === '/push/token')).toBe(false);
 
     // 다음 로그인: register() 를 다시 불러 새 토큰을 받아 그 사용자에게 등록한다. 옛 토큰 행은 서버가 다음 발송 때 무효 토큰으로 지운다
-    await loginWithPhone({ phone: '12345678', password: 'password1' });
+    await seedSocialSession();
     await vi.waitFor(() => expect(__fake.pushTokens).toContainEqual({ platform: 'android', token: 'device-token-2' }));
     expect(plugin.register).toHaveBeenCalledTimes(2);
   });
@@ -99,7 +100,7 @@ describe('pushClient — 기기 토큰 등록', () => {
   // 콜드 스타트: 저장된 세션으로 앱을 열었는데 기기 토큰('registration')이 오기 전에 401 강제 로그아웃이 먼저 끝난 경우.
   // 그때는 풀 토큰이 아직 없지만, 늦게 온 토큰은 앞 사용자의 서버 행을 가리킬 수 있어 저장하지 않고 등록을 풀어야 한다 (합친 38건 검토 R12)
   it('토큰이 오기 전에 강제 로그아웃되면, 늦게 온 토큰은 저장하지 않고 등록을 풀며 다음 로그인 때 새 토큰을 받는다', async () => {
-    await loginWithPhone({ phone: '12345678', password: 'password1' }); // 앞 실행에서 저장된 세션 (서버에는 이 사용자·토큰 행이 남아 있다)
+    await seedSocialSession(); // 앞 실행에서 저장된 세션 (서버에는 이 사용자·토큰 행이 남아 있다)
     const plugin = fakePlugin({ holdFirstRegistration: true });
     await initPush({ plugin, platform: 'android' });
     expect(deviceToken.get()).toBeNull(); // 아직 토큰이 오지 않았다
@@ -111,7 +112,7 @@ describe('pushClient — 기기 토큰 등록', () => {
     expect(__fake.pushTokens).toEqual([]);
 
     // 다음 로그인: register() 를 다시 불러 새 토큰을 받아 등록한다
-    await loginWithPhone({ phone: '12345678', password: 'password1' });
+    await seedSocialSession();
     await vi.waitFor(() => expect(__fake.pushTokens).toEqual([{ platform: 'android', token: 'device-token-2' }]));
     expect(plugin.register).toHaveBeenCalledTimes(2);
   });
@@ -122,14 +123,14 @@ describe('pushClient — 기기 토큰 등록', () => {
   it('Android: 로그아웃 직후 다시 로그인해 방금 푼 토큰이 오면 등록하지 않고 잠시 뒤 새 토큰을 받아 등록한다', async () => {
     const plugin = fakePlugin({ slowDelete: true });
     await initPush({ plugin, platform: 'android' });
-    await loginWithPhone({ phone: '12345678', password: 'password1' });
+    await seedSocialSession();
     await vi.waitFor(() => expect(__fake.pushTokens).toEqual([{ platform: 'android', token: 'device-token-1' }]));
     await logout(); // 서버 행 삭제(DELETE) + unregister — 삭제는 아직 FCM 에서 진행 중
     await vi.waitFor(() => expect(plugin.unregister).toHaveBeenCalledTimes(1));
 
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     try {
-      await loginWithPhone({ phone: '12345678', password: 'password1' }); // 곧바로 다시 로그인 → register() 가 옛 토큰 device-token-1 을 준다
+      await seedSocialSession(); // 곧바로 다시 로그인 → register() 가 옛 토큰 device-token-1 을 준다
       await vi.advanceTimersByTimeAsync(0);
       expect(plugin.register).toHaveBeenCalledTimes(2);
       expect(__fake.pushTokens).toEqual([]); // 곧 무효가 될 옛 토큰은 등록하지 않는다
@@ -148,11 +149,11 @@ describe('pushClient — 기기 토큰 등록', () => {
   it('iOS: 다시 로그인해 같은 토큰이 오면 바로 등록한다', async () => {
     const plugin = fakePlugin({ slowDelete: true });
     await initPush({ plugin, platform: 'ios' });
-    await loginWithPhone({ phone: '12345678', password: 'password1' });
+    await seedSocialSession();
     await vi.waitFor(() => expect(__fake.pushTokens).toEqual([{ platform: 'ios', token: 'device-token-1' }]));
     await logout();
     await vi.waitFor(() => expect(plugin.unregister).toHaveBeenCalledTimes(1));
-    await loginWithPhone({ phone: '12345678', password: 'password1' });
+    await seedSocialSession();
     await vi.waitFor(() => expect(__fake.pushTokens).toEqual([{ platform: 'ios', token: 'device-token-1' }]));
     expect(plugin.register).toHaveBeenCalledTimes(2);
   });

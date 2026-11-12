@@ -36,6 +36,10 @@ describe('Booking/AddressSearch 주소 검색', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: '주소 검색' }), { target: { value: '테헤란로' } });
     const [first] = await screen.findAllByRole('button', { name: new RegExp(ADDRESS_RESULTS[0].main) }); // 123-1 · 123길 … 도 같은 글자로 시작한다
     fireEvent.click(first);
+    expect(screen.queryByText('주소 확인 화면')).toBeNull();
+    expect(screen.queryByRole('list', { name: '주소 검색 결과' })).toBeNull();
+    expect(screen.getByRole('searchbox', { name: '주소 검색' })).toHaveValue(ADDRESS_RESULTS[0].main);
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
     expect(await screen.findByText('주소 확인 화면')).toBeInTheDocument();
     expect(JSON.parse(sessionStorage.getItem('ansimclean.booking.home')).roadAddress).toBe(ADDRESS_RESULTS[0].main); // 예약 초안에 들어갔다
   });

@@ -4,8 +4,8 @@ import { MemoryRouter, Routes, Route } from 'react-router';
 import ServiceLivePortrait from './ServiceLivePortrait.jsx';
 import ServiceLiveLandscape from './ServiceLiveLandscape.jsx';
 import { liveClient } from '../../live/liveClient.js';
-import { LIVE_CHECKLIST } from '../../api/mock.js';
 import { LIVE_BOOKING_ID, READY_BOOKING_ID } from '../../test/fakeHttp.js';
+import { LIVE_CHECKLIST } from '../../api/mock.js';
 import { __fake } from '../../api/http.js';
 
 vi.mock('../../api/http.js', async () => (await import('../../test/fakeHttp.js')).fakeHttpModule());
@@ -19,17 +19,27 @@ describe('고객 실시간 체크리스트와 다시보기', () => {
   beforeEach(() => { vi.useFakeTimers(); __fake.calls.length = 0; __fake.liveChecklists = {}; });
   afterEach(() => { liveClient.leave(); vi.useRealTimers(); });
 
-  it('매니저 상태가 바뀌면 5초 폴링으로 카드가 갱신된다', async () => {
-    route(`/service/live?booking=${LIVE_BOOKING_ID}`);
+  it('흰 배경 체크리스트가 진행률과 장소별 작업을 표시하고 매니저 완료 상태를 갱신한다', async () => {
+    const { container } = route(`/service/live?booking=${LIVE_BOOKING_ID}`);
     await advance();
-    expect(screen.getByText('9개 중 4개 완료')).toBeInTheDocument();
+    expect(container.querySelector('video')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '청소 진행 체크리스트' })).toBeInTheDocument();
+    expect(screen.getByText('4 / 9개 작업 완료')).toBeInTheDocument();
+    expect(screen.getByText('5개 남음')).toBeInTheDocument();
+    expect(container.querySelector('summary svg')).toBeNull();
+    expect(container.querySelector('del, s')).toBeNull();
     const updated = structuredClone(LIVE_CHECKLIST);
     updated.done = 9; updated.percent = 100;
-    updated.groups.forEach((group) => { group.done = group.total; group.items.forEach((item) => { item.done = true; }); });
+    updated.groups.forEach((g) => { g.done = g.total; g.items.forEach((item) => { item.done = true; }); });
     __fake.liveChecklists[LIVE_BOOKING_ID] = updated;
     await advance(5000);
-    expect(screen.getByText('9개 중 9개 완료')).toBeInTheDocument();
+    expect(screen.getByText('9 / 9개 작업 완료')).toBeInTheDocument();
     expect(screen.getByLabelText('가스레인지 완료')).toBeInTheDocument();
+    const group = container.querySelector('details');
+    expect(group).toHaveAttribute('open');
+    fireEvent.click(group.querySelector('summary'));
+    expect(group).not.toHaveAttribute('open');
+    expect(__fake.calls.some((c) => c.path.endsWith('/photos'))).toBe(false);
   });
 
   it('다시보기는 요청사항만 표시하고 메타데이터 뒤 구간이 생긴다', async () => {
@@ -46,17 +56,6 @@ describe('고객 실시간 체크리스트와 다시보기', () => {
     const before = count();
     await advance(10000);
     expect(count()).toBe(before);
-  });
-
-  it('체크리스트 초기 실패를 다시 조회해도 영상은 유지된다', async () => {
-    __fake.failOnce.add(`GET /customer/bookings/${LIVE_BOOKING_ID}/checklist`);
-    const { container } = route(`/service/live?booking=${LIVE_BOOKING_ID}`);
-    await advance();
-    expect(container.querySelector('video')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '다시 시도' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
-    await advance();
-    expect(screen.getByText('9개 중 4개 완료')).toBeInTheDocument();
   });
 
   it('실시간 가로 화면에서는 체크리스트 API를 부르지 않는다', async () => {

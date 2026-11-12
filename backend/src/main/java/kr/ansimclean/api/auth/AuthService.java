@@ -44,6 +44,10 @@ import java.util.UUID;
  */
 @Service
 public class AuthService {
+    private static void requireManagerPasswordFlow(String role) {
+        if (!Roles.MANAGER.equals(role)) throw new ApiException(ErrorCode.FORBIDDEN, "고객은 카카오 또는 구글 계정으로 로그인해주세요");
+    }
+
     public static final int PASSWORD_MIN = 8; // 비밀번호 최소 길이 (짧으면 PASSWORD_TOO_SHORT)
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
@@ -87,6 +91,7 @@ public class AuthService {
      * clientIp 는 IP 단위 한도용(null 이면 건너뛴다) — 번호 단위 한도만으로는 임의 번호로 문자를 무한히 보낼 수 있다.
      */
     public OtpResponse requestOtp(String localPhone, String role, String clientIp) {
+        requireManagerPasswordFlow(role);
         String phone = OtpService.toE164(localPhone);
         if (clientIp != null) rateLimiter.check("otp-ip", clientIp, RateLimiter.OTP_PER_IP_PER_HOUR);
         rateLimiter.check("otp-global", "all", RateLimiter.OTP_GLOBAL_PER_HOUR); // 서비스 전체의 시간당 발송 한도 — 문자 비용 차단기
@@ -105,6 +110,7 @@ public class AuthService {
      * 한도: IP 별·번호별 시간당 시도 수. 맞히면 번호별 시도 수를 지운다 — 예전 실패 때문에 다음 확인이 막히지 않게.
      */
     public VerifyResponse verifyOtp(String localPhone, String role, String code, String clientIp) {
+        requireManagerPasswordFlow(role);
         String phone = OtpService.toE164(localPhone);
         if (clientIp != null) rateLimiter.check("verify-ip", clientIp, RateLimiter.VERIFY_PER_IP_PER_HOUR);
         rateLimiter.check("verify", phone, RateLimiter.VERIFY_PER_HOUR);
@@ -118,6 +124,7 @@ public class AuthService {
      * 번호가 없거나 역할이 다르면 PHONE_NOT_FOUND (번호 존재 여부는 가입 흐름에서 이미 드러나므로 여기서 감추지 않는다 — 대신 문구로 안내).
      */
     public OtpResponse requestPasswordOtp(String localPhone, String role, String clientIp) {
+        requireManagerPasswordFlow(role);
         String phone = OtpService.toE164(localPhone);
         if (clientIp != null) rateLimiter.check("otp-ip", clientIp, RateLimiter.OTP_PER_IP_PER_HOUR);
         rateLimiter.check("otp-global", "all", RateLimiter.OTP_GLOBAL_PER_HOUR);
@@ -139,8 +146,10 @@ public class AuthService {
         if (newPassword.length() < PASSWORD_MIN) throw new ApiException(ErrorCode.PASSWORD_TOO_SHORT);
         // peek: 아직 소비하지 않고 토큰으로 번호·역할만 알아낸다 (못 쓰는 토큰이면 OTP_EXPIRED)
         PhoneVerification verification = otp.peek(verificationToken);
+        requireManagerPasswordFlow(verification.getRole());
         String phone = verification.getPhone();
         String role = verification.getRole();
+        requireManagerPasswordFlow(role);
         Profile p = profiles.findLiveByPhone(phone).filter(profile -> profile.getRole().equals(role))
                 .orElseThrow(() -> new ApiException(ErrorCode.PHONE_NOT_FOUND));
 
@@ -186,6 +195,7 @@ public class AuthService {
         PhoneVerification verification = otp.peek(req.verificationToken());                     // (0)
         String phone = verification.getPhone();
         String role = verification.getRole();
+        requireManagerPasswordFlow(role);
         // 이 번호를 쓰는 살아 있는 계정이 이미 있으면 토큰을 소비하기 전에 멈춘다
         if (profiles.phoneInUse(phone)) throw new ApiException(ErrorCode.PHONE_TAKEN);
 
@@ -196,6 +206,9 @@ public class AuthService {
             supabase.deleteUser(userId); // 탈퇴 때 못 지운 잔재 — 실패하면 UPSTREAM 으로 멈춘다(옛 id 재사용 금지)
             userId = null;
         }
+        // 이 번호의 Supabase 사용자가 이미 다른 계정(예: 휴대폰 인증을 마친 카카오·구글 고객 — Supabase phone_change)이면
+        // '잔재' 가 아니다. 비밀번호를 덮어쓰면 남의 소셜 계정에 비밀번호 로그인이 생긴다 (2026-11-10 고객 휴대폰 인증)
+        if (userId != null && profiles.exists(userId)) throw new ApiException(ErrorCode.PHONE_TAKEN);
         // 이번 요청에서 새로 만들었는가 — (c) 가 실패하면 새로 만든 사용자만 지운다(재사용한 잔재는 다음 시도에서 다시 쓴다)
         boolean created = false;
         if (userId != null) {
@@ -251,6 +264,7 @@ public class AuthService {
 
     /** 로그인. 번호·비밀번호·역할 중 무엇이 틀렸는지 구분하지 않는다. 가입 중 계정도 성공하고 signupStep 으로 이어간다 */
     public AuthResponse login(LoginRequest req, String clientIp) {
+        requireManagerPasswordFlow(req.role());
         String phone = OtpService.toE164(req.phone());
         if (clientIp != null) rateLimiter.check("login-ip", clientIp, RateLimiter.LOGIN_PER_IP_PER_HOUR);
         rateLimiter.check("login", phone, RateLimiter.LOGIN_PER_HOUR);
@@ -304,9 +318,33 @@ public class AuthService {
     public void deleteAccount(UUID userId, String password) {
         rateLimiter.check("delete", userId.toString(), RateLimiter.DELETE_PER_USER_PER_HOUR); // 로그인된 세션으로 비밀번호를 무한히 맞춰 보지 못하게
         Profile p = profiles.requireLive(userId);
-        SupabaseAuthClient.Session check = supabase.passwordGrant(p.getPhone(), password); // 틀리면 LOGIN_FAILED
+        if (Roles.CUSTOMER.equals(p.getRole())) throw new ApiException(ErrorCode.FORBIDDEN, "SNS 재인증 후 탈퇴해주세요");
+        SupabaseAuthClient.Session check = supabase.passwordGrant(p.getPhone(), password); // manager only
         supabase.logout(check.accessToken()); // 비밀번호 확인용으로 생긴 세션은 바로 끊는다 — 가드에 막혀도 남지 않게 (전체 재점검 A2)
-        // 아래 묶음은 트랜잭션 하나: 가드에 막히거나 중간에 실패하면 익명화·아웃박스 기록까지 전부 되돌린다
+        finishDeletion(userId, p);
+    }
+
+    public void deleteSocialAccount(UUID userId, org.springframework.security.oauth2.jwt.Jwt jwt) {
+        Profile p = profiles.requireLive(userId);
+        if (!Roles.CUSTOMER.equals(p.getRole())) throw new ApiException(ErrorCode.FORBIDDEN);
+        boolean recent = false;
+        Object methods = jwt.getClaims().get("amr");
+        if (methods instanceof java.util.List<?> list) {
+            for (Object item : list) {
+                if (item instanceof java.util.Map<?, ?> method && "oauth".equals(method.get("method"))
+                    && method.get("timestamp") instanceof Number at) {
+                    long seconds = java.time.Instant.now().getEpochSecond() - at.longValue();
+                    if (seconds >= 0 && seconds <= 300) recent = true;
+                }
+            }
+        }
+        if (!recent) throw new ApiException(ErrorCode.INVALID_STATE, "안전한 탈퇴를 위해 카카오 또는 구글로 다시 로그인한 후 5분 안에 진행해주세요");
+        rateLimiter.check("delete", userId.toString(), RateLimiter.DELETE_PER_USER_PER_HOUR);
+        finishDeletion(userId, p);
+    }
+
+    private void finishDeletion(UUID userId, Profile p) {
+        // All deletion guards and retained business records remain in the original transaction.
         tx.executeWithoutResult(status -> {
             profiles.lockLive(userId);                 // 가드 검사와 익명화를 같은 트랜잭션·잠금 안에서 (검사 뒤 수락이 끼어들지 못하게)
             if (p.getRole().equals(Roles.MANAGER)) profiles.lockManagerIfExists(userId); // 콜 수락(lockManager)과 직렬화. 가입 미완료 매니저는 행이 없다

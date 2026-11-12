@@ -15,7 +15,7 @@ describe('customer api — 예약과 내 예약 (서버 어댑터)', () => {
   // 예약을 만들고 → 내 예약 목록에서 그 카드를 찾아 → 일정 변경 → 취소까지. 카드 문구(일정·주소·매니저 행)는 가짜 서버가 서버를 흉내 내 만든다
   it('만든 예약이 내 예약(예정 탭)에 보이고 변경·취소할 수 있다', async () => {
     const booking = await createBooking('home', FULL);
-    expect(booking).toMatchObject({ category: 'home', cleaner: '배정 후 알려드려요', totalLabel: '100,000원' });
+    expect(booking).toMatchObject({ category: 'home', cleaner: '배정 후 알려드려요', totalLabel: '41,600원' });
     const { reservations } = await getReservations();
     const mine = reservations.find((r) => r.id === booking.id);
     expect(mine).toMatchObject({ tab: 'upcoming', status: 'assigning', title: '가정/원룸 청소', category: 'home', series: false });
@@ -42,7 +42,7 @@ describe('customer api — 예약과 내 예약 (서버 어댑터)', () => {
     expect(await getBookingQuote('home', { frequency: 'recurring' })).toBeNull();
     const q = await getBookingQuote('home', { frequency: 'recurring', date: '2026-11-02', time: '10:00' });
     expect(q.visits).toHaveLength(6); // 매월 1회 × 6개월 (사용자 결정 2026-09-22)
-    expect(q.totalLabel).toBe('480,000원'); // 80,000 × 6회
+    expect(q.totalLabel).toBe('237,600원'); // (2시간 × 20,800 - 2,000) × 6회
   });
 
   it('기존 주소·카테고리의 404 는 null 로, 짧은 검색어는 서버 없이 빈 결과', async () => {

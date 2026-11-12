@@ -1,3 +1,4 @@
+import { Dot } from 'lucide-react';
 // (코드에서 정함) 내 예약 카드 — 2026-11-03 사용자 첨부 예약내역 시안(흰 카드 + 그림자):
 //   윗줄: 서비스 이름(매장·가정·원룸 …) + 오른쪽 매칭 알약('매칭 중' / '매칭 완료', 브랜드 파랑 — 2026-11-03 사용자 요청으로 '배정' → '매칭')
 //   파란 글자: 방문 일정 / 매니저 사진 + 이름(굵게) + 진행 상태(예약 완료·이동 중·청소 중·청소 완료) / 두 칸(시작·종료 시각)
@@ -8,7 +9,13 @@ import AssignDoneIcon from '../../icons/AssignDoneIcon.jsx';
 import { cx } from '../../utils/cx.js';
 import styles from './ReservationTicket.module.css';
 
+export function ReservationMatchingBadge({ badge }) {
+  const b = BADGES[badge];
+  return b ? <span className={cx('text-caption-l-bold', styles.badge, badge === 'live' && styles.liveBadge)}>{b.icon}{b.label}</span> : null;
+}
+
 const BADGES = {
+  live: { label: '실시간', icon: <Dot className={styles.liveDot} size={18} strokeWidth={2} aria-hidden="true" focusable="false" /> },
   assigning: { label: '매칭 중', icon: <AssignPendingIcon /> },
   assigned: { label: '매칭 완료', icon: <AssignDoneIcon /> },
 };
@@ -26,22 +33,16 @@ const BADGES = {
  * @param {{ label: string, onClick: () => void, tone?: 'brand' }[]} [props.actions] 구분선 아래 버튼들 (note 가 있으면 무시)
  * @param {string} [props.className]
  */
-export default function ReservationTicket({ title, badge, schedule, avatar, manager, progress, times = [], note, actions = [], className }) {
-  const b = BADGES[badge];
+export default function ReservationTicket({ title, badge, schedule, avatar, manager, progress, times = [], note, actions = [], className, cardRef, tabIndex }) {
   const hasFooter = Boolean(note) || actions.length > 0;
   return (
-    <article className={cx(styles.card, className)} aria-label={title}>
+    <article ref={cardRef} tabIndex={tabIndex} className={cx(styles.card, className)} aria-label={title}>
       <div className={styles.top}>
         <div className={styles.heading}>
           <h3 className={cx('text-title-card', styles.title)}>{title}</h3>
           <p className={cx('text-body-s', styles.schedule)}>{schedule}</p>
         </div>
-        {b && (
-          <span className={cx('text-caption-l-bold', styles.badge)}>
-            {b.icon}
-            {b.label}
-          </span>
-        )}
+        <ReservationMatchingBadge badge={badge} />
       </div>
 
       <div className={styles.manager}>

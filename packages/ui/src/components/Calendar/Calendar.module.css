@@ -133,3 +133,53 @@
   color: var(--color-border-default);
   cursor: default;
 }
+
+.marker {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: var(--spacing-2xs);
+  height: var(--spacing-2xs);
+  transform: translateX(-50%);
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-primary);
+}
+.selected.hasMarker {
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-primary);
+}
+
+.responsive .weekdays,
+.responsive .row {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.responsive .cell {
+  width: 100%;
+  min-height: var(--touch-target);
+}
+
+.withoutTitle .monthNav {
+  padding-top: var(--spacing-sm);
+}
+
+.swipeable {
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+}
+
+.subtleSelection .selected {
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-primary);
+}
+.viewport { overflow: hidden; }
+.track {
+  display: flex;
+}
+.monthPage { flex: 0 0 100%; min-width: 0; }
+
+.snapping {
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .snapping { transition: none; }
+}

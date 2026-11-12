@@ -52,6 +52,7 @@ public class SecurityConfig {
                         .requestMatchers(API + "/terms/**", API + "/catalog/**").permitAll() // 약관·카탈로그(서비스 안내)는 로그인 없이
                         .requestMatchers(HttpMethod.GET, API + "/support/faq", API + "/support/notices/**", API + "/support/contact").permitAll() // 고객센터 FAQ·공지·연락처 읽기만 공개
                         .requestMatchers(API + "/live/webhooks/**").permitAll()               // LiveKit 서명으로 검증
+                        .requestMatchers(HttpMethod.POST, API + "/hooks/supabase/send-sms").permitAll() // Supabase Send SMS Hook — Standard Webhooks 서명으로 검증 (SmsHookService)
                         .requestMatchers(API + "/admin/**").permitAll()                       // X-Admin-Token 으로 검증 (common/security/AdminAuth, §13-20)
                         // 가입 도중(PENDING_CUSTOMER)에도 되는 가입 화면 저장
                         .requestMatchers(HttpMethod.PUT, API + "/customer/profile/address", API + "/customer/profile/housing").hasAnyAuthority(Roles.ROLE_CUSTOMER, "PENDING_CUSTOMER")

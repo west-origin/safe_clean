@@ -191,12 +191,14 @@ public final class KoreanFormat {
     // 아래 두 함수는 형식을 검사하지 않는다 — toE164 로 만든 +8210 + 8자리 값을 받는다고 보고 자리 수로 자른다(짧으면 예외)
     /** "+821012345678" → "010-1234-5678" */
     public static String phoneDisplay(String e164) {
+        if (e164 == null) return "휴대폰 미인증";
         String local = "0" + e164.substring(3); // +82 10 1234 5678 → 01012345678
         return local.substring(0, 3) + "-" + local.substring(3, 7) + "-" + local.substring(7);
     }
 
     /** "+821012345678" → "12345678" (앱 PhoneField 의 앞자리 010 뺀 값) */
     public static String phoneLocal(String e164) {
+        if (e164 == null) return "";
         return e164.substring(5); // 앞 5글자 "+8210" 을 뗀다
     }
 

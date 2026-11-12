@@ -56,7 +56,9 @@ function persistNative(value, current) {
  * 메모리 세션(value, 로그아웃이면 null)을 저장소에 반영한다. 웹은 localStorage, 네이티브는 보안 저장소.
  * 네이티브는 먼저 대기 표식을 켜 두고 쓰기가 끝나면 끈다 — 도중에 실패·종료돼도 다음 실행이 옛 세션을 되살리지 않게.
  */
+let sdk = null;
 function write(value) {
+  if (sdk) return;
   if (NATIVE) {
     const current = ++revision;
     markPending(true);
@@ -134,6 +136,16 @@ function clearSessionDrafts() {
 
 /** 세션 보관 객체. 세션을 바꾸는 메서드(예: set·clear)는 메모리를 바꾸고 → 저장소에 쓰고(write) → 구독자에게 알린다(notify) */
 export const session = {
+  useSdk: (adapter) => { sdk = adapter; },
+  refreshWithSdk: () => sdk ? sdk.refresh() : null,
+  async removeLegacyStorage() {
+    await storageWrites;
+    if (NATIVE && secure) {
+      const { value: keys } = await secure.keys();
+      if (keys.includes(KEY)) await secure.remove({ key: KEY });
+    }
+    try { localStorage.removeItem(KEY); localStorage.removeItem(DIRTY); } catch { /* unavailable */ }
+  },
   /** 지금 로그인 경계 번호. http.js 가 요청 시작 때 적어 두고, 응답이 왔을 때 같은 로그인인지 비교한다 */
   generation: () => generation,
   /** 앱 시작 때 App.jsx 가 한 번 기다린다 (네이티브만 실제로 읽는다) */
@@ -166,9 +178,10 @@ export const session = {
     notify();
   },
   /** 세션을 지운다 (예: 로그아웃·탈퇴 때 api/customer.js, 토큰이 끝내 401 로 거부될 때 http.js). 저장소·예약 초안도 함께 지운다 */
-  clear() {
+  clear({ notifySdk = true } = {}) {
     generation++; // 로그아웃도 로그인 경계 — 진행 중이던 요청의 늦은 응답이 세션을 되살리지 못하게
     memory = null;
+    if (sdk && notifySdk) sdk.clear();
     write(null);
     clearSessionDrafts(); // 예약 초안(주소·요청사항)은 bookingDraft 모듈이 로드되지 않은 실행에서도 지운다 (외부 검토 3차)
     notify();
@@ -183,7 +196,7 @@ export const session = {
   refreshToken: () => memory?.refreshToken ?? null,
   user: () => memory?.user ?? null,
   /** 가입까지 끝난 로그인 상태 (RequireAuth 가 본다). 가입 도중이면 false — signupStep 으로 이어간다 */
-  isSignedIn: () => Boolean(memory?.accessToken && memory?.user?.profileComplete),
+  isSignedIn: () => Boolean(memory?.accessToken && memory?.user?.role === 'customer' && memory?.user?.profileComplete),
   /** 토큰은 있지만 가입이 덜 끝난 상태의 다음 화면 키 ('address' | 'housing' | 'complete') */
   signupStep: () => (memory?.accessToken ? (memory.user?.signupStep ?? null) : null),
 };

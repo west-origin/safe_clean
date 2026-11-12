@@ -148,10 +148,6 @@ public class JobService {
     /** 실제 시작: 예약 행을 잠그고 → 이미 in_progress 면 그대로(paused 면 Booking.start 가 409) → 다른 진행 중 작업이 없는지 → scheduled → in_progress → 이력 → 지각 검사 */
     private StartResponse doStart(UUID managerId, UUID id) {
         Booking b = bookings.lockManagerBooking(managerId, id);
-        if (b.getRequiredPhotoRooms().isEmpty()) {
-            List<String> rooms = checklist.findByBookingIdOrderBySort(id).stream().map(JobChecklistItem::getGroupName).distinct().toList();
-            b.setRequiredPhotoRooms(rooms.isEmpty() ? List.of("청소 공간") : rooms);
-        }
         if (b.getStatus() == BookingStatus.IN_PROGRESS) return new StartResponse(id, b.getStartedAt().toString()); // 키 없이 두 번 눌러도 같다
         // 매니저당 진행 중(in_progress·paused) 작업은 하나뿐이다 — 다른 작업을 끝내지 않았으면 409
         Optional<Booking> active = bookings.activeJob(managerId);
@@ -409,7 +405,7 @@ public class JobService {
         LocalDate today = clock.today(); // 서울 달력의 오늘 — 방문일(serviceDate)도 서울 날짜라 같은 기준으로 비교한다
         if (b.getServiceDate().isBefore(today.minusDays(1)) || b.getServiceDate().isAfter(today.plusDays(1))) throw ApiException.notFound();
         // 탈퇴한 고객이면 requireLive 가 404. 저장된 번호(+82…)를 010-1234-5678 모양으로 바꿔 보낸다
-        String phone = profiles.requireLive(b.getCustomerId()).getPhone();
+        String phone = profiles.contactPhone(b.getCustomerId());
         return new ContactResponse(KoreanFormat.phoneDisplay(phone), b.getRoadAddress());
     }
 

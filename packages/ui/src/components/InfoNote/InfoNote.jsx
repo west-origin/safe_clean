@@ -7,7 +7,8 @@ import styles from './InfoNote.module.css';
 
 /**
  * @param {object} props
- * @param {'brand'|'warning'} [props.tone='brand']
+ * @param {'brand'|'warning'|'neutral'} [props.tone='brand'] neutral = surface/subtle 회색 배경 (코드에서 정함 — 2026-11-10 휴대폰 인증 시안)
+ * @param {import('react').ReactNode} [props.icon] 기호 대신 앞에 붙는 아이콘 (glyph 보다 우선)
  * @param {string} [props.glyph] 앞에 붙는 기호 (Figma 는 텍스트: "ⓘ" "!" "🔔" "📅")
  * @param {'stack'|'inline'} [props.layout='stack'] stack=기호 위·본문 아래(간격 8), inline=기호와 본문 한 줄(간격 10, 선택 일정 요약)
  * @param {string} [props.title] 제목 (Title/Small) — 비용 안내
@@ -15,13 +16,14 @@ import styles from './InfoNote.module.css';
  * @param {string} [props.className]
  * 안내 상자 하나를 그린다. role="note" 로 스크린리더에 "본문을 돕는 보조 설명" 임을 알린다.
  */
-export default function InfoNote({ tone = 'brand', glyph, layout = 'stack', title, children, className }) {
+export default function InfoNote({ tone = 'brand', icon, glyph, layout = 'stack', title, children, className }) {
   // 클래스는 겹쳐 붙인다: 톤(배경색) + 배치(stack/inline) + 제목이 있으면 .titled(간격 8→6, 패딩 14→16).
   // 기호는 brand 톤이면서 제목이 없을 때만 브랜드색이고, 그 밖에는 글자색(text/primary)이다.
   // inline(선택 일정 요약)은 본문이 Label/Default·text/primary 로, stack 의 Caption/L·text/secondary 보다 진하다.
   return (
     <div className={cx(styles.note, styles[tone], styles[layout], title && styles.titled, className)} role="note">
-      {glyph && <span className={cx('text-caption-l', styles.glyph, tone === 'brand' && !title && styles.glyphBrand)} aria-hidden="true">{glyph}</span>}
+      {icon && <span className={cx(styles.icon, tone === 'brand' && styles.glyphBrand)} aria-hidden="true">{icon}</span>}
+      {!icon && glyph && <span className={cx('text-caption-l', styles.glyph, tone === 'brand' && !title && styles.glyphBrand)} aria-hidden="true">{glyph}</span>}
       {title && <p className={cx('text-title-small', styles.title)}>{title}</p>}
       <p className={cx(layout === 'inline' ? 'text-label-default' : 'text-caption-l', styles.body, layout === 'inline' && styles.bodyInline)}>{children}</p>
     </div>

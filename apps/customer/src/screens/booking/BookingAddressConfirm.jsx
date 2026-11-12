@@ -1,57 +1,69 @@
-// Figma: Booking/AddressConfirm (92:402) — Sheet 안에 SheetHeader(StepProgress 5) + "이 주소를 사용할까요?" + Verified 아이콘 + 도로명주소/상세주소 필드. 4 카테고리 동일.
-// 프로토타입 연결 없음 → "다음" = /options (PROGRESS.md 판단 항목). 도로명주소는 검색어를 미리 채운다
-// 예약 플로우 5단계(/booking/:category/address-confirm). 주소 검색 화면에서 고른(또는 입력한) 도로명주소에
-// 상세주소(동·호수)를 더해 예약 초안(sessionStorage)에 둔다. 서버에는 확인 화면에서 예약을 만들 때 한꺼번에 간다.
-// 수리 예약의 '다른 주소로 변경' 도 주소 검색 → 이 화면을 빌려 쓴다 (:category = 'repair:<수리 종류>', RepairAddress.jsx).
+// 검색에서 선택한 주소를 확인하고 상세주소·장소 별칭을 저장한다.
+// 상세주소는 비워도 된다(단독주택). 비운 채 '다음' 이면 깜빡했을 수 있어 확인 시트를 띄운다 (2026-11-11 사용자 요청, 문구 ADDRESS_DETAIL_SKIP_COPY)
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ScreenLayout, StepNavBar, TextField, VerifiedIcon, Button, cx } from '@ansimclean/ui';
-import { saveBookingStep } from '../../api/customer.js';
+import { ScreenLayout, NavBar, Button, Sheet, ActionError, useAction, cx } from '@ansimclean/ui';
+import { addAddress } from '../../api/customer.js';
 import { useBookingDraft } from './bookingDraft.js';
-import { INPUT_LIMITS } from '../../api/mock.js';
+import { ADDRESS_DETAIL_SKIP_COPY as SKIP, INPUT_LIMITS } from '../../api/mock.js';
 import common from './booking.module.css';
 import { useReturnTo } from './useReturnTo.js';
 import styles from './BookingAddressConfirm.module.css';
+import KeyboardAwareFooter from '../../components/KeyboardAwareFooter.jsx';
 
-/** 주소 확인 화면. 도로명주소·상세주소 두 칸을 모두 채워야 "다음" 이 열린다 */
 export default function BookingAddressConfirm() {
   const navigate = useNavigate();
-  const { category } = useParams(); // 주소의 :category — 청소 카테고리(예: home) 또는 수리 예약이 빌려 쓸 때 'repair:<수리 종류>'
-  const back = useReturnTo(); // 확인 화면 '수정하기'(또는 수리 예약)에서 왔으면 그 화면으로 돌아간다
+  const { category } = useParams();
+  const back = useReturnTo();
   const [draft, update] = useBookingDraft(category);
-  // 도로명주소가 아직 없으면 주소 검색 화면에 적은 검색어를 대신 보여 준다. 칸을 고치면 update 로 초안에 바로 저장된다
   const roadAddress = draft.roadAddress ?? draft.addressQuery ?? '';
   const detailAddress = draft.detailAddress ?? '';
-
-  // "다음": 지금 칸의 값을 초안에 확정하고 옵션 단계로 (returnTo 가 있으면 그 화면으로).
-  // saveBookingStep 은 지금 서버를 부르지 않는다 (customer.js — 서버에는 예약 완료 때 한 번 보낸다)
-  const next = async () => {
-    await saveBookingStep(category, 'address-confirm', { roadAddress, detailAddress });
-    update({ reuseAddress: 'no', roadAddress, detailAddress }); // 'no' = 기본 주소가 아니라 초안 주소를 쓴다 (BookingConfirm)
+  const addressLabel = draft.addressLabel ?? '';
+  const next = useAction(async () => {
+    const saved = await addAddress({ roadAddress, detailAddress: detailAddress.trim(), label: addressLabel.trim() });
+    update({ reuseAddress: 'no', addressId: saved.id, roadAddress, detailAddress: detailAddress.trim(), addressLabel: saved.label });
     navigate(back.next(`/booking/${category}/options`));
-  };
+  });
+  const [askSkip, setAskSkip] = useState(false);
+  const detailRef = useRef(null);
+  const focusDetail = useRef(false);
+  // '입력하기' 로 시트가 닫히면 상세주소 칸으로. 시트가 닫히며 '다음' 버튼으로 돌려준 포커스를 이어서 옮긴다
+  useEffect(() => {
+    if (askSkip || !focusDetail.current) return;
+    focusDetail.current = false;
+    detailRef.current?.focus();
+  }, [askSkip]);
+  const onNext = () => (detailAddress.trim() ? next.run() : setAskSkip(true));
 
   return (
-    <ScreenLayout noPadding gap="none">
-      <div className={common.sheet}>
-        <div className={common.sheetStack}>
-          <StepNavBar step={5} variant="sheet" onBack={() => navigate(-1)} />
-          <div className={styles.form}>
-            <div className={styles.titleRow}>
-              <h1 className={cx('text-heading-m', common.sectionTitle)}>이 주소를 사용할까요?</h1>
-              <VerifiedIcon className={styles.verified} />
-            </div>
-            {/* maxLength 는 mock.js INPUT_LIMITS — 서버 설정과 같아야 하는 값이다 (mock.js 머리 설명) */}
-            <TextField label="도로명주소" placeholder="서울특별시 강남구 테헤란로 123" autoComplete="street-address" value={roadAddress} onChange={(e) => update({ roadAddress: e.target.value })} maxLength={INPUT_LIMITS.roadAddress} />
-            <TextField label="상세주소" placeholder="604동 1002호" value={detailAddress} onChange={(e) => update({ detailAddress: e.target.value })} maxLength={INPUT_LIMITS.detailAddress} />
-          </div>
-        </div>
-        {/* 공백만 적은 칸은 빈 칸으로 본다 */}
-        <div className={common.cta}>
-          <Button variant="primary" disabled={!roadAddress?.trim() || !detailAddress?.trim()} onClick={next}>
-            다음
-          </Button>
-        </div>
+    <ScreenLayout noPadding gap="none" navBar={<NavBar onBack={() => navigate(-1)} />}
+      tabBar={<KeyboardAwareFooter>
+        <Button variant="primary" chevron={false} className={common.ctaRounded}
+          disabled={!roadAddress.trim()} loading={next.loading} onClick={onNext}>다음</Button>
+        <ActionError error={next.error} />
+      </KeyboardAwareFooter>}
+    >
+      <div className={cx(common.page, styles.page)}>
+        <h1 className={cx('text-heading-m', common.pageTitle)}>장소 정보</h1>
+        <section className={styles.address} aria-label="선택한 주소">
+          <p className={cx('text-heading-s', styles.road)}>{roadAddress}</p>
+          {draft.addressSub && <p className={cx('text-body-default', styles.sub)}>{draft.addressSub}</p>}
+          <input ref={detailRef} className={styles.input} aria-label="상세주소" placeholder="상세 주소를 입력해주세요" autoComplete="address-line2"
+            value={detailAddress} maxLength={INPUT_LIMITS.detailAddress} onChange={(e) => update({ detailAddress: e.target.value })} />
+        </section>
+        <section className={styles.alias}>
+          <label className="text-title-small" htmlFor="address-alias">장소 별칭</label>
+          <input id="address-alias" className={styles.input} placeholder="장소 별칭을 입력해주세요" value={addressLabel} maxLength={30}
+            onChange={(e) => update({ addressLabel: e.target.value })} />
+        </section>
       </div>
+      <Sheet open={askSkip} onClose={() => setAskSkip(false)} title={SKIP.title}>
+        <p className="text-body-default">{SKIP.description}</p>
+        <Button variant="primary" chevron={false} className={common.ctaRounded}
+          onClick={() => { focusDetail.current = true; setAskSkip(false); }}>{SKIP.enter}</Button>
+        <Button variant="secondary" chevron={false} className={common.ctaRounded}
+          onClick={() => { setAskSkip(false); next.run(); }}>{SKIP.skip}</Button>
+      </Sheet>
     </ScreenLayout>
   );
 }

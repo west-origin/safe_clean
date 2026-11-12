@@ -326,7 +326,7 @@ class JobServiceTest {
         assertThat(job.scope()).containsExactly("설거지", "반려동물 배변 청소");
         assertThat(job.requests()).containsExactly("반려동물이 있어요", "잘 부탁드려요");
 
-        when(profiles.requireLive(CUSTOMER)).thenReturn(Profile.create(CUSTOMER, "customer", "김하늘", null, "+821012345678"));
+        when(profiles.contactPhone(CUSTOMER)).thenReturn("+821012345678");
         ContactResponse contact = service.contact(MANAGER, booking.getId());
         assertThat(contact.phone()).isEqualTo("010-1234-5678");
         assertThat(contact.mapQuery()).isEqualTo(TestBookings.ROAD);

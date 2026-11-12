@@ -31,6 +31,31 @@ const VIDEO_CONSTRAINTS = {
   frameRate: { ideal: 24, max: 30 },
 };
 
+// 가상 카메라·장치 드라이버가 첫 프레임을 주지 않으면 getUserMedia가 끝나지 않을 수 있다.
+const CAMERA_START_TIMEOUT_MS = 20_000;
+
+function openCamera() {
+  return new Promise((resolve, reject) => {
+    let expired = false;
+    const timer = setTimeout(() => {
+      expired = true;
+      reject(new CameraError('failed'));
+    }, CAMERA_START_TIMEOUT_MS);
+    navigator.mediaDevices.getUserMedia({ video: VIDEO_CONSTRAINTS, audio: false }).then(
+      (stream) => {
+        clearTimeout(timer);
+        // 시간 초과 후 늦게 열린 카메라가 다음 연결을 점유하지 않도록 놓는다.
+        if (expired) stream.getTracks().forEach((track) => track.stop());
+        else resolve(stream);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 /** getUserMedia 오류 이름 → CameraError 코드 */
 function toCameraError(e) {
   const name = e?.name;
@@ -61,8 +86,9 @@ export function createCameraVideoSource() {
       let stream;
       try {
         // 처음 부르면 OS 가 카메라 권한을 묻는다 (Android WebView 는 Capacitor 가 앱 권한 요청으로 넘긴다)
-        stream = await navigator.mediaDevices.getUserMedia({ video: VIDEO_CONSTRAINTS, audio: false });
+        stream = await openCamera();
       } catch (e) {
+        if (e instanceof CameraError) throw e;
         throw toCameraError(e);
       }
       track = stream.getVideoTracks()[0] ?? null;

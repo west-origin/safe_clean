@@ -14,12 +14,12 @@ import styles from './AddressResultList.module.css';
  * @param {(result: { id: string, main: string, sub?: string }) => void} [props.onSelect]
  * @param {string} [props.className]
  */
-export default function AddressResultList({ results, onSelect, className }) {
+export default function AddressResultList({ results, onSelect, selectedId, className }) {
   return (
     <ul className={cx(styles.list, className)} aria-label="주소 검색 결과">
       {results.map((r) => (
         <li key={r.id}>
-          <button type="button" className={styles.row} onClick={() => onSelect && onSelect(r)}>
+          <button type="button" className={cx(styles.row, selectedId === r.id && styles.selected)} aria-pressed={selectedId === undefined ? undefined : selectedId === r.id} onClick={() => onSelect && onSelect(r)}>
             {/* 핀 아이콘 원은 장식이라 스크린리더에서 숨긴다 — 버튼 이름은 주소 글자로 읽힌다 */}
             <span className={styles.circle} aria-hidden="true">
               <InfoPinIcon size={16} />

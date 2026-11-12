@@ -46,7 +46,7 @@
   padding: 0 var(--spacing-sm) var(--spacing-sm);
   color: var(--color-brand-primary);
 }
-/* 서비스 3개를 같은 폭으로: 동그란 아이콘 + 아래 이름 */
+/* 서비스 6개(3열 2줄)를 같은 폭으로: 동그란 아이콘 + 아래 이름 */
 .categories {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -79,6 +79,27 @@
   height: 64px;
   border-radius: var(--radius-pill);
   background: var(--color-surface-subtle); /* 첨부 시안의 연회색 바탕 */
+}
+/* 사진 문의: 연파랑 바탕 + 파란 굵은 이름 + 오른쪽 위 '무료' 배지 (2026-11-08 사용자 첨부 시안) */
+.categoryHighlight .categoryIcon {
+  position: relative;
+  background: var(--color-brand-subtle);
+}
+.categoryHighlight .categoryLabel {
+  color: var(--color-brand-primary);
+}
+/* 배지는 동그라미 오른쪽 위에 겹쳐 놓는다 (시안의 절대 위치 오버레이) */
+.freeBadge {
+  --font-size-caption-bold: var(--home-font-badge);
+  --line-height-auto: 1.2; /* 배지 한 줄 */
+  position: absolute;
+  top: calc(-1 * var(--spacing-xs));
+  right: calc(-1 * var(--spacing-xs));
+  padding: var(--spacing-2xs) var(--spacing-xs);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-inverse);
+  background: var(--color-brand-primary);
+  box-shadow: 0 0 0 2px var(--color-surface-default);
 }
 /* 이름: 굵지 않은 회색 (2026-10-31 사용자 요청). text/secondary 는 흰 바탕에서 4.5:1 대비 */
 .categoryLabel {

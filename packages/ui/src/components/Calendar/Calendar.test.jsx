@@ -36,6 +36,56 @@ describe('Calendar', () => {
     expect(screen.getByRole('grid', { name: '2025년 8월' })).toBeInTheDocument();
   });
 
+  it('좌우 스와이프로 연말·연초를 넘기고 선택한 날짜는 유지한다', () => {
+    const onChange = vi.fn();
+    render(<Calendar swipeable value="2026-12-16" onChange={onChange} isDisabled={() => false} />);
+    const calendar = screen.getByRole('region', { name: '방문 날짜 선택' });
+    const swipe = (from, to) => {
+      fireEvent.touchStart(calendar, { touches: [{ identifier: 1, clientX: from, clientY: 100 }] });
+      fireEvent.touchMove(calendar, { touches: [{ identifier: 1, clientX: to, clientY: 105 }] });
+      expect(calendar.querySelector('div[style]')).toHaveStyle({ transform: `translateX(calc(-100% + ${to - from}px))` });
+      fireEvent.touchEnd(calendar, { changedTouches: [{ identifier: 1, clientX: to, clientY: 105 }] });
+    };
+    swipe(250, 100);
+    expect(screen.getByRole('grid', { name: '2027년 1월' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('gridcell', { name: '1월 12일' }), { detail: 1 });
+    expect(onChange).not.toHaveBeenCalled();
+    swipe(100, 250);
+    expect(screen.getByRole('grid', { name: '2026년 12월' })).toBeInTheDocument();
+    expect(screen.getByRole('gridcell', { name: '12월 16일', selected: true })).toBeInTheDocument();
+  });
+
+  it('월 전환 기준보다 짧게 드래그하면 스냅 상태로 원래 위치에 복귀한다', () => {
+    render(<Calendar swipeable value="2026-11-16" />);
+    const calendar = screen.getByRole('region', { name: '방문 날짜 선택' });
+    fireEvent.touchStart(calendar, { touches: [{ identifier: 1, clientX: 150, clientY: 100 }] });
+    fireEvent.touchMove(calendar, { touches: [{ identifier: 1, clientX: 120, clientY: 100 }] });
+    const track = calendar.querySelector('div[style]');
+    expect(track).toHaveStyle({ transform: 'translateX(calc(-100% + -30px))' });
+    fireEvent.touchEnd(calendar, { changedTouches: [{ identifier: 1, clientX: 120, clientY: 100 }] });
+    expect(track.className).toContain('snapping');
+    expect(track).toHaveStyle({ transform: 'translateX(calc(-100% + 0px))' });
+    expect(screen.getByRole('grid', { name: '2026년 11월' })).toBeInTheDocument();
+    fireEvent.transitionEnd(track);
+    expect(track.className).not.toContain('snapping');
+  });
+
+  it('세로 스크롤·짧은 터치·취소된 제스처는 월을 바꾸지 않는다', () => {
+    const onChange = vi.fn();
+    render(<Calendar swipeable value="2026-11-16" onChange={onChange} isDisabled={() => false} />);
+    const calendar = screen.getByRole('region', { name: '방문 날짜 선택' });
+    for (const [x, y] of [[110, 105], [120, 250], [180, 250]]) {
+      fireEvent.touchStart(calendar, { touches: [{ identifier: 1, clientX: 100, clientY: 100 }] });
+      fireEvent.touchEnd(calendar, { changedTouches: [{ identifier: 1, clientX: x, clientY: y }] });
+    }
+    fireEvent.touchStart(calendar, { touches: [{ identifier: 1, clientX: 250, clientY: 100 }] });
+    fireEvent.touchCancel(calendar);
+    fireEvent.touchEnd(calendar, { changedTouches: [{ identifier: 1, clientX: 100, clientY: 100 }] });
+    expect(screen.getByRole('grid', { name: '2026년 11월' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('gridcell', { name: '11월 16일' }));
+    expect(onChange).toHaveBeenCalledWith('2026-11-16');
+  });
+
   it('기본 규칙: 오늘 이전 날짜는 선택 불가, 시간대와 무관하게 value 의 날짜가 선택된다', () => {
     const today = new Date();
     const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);

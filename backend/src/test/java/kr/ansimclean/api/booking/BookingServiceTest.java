@@ -213,6 +213,7 @@ class BookingServiceTest {
     void setUp() {
         service = new BookingService(bookings, seriesRepo, history, catalog, pricing, settings, profiles, dispatcher, mock(RecordingLookup.class), outbox, idempotent, CLOCK,
                 new kr.ansimclean.api.common.web.RateLimiter(CLOCK), photoUploads);
+        service.setFirstCleaning(mock(kr.ansimclean.api.profile.FirstCleaningService.class));
         ServiceCategory home = mock(ServiceCategory.class);
         when(home.getLabel()).thenReturn("가정/원룸 청소");
         when(catalog.requireCategory("home")).thenReturn(home);
@@ -221,6 +222,7 @@ class BookingServiceTest {
         when(catalog.cancelDeadlineHours()).thenReturn(24);
         when(catalog.requireOptions(anyString(), anyList(), anyList())).thenReturn(List.<CatalogOption>of());
         when(pricing.quote(anyString(), anyString(), any())).thenReturn(QUOTE);
+        when(pricing.quote(anyString(), anyString(), any(), any())).thenReturn(QUOTE);
         when(settings.integer(BookingService.SETTING_SERIES_TERM_MONTHS)).thenReturn(6); // 매월 1회 × 6개월 (사용자 결정 2026-09-22)
         when(settings.get(BookingService.SETTING_CLEANER_PENDING, String.class)).thenReturn("배정 후 알려드려요");
         when(settings.get(BookingService.SETTING_CLEANER_MATCHING_FAILED, String.class)).thenReturn("매니저를 찾고 있어요 · 조금 더 걸릴 수 있어요");

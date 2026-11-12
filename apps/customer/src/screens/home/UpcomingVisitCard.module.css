@@ -1,0 +1,41 @@
+.card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-3xl);
+  border: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--raw-home-card-shadow);
+  background: var(--color-surface-default);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.card:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+  min-width: 0;
+}
+.title {
+  overflow-wrap: anywhere;
+}
+.schedule {
+  color: var(--color-brand-primary);
+}
+
+.empty {
+  width: 100%;
+  margin: 0;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+.card:has(.empty) {
+  cursor: default;
+}

@@ -54,6 +54,8 @@ npm exec -w apps/customer -- cap open ios
 Xcode에서 App 타깃의 Signing & Capabilities → Team을 선택하고, 연결한 iPhone을 실행 대상으로 선택한 뒤 Run을 누른다.
 현재 프로젝트는 Swift Package Manager를 사용하므로 기본 빌드에 CocoaPods 설치는 필요하지 않다.
 매니저 라이브 송출과 카메라는 실제 기기에서 확인한다. 현재 세션에서는 Windows의 Android 빌드를 확인했으며 iOS 빌드는 Mac에서 확인해야 한다.
+
+에뮬레이터에서 청소 준비가 계속 `처리 중`이고 `Camera3-Stream: timestamp ... is not increasing` 로그가 반복되면 가상 카메라가 첫 프레임을 보내지 못하는 상태다. Manager 기기를 종료하고 Device Manager의 **Cold Boot**로 다시 시작한다. `VirtualScene`에서 재발하면 AVD 편집의 **Camera Back → Emulated**로 바꾸고 새로 부팅한다. 앱 데이터 삭제는 필요 없다. 명령행에서는 `emulator -avd Manager -no-snapshot-load -camera-back emulated`로 실행할 수 있다. 앱은 카메라 요청이 20초 동안 끝나지 않으면 실패 안내와 다시 연결 버튼을 표시한다. 에뮬레이터의 두 카메라 방식은 실제 주변 대신 가상 장면·테스트 패턴을 보여준다.
 TestFlight 배포는 Apple Developer 계정의 배포 서명을 설정한 후 Product → Archive에서 진행한다.
 
 기존 `cap:ios`, `cap:android`, `cap:sync` 스크립트는 일반 모드로 빌드한다. 개발 서버를 이용할 때는 위의 `build:development` 명령을 사용한다.

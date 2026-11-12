@@ -32,8 +32,13 @@ public class Profile {
     @Column(columnDefinition = "text")
     private String nickname; // 고객만 쓴다 — 매니저 가입은 닉네임을 버린다 (AuthService)
 
-    @Column(columnDefinition = "text", nullable = false)
-    private String phone; // 로그인 휴대폰 번호(E.164). 살아 있는 계정끼리만 겹칠 수 없다(DB 부분 유니크 인덱스). 탈퇴하면 "deleted-<id>" 로 바꾼다
+    @Column(columnDefinition = "text")
+    private String phone;
+
+    @Column(name = "social_account", nullable = false)
+    private boolean socialAccount;
+
+    public boolean isSocialAccount() { return socialAccount; } // 로그인 휴대폰 번호(E.164). 살아 있는 계정끼리만 겹칠 수 없다(DB 부분 유니크 인덱스). 탈퇴하면 "deleted-<id>" 로 바꾼다
 
     @Column(name = "avatar_path", columnDefinition = "text")
     private String avatarPath; // 프로필 이미지의 Storage 경로. 탈퇴 때 비운다

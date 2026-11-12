@@ -118,6 +118,13 @@ public class AuthController {
         return service.me(user.id());
     }
 
+    @DeleteMapping("/account/social")
+    public OkResponse deleteSocialAccount(@CurrentSecurityContext SecurityContext context) {
+        var authentication = context.getAuthentication();
+        service.deleteSocialAccount(((CurrentUser) authentication.getPrincipal()).id(), (Jwt) authentication.getCredentials());
+        return OkResponse.OK;
+    }
+
     /** DELETE /auth/account — 탈퇴. 본문에 본인 확인용 비밀번호. 앱 deleteAccount (고객 설정·매니저 프로필 화면) */
     @DeleteMapping("/account")
     public OkResponse deleteAccount(@AuthenticationPrincipal CurrentUser user, @Valid @RequestBody DeleteAccountRequest req) {

@@ -19,7 +19,7 @@ import styles from './DeleteAccountSheet.module.css';
  * @param {string} [props.description] 안내 문구. 기본: 되돌릴 수 없다는 안내
  */
 // 탈퇴 확인 시트. 입력한 비밀번호는 이 컴포넌트가 들고 있다가 "탈퇴하기" 를 누를 때만 onConfirm 으로 넘긴다.
-export default function DeleteAccountSheet({ open, onClose, onConfirm, loading = false, error, description }) {
+export default function DeleteAccountSheet({ open, onClose, onConfirm, loading = false, error, description, requirePassword = true }) {
   const [password, setPassword] = useState('');
   // 돌아가기 버튼뿐 아니라 Sheet 의 ESC·배경 탭 닫기도 이 함수를 거쳐서, 요청 중 막기와 비밀번호 비우기가 똑같이 적용된다.
   const close = () => {
@@ -31,8 +31,9 @@ export default function DeleteAccountSheet({ open, onClose, onConfirm, loading =
     <Sheet open={open} onClose={close} title="정말 탈퇴할까요?" gap="lg">
       {/* description 을 안 넘기면 기본 안내문을 쓴다. error 를 넘기면 TextField 가 비밀번호 칸 아래 오류 문구로 보여 준다 */}
       <p className={cx('text-body-default', styles.description)}>{description ?? '탈퇴하면 계정과 저장한 정보가 삭제되고 되돌릴 수 없어요. 예약·이용 내역은 법령에 따라 일정 기간 보관돼요.'}</p>
-      <TextField label="비밀번호 확인" placeholder="비밀번호를 입력해주세요" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
-      <Button variant="destructive" loading={loading} disabled={!password} onClick={() => onConfirm(password)}>
+      {requirePassword && <TextField label="비밀번호 확인" placeholder="비밀번호를 입력해주세요" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />}
+      {!requirePassword && error && <p role="alert">{error}</p>}
+      <Button variant="destructive" loading={loading} disabled={requirePassword && !password} onClick={() => onConfirm(password)}>
         탈퇴하기
       </Button>
       <Button variant="secondary" onClick={close} disabled={loading}>

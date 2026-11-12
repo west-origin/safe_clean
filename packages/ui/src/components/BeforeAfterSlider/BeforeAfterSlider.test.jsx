@@ -1,9 +1,6 @@
 // BeforeAfterSlider 테스트: 두 사진이 위치 이름과 함께 그려지는지, 키보드용 slider 가 값을 바꾸면 막대 위치(--position)가 따라오는지,
 // 손가락으로 누른 자리로 막대가 옮겨 가는지, 손잡이가 터치 타겟 크기를 쓰는지 확인한다.
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { render, screen, fireEvent } from '@testing-library/react';
 import BeforeAfterSlider from './BeforeAfterSlider.jsx';
 
@@ -41,8 +38,11 @@ describe('BeforeAfterSlider', () => {
     expect(frame.style.getPropertyValue('--position')).toBe('100%');
   });
 
-  it('손잡이는 터치 타겟 크기다', () => {
-    const css = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'BeforeAfterSlider.module.css'), 'utf8');
-    expect(css).toMatch(/width: var\(--touch-target\)/);
+  it('이동하는 구분선에는 손잡이·화살표·도형이 없다', () => {
+    const { container } = render(<BeforeAfterSlider {...props} />);
+    const divider = container.querySelector('[class*="divider"]');
+    expect(divider).toBeInTheDocument();
+    expect(divider).toBeEmptyDOMElement();
+    expect(container.querySelector('[class*="handle"], svg')).toBeNull();
   });
 });

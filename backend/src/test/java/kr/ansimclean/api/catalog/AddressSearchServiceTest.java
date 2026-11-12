@@ -83,4 +83,34 @@ class AddressSearchServiceTest {
         assertThat(service.search("서").results()).isEmpty();
         server.verify(); // 기대한 요청이 없다 = 아무 요청도 가지 않았다
     }
+
+    // 첫 1회 청소 주소 대조: 도로명으로 적든 지번으로 적든 카카오가 같은 필지(address.b_code·본번·부번)를 주면 같은 값
+    static final String SAME_PARCEL = docs("[{\"address_type\":\"%s\",\"address\":{\"address_name\":\"서울 강남구 역삼동 825-2\","
+            + "\"b_code\":\"1168010100\",\"mountain_yn\":\"N\",\"main_address_no\":\"825\",\"sub_address_no\":\"2\"},"
+            + "\"road_address\":{\"address_name\":\"서울 강남구 강남대로 396\"}}]");
+
+    @Test
+    void 도로명과_지번이_같은_건물이면_같은_고유값() {
+        server.expect(requestTo(startsWith(ADDRESS)))
+                .andExpect(queryParam("query", UriUtils.encode("서울특별시 강남구 강남대로 396", StandardCharsets.UTF_8))) // 괄호(동 이름)는 빼고 묻는다
+                .andRespond(withSuccess(SAME_PARCEL.formatted("ROAD_ADDR"), MediaType.APPLICATION_JSON));
+        server.expect(requestTo(startsWith(ADDRESS)))
+                .andExpect(queryParam("query", UriUtils.encode("서울 강남구 역삼동 825-2", StandardCharsets.UTF_8)))
+                .andRespond(withSuccess(SAME_PARCEL.formatted("REGION_ADDR"), MediaType.APPLICATION_JSON));
+        String road = service.buildingKey("서울특별시 강남구 강남대로 396 (역삼동)");
+        assertThat(road).isEqualTo("1168010100-N-825-2").isEqualTo(service.buildingKey("서울 강남구 역삼동 825-2"));
+        server.verify();
+    }
+
+    @Test
+    void 카카오가_못_찾은_주소는_VALIDATION_장애는_UPSTREAM_키가_없으면_null() {
+        server.expect(requestTo(startsWith(ADDRESS))).andRespond(withSuccess(docs("[]"), MediaType.APPLICATION_JSON));
+        server.expect(requestTo(startsWith(ADDRESS))).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+        assertThatThrownBy(() -> service.buildingKey("서울 아무로 99999"))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.VALIDATION));
+        assertThatThrownBy(() -> service.buildingKey("서울 강남구 강남대로 396"))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM));
+        assertThat(new AddressSearchService(builder, "", true).buildingKey("서울 강남구 강남대로 396")).isNull();
+        server.verify();
+    }
 }

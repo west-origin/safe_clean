@@ -160,3 +160,25 @@ describe('customer liveClient (시청·녹화본)', () => {
     expect(liveClient.getState().status).toBe('ended');
   });
 });
+
+it('음량을 실제 비디오에 적용하고 0에서 음소거 해제하면 이전 음량을 복원한다', () => {
+  const previous = liveClient.getState();
+  const video = document.createElement('video');
+  liveClient.attachVideo(video);
+  try {
+    liveClient.setVolume(0.35);
+    expect(video.volume).toBe(0.35);
+    expect(video.muted).toBe(false);
+    liveClient.setVolume(0);
+    expect(video.muted).toBe(true);
+    liveClient.toggleMute();
+    expect(video.volume).toBe(0.35);
+    expect(video.muted).toBe(false);
+    liveClient.setVolume(2);
+    expect(video.volume).toBe(1);
+  } finally {
+    liveClient.setVolume(previous.volume);
+    if (liveClient.getState().muted !== previous.muted) liveClient.toggleMute();
+    liveClient.attachVideo(null);
+  }
+});

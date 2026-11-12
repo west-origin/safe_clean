@@ -1,3 +1,4 @@
+import { seedSocialSession } from '../../test/socialSession.js';
 // 약관 동의 화면(TermsConsent) 테스트: 필수 약관을 다 켜야 "다음" 이 열리는지, "전체 동의하기" 가 모두 켜고 끄는지 본다.
 // 약관 목록은 가짜 서버(test/fakeHttp.js)가 mock.js 의 TERMS(필수 3 + 선택 2)를 돌려준다.
 import { describe, it, expect, vi } from 'vitest';
@@ -10,11 +11,12 @@ vi.mock('../../api/http.js', async () => (await import('../../test/fakeHttp.js')
 // 약관 화면을 ?method=kakao 로 연다. "다음" 이 가는 /auth/profile-info 는 글자만 있는 가짜 화면으로 둔다.
 // MemoryRouter: 브라우저 주소창 없이 메모리 안에서 경로를 흉내 내는 라우터
 function renderTerms() {
+  void seedSocialSession();
   return render(
     <MemoryRouter initialEntries={['/auth/terms?method=kakao']}>
       <Routes>
         <Route path="/auth/terms" element={<TermsConsent />} />
-        <Route path="/auth/profile-info" element={<p>다음 화면</p>} />
+        <Route path="/home" element={<p>다음 화면</p>} />
       </Routes>
     </MemoryRouter>,
   );

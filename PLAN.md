@@ -248,3 +248,7 @@ Figma: `oByA7xoimyX0pPaS7aJpuo` (Page 1 = 고객용, `청소매니저 앱` = 매
 5. `Back15 / Forward15` 의 의도 (녹화 영상 되감기인지, 다른 의미인지)
 
 승인되면 **단계 0 + 단계 1**만 실행하고 보고한다.
+
+2026-11-09: 사용자 요청으로 고객 인증을 카카오·구글만 사용하도록 개편. 공식 세션·PKCE·ID token 교환에 supabase-js 2.108.2, Capacitor App 8.1.0/Browser 8.0.3 추가. Android는 Kakao SDK 2.26.0, Credential Manager 1.5.0, googleid 1.1.1로 구현. 기존 매니저 전화번호 인증은 유지. 최초 할인 SMS는 기존 Solapi/OtpService 재사용. 사용자의 별도 승인으로 safe_clean_test 사용자 데이터 초기화 및 V061 적용. 운영 환경 제외. 상세: docs/auth/social-login-rollout.md.
+
+2026-11-10: 고객 첫 1회 청소 휴대폰 인증을 Supabase Auth 기본 OTP(phone_change)로 전환. 앱은 계속 Spring API 만 부르고, 서버가 사용자 JWT 로 Supabase 를 부른다. 실제 발송은 Supabase Send SMS Hook → Spring → 기존 Solapi `SmsSender`. 새 패키지 없음. 상세: docs/auth/phone-otp.md.

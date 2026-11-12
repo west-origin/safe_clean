@@ -1,0 +1,302 @@
+/* PriceGuide — 2026-11-08 사용자 첨부 요금·견적 안내 시안. 색은 홈 시안과 같은 원본색(--raw-home-*)과 브랜드 토큰 */
+.guide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+.guide h2,
+.guide h3,
+.guide p,
+.guide ul {
+  margin: 0;
+}
+.guide :where(ul) { /* :where = 우선순위 0 → .plans 등의 padding 이 이긴다 */
+  padding: 0;
+  list-style: none;
+}
+.ink {
+  color: var(--raw-home-ink);
+}
+.muted {
+  color: var(--raw-home-secondary);
+}
+.brand {
+  color: var(--color-brand-primary);
+}
+
+/* 머리: 동그란 아이콘 + 세 줄 */
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xl);
+}
+.headIcon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-subtle);
+}
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+  min-width: 0;
+}
+.eyebrow {
+  color: var(--color-brand-primary);
+}
+
+/* 흰 카드: 홈 카드와 같은 그림자 */
+.card {
+  border-radius: var(--radius-md);
+  background: var(--color-surface-default);
+  box-shadow: var(--raw-home-card-shadow);
+}
+
+/* 횟수별 요금표 */
+.plans {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-2xs) var(--spacing-3xl);
+}
+.planRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xl) 0;
+}
+.planRow + .planRow {
+  border-top: 1px solid var(--color-border-default);
+}
+.planText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+  min-width: 0;
+}
+.planTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+/* 금액: 큰 숫자 + 작은 '원' (+ '/월') 을 글자 아래선에 맞춘다 */
+.amount {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: baseline;
+  gap: var(--spacing-2xs);
+  white-space: nowrap;
+}
+
+.badge,
+.softBadge {
+  align-self: flex-start;
+  padding: var(--spacing-2xs) var(--spacing-sm);
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+.badge {
+  color: var(--color-text-inverse);
+  background: var(--color-brand-primary);
+}
+.softBadge {
+  color: var(--color-brand-primary);
+  background: var(--color-brand-subtle);
+}
+
+/* 카드 두 장: 반씩 */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-md);
+}
+.infoCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xl);
+}
+.brandCard {
+  background: var(--color-brand-subtle);
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+/* 크기별 요금: 세 칸 */
+.sizes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-sm);
+}
+.sizeCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2xs);
+  padding: var(--spacing-lg) var(--spacing-2xs) var(--spacing-xl);
+  text-align: center;
+}
+.sizeArt {
+  width: 100%;
+  height: auto;
+  max-width: 96px;
+  margin-bottom: var(--spacing-xs);
+}
+
+/* 추가 요금 */
+.extras {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-xl) var(--spacing-3xl) var(--spacing-2xs);
+}
+.extrasHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.extraRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-lg) 0;
+}
+.extraRow + .extraRow {
+  border-top: 1px solid var(--color-border-default);
+}
+
+/* 혜택 띠: 연파랑 */
+.benefit {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xl);
+  padding: var(--spacing-xl) var(--spacing-3xl);
+  border-radius: var(--radius-md);
+  background: var(--color-brand-subtle);
+}
+.benefitText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+}
+
+/* 청소 범위 알약 */
+.scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+.scopeChip {
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--radius-pill);
+  color: var(--raw-home-ink);
+  background: var(--color-surface-subtle);
+}
+
+/* 파란 기본 요금 띠 (크랙 수리) */
+.base {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xl) var(--spacing-3xl);
+  border-radius: var(--radius-md);
+  color: var(--color-text-inverse);
+  background: var(--color-brand-primary);
+}
+.baseText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+  min-width: 0;
+}
+
+/* 할인 상자: 연파랑 + 흰 칸 세 개 */
+.discount {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-xl);
+  border-radius: var(--radius-md);
+  background: var(--color-brand-subtle);
+}
+.discountHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+.discountItems {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-xs);
+}
+.discountItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-default);
+}
+
+.notesHead {
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+/* 계산 예시: 두 칸 */
+.extrasHeadPlain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+.legend {
+  display: flex;
+  gap: var(--spacing-md);
+}
+.legendBase::before,
+.legendAdd::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  margin-right: var(--spacing-2xs);
+  vertical-align: middle;
+  border-radius: var(--radius-xs);
+  background: var(--raw-home-ink);
+}
+.legendAdd::before {
+  background: var(--color-brand-primary);
+}
+.examples {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-sm);
+}
+.example {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+}
+.exampleArt {
+  width: 56px;
+  height: 56px;
+}

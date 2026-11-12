@@ -1,97 +1,10 @@
-/* 첫 화면(SignUp.jsx) 레이아웃. 2026-11-03 사용자 첨부 로그인 시안 (393 폭 기준으로 환산한 값).
-   위에서부터: 로고 → (빈 공간) → 입력칸 2개 · 로그인 · 링크 → (빈 공간) → SNS 안내 + 원 버튼 */
+.screen { background: var(--color-surface-default); color: var(--color-text-primary); }
+.body { display: flex; flex: 1; flex-direction: column; align-items: stretch; padding: 64px var(--spacing-xl); gap: var(--spacing-xl); text-align: center; }
+.logo { display: flex; justify-content: center; color: var(--color-brand-primary); }
+.buttons { display: flex; flex-direction: column; gap: var(--spacing-lg); margin-top: var(--spacing-4xl); }
+.badge { align-self: flex-start; background: var(--color-brand-primary); color: var(--color-text-inverse); border-radius: var(--radius-pill); padding: var(--spacing-sm) var(--spacing-lg); }
+.link { min-height: var(--touch-target); border: 0; background: none; color: var(--color-brand-primary); cursor: pointer; }
+.recovery { display: flex; align-items: center; min-height: var(--touch-target); color: var(--color-brand-primary); }
 
-/* 흰 배경 (2026-11-03 사용자 요청). 로고·로그인 버튼이 브랜드 파랑.
-   로그인 버튼 라벨은 시안 크기(18)에 맞춰 이 화면에서만 button-label → body-m 크기로 (Home.module.css 와 같은 방식) */
-.screen {
-  background: var(--color-surface-default);
-  color: var(--color-text-primary);
-  --font-size-button-label: var(--font-size-body-m);
-}
-
-.body {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  align-items: center;
-  padding: 136px 44px 64px; /* 시안 원본값 */
-}
-
-.logo {
-  display: flex;
-  justify-content: center; /* 아이콘 + 글자 묶음을 가로 가운데에 */
-  align-self: stretch;
-  margin: 0;
-  color: var(--color-brand-primary);
-}
-
-/* 입력칸 묶음: 로고 아래 남는 공간의 가운데쯤. 칸 사이 12 */
-.form {
-  display: flex;
-  flex-direction: column;
-  align-self: stretch;
-  gap: var(--spacing-lg);
-  margin-top: auto;
-}
-
-.error {
-  margin: 0;
-  padding: 0 var(--spacing-4xl);
-  color: var(--color-status-live);
-}
-
-/* 로그인 버튼: 입력칸과 같은 높이감의 알약 (Primary 기본 64 → 시안 56) */
-.loginButton {
-  height: 56px; /* 시안 원본값 */
-}
-
-/* '비밀번호 찾기 | 회원가입' */
-.links {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-4xl);
-  margin-top: var(--spacing-sm);
-}
-
-.link {
-  min-height: var(--touch-target);
-  margin: 0;
-  padding: 0 var(--spacing-sm);
-  border: 0;
-  background: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-}
-
-.divider {
-  width: 1px;
-  height: 16px;
-  background: var(--color-border-default);
-}
-
-/* SNS 안내 + 원 버튼: 화면 아래쪽 */
-.sns {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-xl);
-  margin-top: auto;
-  padding-top: var(--spacing-4xl);
-}
-
-.snsText {
-  margin: 0;
-  color: var(--color-text-secondary);
-}
-
-.snsRow {
-  display: flex;
-  gap: var(--spacing-xl);
-}
-
-/* 시트 안 설명 (흰 시트라 기본 글자색) */
-.sheetText {
-  margin: 0;
-  color: var(--color-text-secondary);
-}
+.socialButton { min-height: 70px; border-radius: var(--radius-sm); }
+.google { background: var(--color-surface-default); box-shadow: inset 0 0 0 1px var(--color-border-default); }

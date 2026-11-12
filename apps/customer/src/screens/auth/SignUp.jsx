@@ -1,100 +1,57 @@
-// Figma: Auth/SignUp (69:1089) — 2026-11-03 사용자 첨부 로그인 시안(로고 · 입력칸 2개 · 로그인 버튼 · SNS 원 버튼) 구조로 바꿨다 (Figma 에 없음).
-// 같은 날 사용자 요청으로 흰 배경 + 로고·로그인 버튼을 브랜드 파랑으로, 로고는 조금 얇게 + 왼쪽에 로고 아이콘.
-// 고객 앱 첫 화면 (/signup). 예: 온보딩, 로그인 전의 RequireAuth 가 여기로 보낸다 (전부 찾으려면 '/signup' 을 검색한다).
-// 시안의 'kiwiplay' 로고 → '안심클린'(BrandWordmark), '이메일 아이디 입력'(편지봉투) → '전화번호를 입력해주세요'(휴대폰 아이콘),
-// SNS 원 버튼은 카카오·구글·네이버. 문구는 mock.js ENTRY_COPY.
-// 흐름: 번호 + 비밀번호 → loginWithPhone(POST /auth/login) → 가입이 덜 끝난 계정이면 남은 가입 화면, 아니면 원래 가려던 곳(없으면 /home).
-//   '비밀번호 찾기' → /auth/reset-password, '회원가입' → 약관 동의(/auth/terms?method=phone).
-//   소셜 로그인은 아직 없어서(결정 §13-1) SNS 버튼은 예전처럼 '전화번호로 계속' 안내 시트를 연다.
-// 예전 로그인 화면(/auth/login, LoginPhone)은 비밀번호 재설정 등에서 그대로 쓴다.
-import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
-import { ScreenLayout, BrandWordmark, AuthPillField, SocialCircleButton, Sheet, Button, cx, useAction, ActionError } from '@ansimclean/ui';
-import { loginWithPhone, signUpWith, SIGNUP_STEP_PATHS } from '../../api/customer.js';
-import { ENTRY_COPY as COPY, SOCIAL_SIGNUP_COPY } from '../../api/mock.js';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { ScreenLayout, BrandWordmark, Button, Sheet } from '@ansimclean/ui';
+import { refreshMe, isSignedIn } from '../../api/customer.js';
+import { socialLogin, loginError } from '../../auth/socialLogin.js';
+import { ACCOUNT_RECOVERY_URLS } from '../../auth/config.js';
+import SocialProviderIcon from '../../auth/SocialProviderIcon.jsx';
 import styles from './SignUp.module.css';
 
-/** RequireAuth 가 넘긴 목적지는 앱 안 경로('/…')만 믿는다 — '//host' 같은 값은 버린다 (LoginPhone 과 같다) */
-const safeReturnTo = (to) => (typeof to === 'string' && /^\/(?!\/)/.test(to) ? to : null);
-
-/** 첫 화면: 전화번호 로그인 + 회원가입·비밀번호 찾기 링크 + SNS 버튼 */
 export default function SignUp() {
   const navigate = useNavigate();
-  const { state } = useLocation(); // RequireAuth 가 넘긴 원래 목적지 — 로그인까지 이어 준다
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [failed, setFailed] = useState(''); // 번호·비밀번호 불일치 문구
-  const [socialOpen, setSocialOpen] = useState(false); // 소셜 안내 시트
-
-  const login = useAction(async () => {
-    setFailed('');
-    // 숫자만 보낸다 — 서버는 010 으로 시작하는 11자리와 앞자리를 뗀 번호를 모두 받는다 (PhoneField 참고)
-    const { ok, user } = await loginWithPhone({ phone: phone.replace(/\D/g, ''), password });
-    if (!ok) return setFailed(COPY.failed);
-    if (!user.profileComplete) return navigate(SIGNUP_STEP_PATHS[user.signupStep] ?? '/auth/profile-address', { replace: true });
-    navigate(safeReturnTo(state?.from) ?? '/home', { replace: true });
-  });
-  // 가입 시작: 약관 동의 화면으로 (SIGN_UP_METHODS 에 있는 method 면 모두 전화번호 가입)
-  const start = useAction(async () => {
-    const res = await signUpWith('phone');
-    navigate(`/auth/terms?method=${res.method}`);
-  });
-
-  const canLogin = phone.trim() && password && !login.loading;
-  const message = failed || (login.error ? login.error.message || COPY.error : '');
-
+  useEffect(() => { if (isSignedIn()) navigate('/home', { replace: true }); }, [navigate]);
+  const lock = useRef(false);
+  const [provider, setProvider] = useState(null);
+  const [error, setError] = useState('');
+  const [help, setHelp] = useState(false);
+  const login = async (selected) => {
+    if (lock.current) return;
+    lock.current = true;
+    setProvider(selected);
+    setError('');
+    try {
+      const result = await socialLogin(selected);
+      if (result.redirecting || result.pending) return;
+      const user = await refreshMe();
+      if (!user || user.role !== 'customer') throw new Error('고객 계정 필요');
+      navigate(user.profileComplete ? '/home' : '/auth/terms?next=complete', { replace: true });
+    } catch (error) { setError(loginError(error)); }
+    finally { lock.current = false; setProvider(null); }
+  };
   return (
     <ScreenLayout noPadding gap="none" className={styles.screen}>
       <div className={styles.body}>
-        <h1 className={styles.logo}>
-          <BrandWordmark withMark width={140} />
-        </h1>
-
-        <div className={styles.form}>
-          <AuthPillField icon="phone" label={COPY.phone} type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
-          <AuthPillField
-            icon="lock"
-            label={COPY.password}
-            type="password"
-            autoComplete="current-password"
-            enterKeyHint="go"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && canLogin) login.run(); }}
-          />
-          {message && <p role="alert" className={cx('text-body-s', styles.error)}>{message}</p>}
-          {/* 시안처럼 비어 있어도 파란 버튼 그대로 — 대신 번호·비밀번호가 없으면 눌러도 아무 일이 없다 */}
-          <Button variant="primary" chevron={false} loading={login.loading} onClick={canLogin ? login.run : undefined} className={styles.loginButton}>
-            {COPY.login}
+        <div className={styles.logo}><BrandWordmark withMark width={140} /></div>
+        <h1 className="text-heading-l">로그인</h1>
+        <div className={styles.buttons} aria-busy={Boolean(provider)}>
+          <span className={`${styles.badge} text-body-s`}>간편 로그인</span>
+          <Button className={styles.socialButton} variant="primary" chevron={false} disabled={Boolean(provider)} loading={provider === 'kakao'} onClick={() => login('kakao')}>
+            <SocialProviderIcon provider="kakao" /> 카카오 계정으로 로그인
           </Button>
-          <div className={styles.links}>
-            <button type="button" className={cx('text-body-m', styles.link)} onClick={() => navigate('/auth/reset-password')}>{COPY.findPassword}</button>
-            <span className={styles.divider} aria-hidden="true" />
-            <button type="button" className={cx('text-body-m', styles.link)} onClick={start.run}>{COPY.signUp}</button>
-          </div>
-          <ActionError error={start.error} />
+          <Button className={`${styles.socialButton} ${styles.google}`} variant="secondary" chevron={false} disabled={Boolean(provider)} loading={provider === 'google'} onClick={() => login('google')}>
+            <SocialProviderIcon provider="google" /> 구글 계정으로 로그인
+          </Button>
+          {provider && <p role="status" className="text-body-s">로그인 중이에요…</p>}
+          {error && <p role="alert" className="text-body-s">{error}</p>}
         </div>
-
-        <div className={styles.sns}>
-          <p className={cx('text-body-default', styles.snsText)}>{COPY.sns}</p>
-          <div className={styles.snsRow}>
-            <SocialCircleButton provider="kakao" label="카카오톡으로 로그인" onClick={() => setSocialOpen(true)} />
-            <SocialCircleButton provider="google" label="구글로 로그인" onClick={() => setSocialOpen(true)} />
-            <SocialCircleButton provider="naver" label="네이버로 로그인" onClick={() => setSocialOpen(true)} />
-          </div>
-        </div>
+        <p className="text-body-s">카카오·구글 계정으로 로그인 또는 회원가입할 수 있어요.</p>
+        <button type="button" className={`${styles.link} text-body-m`} onClick={() => setHelp(true)}>로그인에 문제가 있나요?</button>
       </div>
-
-      {/* 소셜 안내 시트 (코드에서 정함): 첫 버튼은 회원가입과 같고, 두 번째 버튼은 시트만 닫는다 */}
-      <Sheet open={socialOpen} onClose={() => setSocialOpen(false)} title={SOCIAL_SIGNUP_COPY.title}>
-        <p className={cx('text-body-default', styles.sheetText)}>{SOCIAL_SIGNUP_COPY.description}</p>
-        <ActionError error={start.error} />
-        <Button variant="primary" chevron={false} loading={start.loading} onClick={start.run}>
-          {SOCIAL_SIGNUP_COPY.confirm}
-        </Button>
-        <Button variant="secondary" chevron={false} onClick={() => setSocialOpen(false)}>
-          {SOCIAL_SIGNUP_COPY.back}
-        </Button>
+      <Sheet open={help} onClose={() => setHelp(false)} title="SNS 계정 복구 안내">
+        <p className="text-body-default">로그인에 사용한 SNS에서 계정을 복구해주세요.</p>
+        <p className="text-body-s">이메일을 제공하지 않거나 확인되지 않으면 계정이 자동으로 연결되지 않을 수 있어요. 기존 이용 내역이 보이지 않으면 고객센터에 문의해주세요.</p>
+        <a className={styles.recovery} href={ACCOUNT_RECOVERY_URLS.kakao} target="_blank" rel="noopener noreferrer">카카오 계정 복구</a>
+        <a className={styles.recovery} href={ACCOUNT_RECOVERY_URLS.google} target="_blank" rel="noopener noreferrer">구글 계정 복구</a>
       </Sheet>
     </ScreenLayout>
   );

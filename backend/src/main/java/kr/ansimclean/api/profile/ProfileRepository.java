@@ -12,6 +12,19 @@ import java.util.UUID;
 // profiles 테이블 저장소. 서버 코드에서 쓰는 곳: ProfileService (다른 기능은 ProfileService 를 거쳐 쓴다).
 // 'Live' = 탈퇴하지 않은(deleted_at 이 비어 있는) 계정.
 public interface ProfileRepository extends JpaRepository<Profile, UUID> {
+    @org.springframework.data.jpa.repository.Modifying
+    @Query(value = """
+        insert into public.profiles(id, role, name, phone, social_account)
+        select u.id, 'customer', '안심클린 고객', null, true from auth.users u
+        where u.id = :id and u.deleted_at is null
+          and exists (select 1 from auth.identities i where i.user_id = u.id and i.provider in ('kakao', 'google'))
+        on conflict (id) do nothing
+        """, nativeQuery = true)
+    int provisionSocial(java.util.UUID id);
+
+    @Query(value = "select phone from customer_phone_proofs where customer_id = :id", nativeQuery = true)
+    Optional<String> verifiedCustomerPhone(UUID id);
+
     /** 살아 있는 계정 하나 (탈퇴했거나 없으면 비어 온다) */
     Optional<Profile> findByIdAndDeletedAtIsNull(UUID id);
 

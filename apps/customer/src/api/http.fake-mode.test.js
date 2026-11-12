@@ -26,7 +26,8 @@ describe('http — DEV 가짜 서버 모드', () => {
     expect(err).toMatchObject({ status: 401, code: 'LOGIN_FAILED', message: '휴대폰 번호 또는 비밀번호를 확인해주세요' });
   });
 
-  it('그래서 customer.js 의 instanceof 검사가 동작한다 — 틀린 비밀번호는 { ok: false }(로그인 실패 안내)', async () => {
-    expect(await customer.loginWithPhone({ phone: '12345678', password: fake.WRONG_PASSWORD })).toEqual({ ok: false });
+  it('customer API에서 자체 비밀번호 로그인을 제공하지 않는다', () => {
+    expect(customer.loginWithPhone).toBeUndefined();
+    expect(customer.resetPassword).toBeUndefined();
   });
 });

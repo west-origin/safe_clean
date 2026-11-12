@@ -24,13 +24,21 @@ class JobMediaServiceTest {
         if (after) p.replaceAfter("after.jpg", NOW);
         return p;
     }
+    @Test void 두_장씩은_필수_세_장을_충족하지_못한다() {
+        when(photos.findByBookingIdOrderBySortAsc(b.getId())).thenReturn(java.util.stream.Stream.of("거실", "안방").flatMap(r -> java.util.stream.IntStream.range(0, 2).mapToObj(i -> photo(r, false))).toList());
+        assertThatThrownBy(() -> service.confirmBefore(manager, b.getId())).isInstanceOf(ApiException.class);
+    }
+    @Test void 공간이_없으면_영상_시작_불가() {
+        b.setRequiredPhotoRooms(List.of());
+        assertThatThrownBy(() -> service.confirmBefore(manager, b.getId())).isInstanceOf(ApiException.class);
+    }
     @Test void 전_사진_하나라도_누락되면_송출_확인_불가() {
         when(photos.findByBookingIdOrderBySortAsc(b.getId())).thenReturn(List.of(photo("거실", false)));
         assertThatThrownBy(() -> service.confirmBefore(manager, b.getId())).isInstanceOf(ApiException.class);
         assertThat(b.getBeforePhotosConfirmedAt()).isNull();
     }
     @Test void 모든_전_사진_확인_후_영상_종료까지_멱등() {
-        when(photos.findByBookingIdOrderBySortAsc(b.getId())).thenReturn(List.of(photo("거실", false), photo("안방", false)));
+        when(photos.findByBookingIdOrderBySortAsc(b.getId())).thenReturn(java.util.stream.Stream.of("거실", "안방").flatMap(r -> java.util.stream.IntStream.range(0, 3).mapToObj(i -> photo(r, false))).toList());
         service.confirmBefore(manager, b.getId()); service.confirmBefore(manager, b.getId());
         assertThat(b.getPhotoPhase()).isEqualTo("live");
         assertThatThrownBy(() -> service.requireComplete(b)).isInstanceOf(ApiException.class);
@@ -46,7 +54,7 @@ class JobMediaServiceTest {
         b.confirmBeforePhotos(NOW); b.finishVideo(NOW);
         when(photos.findByBookingIdOrderBySortAsc(b.getId())).thenReturn(List.of(photo("거실", true), photo("안방", false)));
         assertThatThrownBy(() -> service.requireComplete(b)).isInstanceOf(ApiException.class);
-        when(photos.findByBookingIdOrderBySortAsc(b.getId())).thenReturn(List.of(photo("거실", true), photo("안방", true)));
+        when(photos.findByBookingIdOrderBySortAsc(b.getId())).thenReturn(java.util.stream.Stream.of("거실", "안방").flatMap(r -> java.util.stream.IntStream.range(0, 3).mapToObj(i -> photo(r, true))).toList());
         assertThatCode(() -> service.requireComplete(b)).doesNotThrowAnyException();
     }
 }

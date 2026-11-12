@@ -39,7 +39,7 @@ public class CleaningPhotoService {
     private static final Logger log = LoggerFactory.getLogger(CleaningPhotoService.class);
 
     public static final String BUCKET = "job-photos"; // Supabase Storage 비공개 버킷 이름 (docs/runbook.md 에 만드는 SQL)
-    public static final int MAX_PHOTOS = 10; // 예약 한 건에 찍을 수 있는 위치 수 — 응답의 max 로도 내려 준다
+    public static final int MAX_PHOTOS = 30; // 예약 한 건에 찍을 수 있는 위치 수 — 응답의 max 로도 내려 준다
     static final int MAX_LOCATION_LENGTH = 20; // 위치 이름 최대 글자 수 (V055 의 check 제약과 같다)
     static final int URL_SECONDS = 60 * 60; // 서명 URL 유효 시간 1시간 — 화면을 다시 열면 새로 받는다
     /** 매니저당 시간당 업로드 상한 — 10곳 × 전·후 2장에 다시 찍기를 넉넉히 더한 값. 남용(Storage 비용)만 막는다 */
@@ -49,7 +49,7 @@ public class CleaningPhotoService {
     static final int RETENTION_BATCH = 500; // 정리 한 번에 보는 최대 장수 — 남은 것은 다음 날
 
     // 화면에 그대로 보이는 문구 (코드에서 정함)
-    static final String TOO_MANY = "사진은 위치 10곳까지 찍을 수 있어요";
+    static final String TOO_MANY = "사진은 공간 10곳에 각 3장까지 찍을 수 있어요";
     static final String BAD_LOCATION = "위치 이름을 1~20자로 적어주세요";
     static final String NOT_ACTIVE = "진행 중인 작업에서만 사진을 찍을 수 있어요";
     static final String NOT_VIEWABLE = "진행 중이거나 끝난 작업의 사진만 볼 수 있어요";
@@ -237,8 +237,8 @@ public class CleaningPhotoService {
         requireActive(b);
         if (b.getBeforePhotosConfirmedAt() != null) throw ApiException.validation("영상 시작 후에는 전 사진을 바꿀 수 없어요");
         if (!b.getRequiredPhotoRooms().contains(location)) throw ApiException.validation("등록된 촬영 공간을 선택해주세요");
-        if (photos.findByBookingIdOrderBySortAsc(b.getId()).stream().anyMatch(p -> location.equals(p.getLocation())))
-            throw ApiException.validation("이미 이 공간의 전 사진이 있어요. 삭제 후 다시 찍어주세요");
+        if (photos.findByBookingIdOrderBySortAsc(b.getId()).stream().filter(p -> location.equals(p.getLocation())).count() >= 3)
+            throw ApiException.validation("이 공간의 전 사진 3장을 모두 찍었어요. 삭제 후 다시 찍어주세요");
     }
 
     private void requireAfter(Booking b) {

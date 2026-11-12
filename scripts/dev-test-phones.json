@@ -1,0 +1,9 @@
+{
+  "_설명": "개발(safe_clean_test) Supabase 의 테스트 전화번호와 고정 인증번호. 문자가 실제로 나가지 않는다. 운영 프로젝트에는 절대 넣지 않는다. Supabase 대시보드 Auth > Providers > Phone > Test Phone Numbers and OTPs 에 supabaseSmsTestOtp 값을 그대로 넣는다. docs/auth/phone-otp.md",
+  "supabaseSmsTestOtp": "821000000001=123456,821000000002=234567,821000000003=345678",
+  "phones": {
+    "01000000001": "123456",
+    "01000000002": "234567",
+    "01000000003": "345678"
+  }
+}

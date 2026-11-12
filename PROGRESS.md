@@ -8,6 +8,17 @@
 - [ ] R2~R19 (`rbac.md` §14)
 - [ ] 알아둘 것: 작업 트리에 이전 작업(소셜 로그인·첫 1회 청소, V060~V063 등)이 커밋되지 않은 채 남아 있다. RBAC 커밋은 자기 변경분만 담는다.
 
+## 첫 1회 청소 — 번호 + 주소 대조 (2026-11-11 사용자 요청)
+- [x] `FirstCleaningService.claim` 에 주소 대조 추가: 같은 집의 취소 안 된 1회 가정 청소가 있으면(어느 계정이든) `INVALID_STATE` "이 주소는 이미 첫 1회 청소 혜택을 이용했어요". 같은 건물 advisory lock 으로 동시 예약도 한 건만. 마이그레이션 없음(예약 행의 주소와 비교).
+- [x] 주소 비교 규칙(사용자 지시: 도로명+상세, 띄어쓰기·'103오' 같은 오타까지): 시·도 별칭·띄어쓰기·괄호·구 생략·앞 0 무시, 상세주소는 숫자만 보고 한쪽 숫자가 다른 쪽에 모두 들어 있으면 같은 집. 상세를 비우면 그 건물 전체와 같다.
+- [x] 취소하면 혜택을 돌려준다(사용자 결정): 취소된 예약에 붙은 claim 은 자격 계산에서 빼고 다음 claim 때 지운다. 완료(done)는 영구.
+- [x] 악용 시나리오 검증: 단위 30개(`FirstCleaningServiceTest`) + PGlite 로 실제 SQL(같은 계정 재예약·새 계정 같은 번호·새 계정 다른 번호 같은 집·동시 예약·탈퇴 후 재가입·취소 후 재예약). **IT 미실행**(Docker 없음).
+- [x] 지번 우회 차단(같은 날 2차): 예약 때 `AddressSearchService.buildingKey` 가 카카오 주소 API 로 필지 고유값(법정동코드-산-본번-부번)을 찾아 `bookings.building_key`(V063)에 남기고 그것으로 비교 — 도로명·지번 어느 쪽으로 적어도 같은 건물. 카카오가 못 찾는 주소·카카오 장애면 첫 1회 청소 예약 거절(사용자 결정). 고유값 없는 옛 예약은 같은 시·군·구에서 그때 찾아 채운다. 단독주택 상세주소 지어내기는 그대로 둔다(사용자 결정 — 번호 검사로 방어).
+- [x] 검증: 실제 `FirstCleaningService` 를 PGlite 소켓(Postgres 프로토콜)에 붙여 22개 악용·정상 시나리오(카카오는 대역) 기대대로. 카카오 응답 파싱은 `AddressSearchServiceTest`(MockRestServiceServer). IT 미실행.
+- [x] 테스트 서버 배포(2026-11-11): `ansimclean-api-test-00021-6th`, 트래픽 100%, 시크릿 v5·manual 1 유지, Flyway V063 적용 로그 확인, health UP, 무토큰 auth/me 401. 운영 미배포.
+- [x] 실제 카카오(개발 시크릿 키, 메모리에서만 사용) 확인: 강남대로 396·올림픽로 435·세종대로 110·판교역로 166 각각 지번·붙여쓰기·띄어쓰기·구 생략·괄호·앞 0 표기가 모두 같은 필지값. 다른 구로 적은 주소·지어낸 주소는 거절. 앱 주소 검색 결과(건물 이름 검색 포함) 7개 모두 필지값을 찾음(정상 고객이 거절되지 않음). 참고: 한 필지에 여러 건물이 있으면 같은 필지값이 된다(강남대로 302-2 와 396 이 둘 다 역삼동 858) — 그때는 상세주소 숫자로 구분.
+- [ ] 알아둘 것: 카카오 호출(최대 5초)이 예약 트랜잭션 안에서 일어난다(조회라 외부 효과는 아님). `KAKAO_REST_API_KEY` 가 빠지면 글자 비교로 돌아가 지번 우회가 다시 열린다.
+
 ## GitHub CI 실패 수정 (2026-11-02 사용자 요청)
 - [x] apps 실패: `backend-mock-export.mjs shapes`의 시간표 응답 생성에서 누락된 `minimumLeadHours: 3` 복구. 기존 서버 계약·스냅샷과 일치하며 재생성 diff 없음.
 - [x] backend 실패 6건: CleaningPhotoIT·JobFlowIT·LiveSessionIT·LiveAppSourceIT를 전 사진 확정 → 영상 시작 → 영상 종료 요청/원격 종료 확인 → 모든 후 사진 → 작업 완료 순서로 갱신. 사진 준비는 공통 ItSupport에서 실제 API로 수행. 필수 사진/영상 종료 누락 시 거부 검증 추가. 운영 코드·마이그레이션 변경 없음.
@@ -640,6 +651,7 @@
 - [ ] 17 뒤로가기 아이콘 3종 통일 — Figma 가 3가지로 그려서 그대로 둠. 디자이너가 하나로 정하면 합친다
 
 ### Figma 에 없어 코드에서 정한 화면·동작 (점검 4, 디자인이 오면 교체)
+- (2026-11-11 사용자 지정) 예약 주소 확인(`BookingAddressConfirm`): 상세주소를 비워도 '다음' 이 켜지고, 비운 채 누르면 확인 시트 "상세주소 없이 진행할까요?" + 안내 + '입력하기'(상세주소 칸으로)·'없이 진행'. 문구 `mock.js ADDRESS_DETAIL_SKIP_COPY`. 확인 화면의 새 주소 상세주소 필수 조건도 뺐다(그대로 두면 마지막 '예약 확정하기' 가 꺼짐). 모의 서버(customer-mock)는 앱 시작 로그인 확인이 실패해 393px 화면 확인은 못 함 — 화면 테스트로만 확인.
 고객: 약관 본문 `/terms/:id` · 예약 변경(`/booking/:category/datetime?edit=`)·취소(확인 시트)·완료/취소 탭·빈 상태 · 진행 중 예약 카드의 "실시간 영상 보기"(→ `/service/start?booking=`) · 설정 아래 7개(내 정보 수정, 주소 관리, 결제 수단(안내만), FAQ, 1:1 문의, 공지사항 목록/본문) · 주소 검색 결과 목록(`AddressResultList`, Figma 이미지의 4건을 mock) · 라이브 설정 시트(소리)
 매니저: 지도 보기(카카오맵 검색)·고객 연락(tel:, mock 번호) · 고객센터 문의 폼 `/profile/support` · 촬영 장비 카메라 테스트(후면 카메라 미리보기, `liveClient.testCamera`) · 일정 이번 주/달력 · 기본 근무시간 수정 시트 · 프로필 5개(매니저 정보·활동 지역·신원 인증·교육 이수·정산 계좌 읽기 전용, 알림 설정, 공지사항)
 새 ui: `ErrorState` `ScreenError` `ScreenLoading` `AddressResultList` `FaqItem`, `ReservationCard` 상태 3종 추가(inProgress/done/cancelled), `useAsync`
@@ -1025,6 +1037,22 @@ Figma 매니저 페이지(22화면)에 로그인·가입 화면이 없어 사용
 - [x] Home 테스트 갱신(매장 이동 테스트 추가), check:tokens·lint 통과, 393px 브라우저 확인.
 - [x] (2026-10-31 후속) 아이콘을 첨부 시안처럼 플랫 컬러로 교체: 가정 = 굴뚝·빨간 지붕 집, 원룸 = 주황 박스, 매장 = 같은 색의 차양 가게(시안에 없어 코드에서 정함). 색은 `extra.css` `--raw-home-icon-*` 8개. 원 바탕은 `--color-surface-subtle`(시안의 연회색), 이름은 굵지 않은 회색(text-body-default + `--color-text-secondary`).
 
+### 2026-11-08 홈 서비스 둘째 줄: 분해청소·수리·사진 문의 (사용자 요청)
+- [x] 홈 동그란 버튼을 3열 2줄로: 매장·가정·원룸 아래에 분해청소·수리·사진 문의. 아이콘 `ServiceDisassemblyIcon`(후드+반짝임) `ServiceRepairIcon`(망치+스패너) `ServicePhotoIcon`(파란 카메라) — 첨부 시안을 따라 코드에서 그림, 색은 기존 `--raw-home-icon-*`·`--raw-brand-mark-blue`·브랜드 토큰.
+- [x] 사진 문의는 시안처럼 연파랑 원 + 파란 굵은 이름 + '무료' 배지(`--home-font-badge` 12px, extra.css 에 추가). 시안 문구는 '사진 견적' 이지만 사용자 지시로 '사진 문의'.
+- 판단: 이동 경로 — 분해청소 → 가전청소 예약 `/booking/appliance/frequency`, 수리 → `/repair`, 사진 문의 → 1:1 문의 `/settings/inquiry`. **1:1 문의 화면에는 아직 사진 첨부가 없다** (필요하면 별도 작업).
+
+### 2026-11-08 기본 청소 화면 아래 요금·견적 안내 (사용자 요청)
+- [x] `PriceGuide`(ui) — 사용자 첨부 시안 5장의 공통 틀(머리·횟수별 요금표·카드 2장·크기별 요금·추가 요금·혜택 띠·청소 범위·각주). 데이터에 있는 부분만 그린다. 갤러리·테스트 추가.
+- [x] 아이콘 SVG: 머리 아이콘은 기존 `Service{Home,Studio,Disassembly,Repair}Icon`, 새로 `HoodSizeIcon`(600/900/1200mm) `GiftBoxIcon`. 카메라는 `ServicePhotoIcon`.
+- [x] `BookingFrequency` 기존 섹션 다음에 `SectionDivider` + `common.page` + `.question`(주의사항 화면 문항 섹션과 같은 틀)로 붙임. 문구·금액은 `mock.js` `PRICE_GUIDES`(시안 그대로).
+- 판단: 가정/원룸 = home 카테고리의 `homeService`(house/studio), 분해청소 = appliance → 후드·덕트. 매장 등 안내가 없는 카테고리는 그리지 않는다.
+- [x] (후속) 대리석 코팅·크랙 수리 견적 안내를 수리 탭(`Repair`) 카테고리 격자 아래에 붙였다 (`mock.js` `REPAIR_PRICE_GUIDES`). PriceGuide 에 기본 요금 띠·할인 상자·계산 예시·알아 두세요 추가, 새 SVG `CountertopIcon`(1자/ㄱ자/ㄷ자) `CrackIcon`(4종).
+- [x] (후속) 수리 탭에서 히어로·카테고리 격자(`RepairCategoryList`)를 지우고, 견적 안내 2개를 가정·원룸·분해청소와 같은 틀(흰 바탕, 좌우 24·위 28·아래 32, 사이 `SectionDivider`)로 바꿨다. `ServiceRepairIcon` 을 시안 아이콘(검은 머리·주황 손잡이 망치 + 회색 스패너)대로 다시 그렸다.
+- 판단: 수리 예약 플로우(`/repair/booking/...`) 라우트는 남겼지만 수리 탭의 입구가 없어졌다 — 2026-11-08 사용자 결정: 입구를 다시 만들지 않는다.
+- [x] (후속) 수리 탭을 기본 청소 화면과 같은 틀로: NavBar(뒤로) · 제목 블록 · '수리 종류' 카드 라디오(대리석 코팅/크랙 수리) · 띠 · 고른 종류의 견적 안내 · 선물 배너. 판단: 제목 '수리'·설명·'수리 종류' 문구는 코드에서 정함(`mock.js` `REPAIR_SCREEN_COPY`), 배경은 흰색.
+- [x] (후속, 2026-11-09 다시 바꿈) 기본 청소 화면: 서비스 주기 → 띠(위 40) → 요금 안내(위 40·아래 32). 숨겨 두었던 프로모션 배너(`PromoBanner`)는 사용자 요청으로 삭제.
+
 ### 2026-10-31 매장 청소 카테고리 `store` 추가 (사용자 요청)
 - [x] DB: `backend/.../db/migration/V058__store_cleaning_category.sql` — service_categories(매장 청소, sort 6)·catalog_prices·catalog_options(무료 3 + 유료 2)·catalog_notice_chips 9·catalog_frequency_copy·checklist_templates(매장 홀·출입구·화장실)·app_settings duration_hours(3)·category_short_labels(매장청소).
 - [x] 앱: mock.js(BOOKING_CATEGORIES·BOOKING_OPTIONS·NOTICE_CHIPS·FREQUENCY_DESCRIPTIONS)·가짜 서버 PRICES·`ASSETS.bookingOptionIcons.store`·홈 "매장" → `/booking/store/frequency`. 백엔드 테스트 모양 `mock-shapes/*-store.json` 4개 + CatalogIT 4줄.
@@ -1033,3 +1061,60 @@ Figma 매니저 페이지(22화면)에 로그인·가입 화면이 없어 사용
 - [x] 검증: 앱 Vitest 163파일·476테스트, check:tokens, lint, build 통과. 가짜 서버로 매장 주기·옵션·주의사항 화면 확인. 백엔드 `mvnw verify -DskipITs` 통과 — **IT 미실행**(이 컴퓨터에 Docker 없음, V058 은 실제 Postgres 에서 아직 실행 안 됨).
 - [x] 개발 서버 배포(2026-10-31): 리비전 `ansimclean-api-test-00013-lzf`(시크릿 v5 그대로), 개발 DB 에 V058 적용 — /catalog/categories/store 4개 API·health·로그인 확인. 배포 뒤 개발 서버 다시 ON(manual 1). Android 번들 staging 재동기화(홈 "매장" → /booking/store). **운영 서버는 미배포**.
 - 참고: Windows PowerShell 5.1 은 BOM 없는 UTF-8 `deploy-development.ps1` 을 CP949 로 읽어 파싱 실패 — 임시 BOM 사본으로 실행 후 삭제.
+
+- [x] (2026-11-04) 매니저 청소 전 필수 사진: 기본 공간 생성 제거, 직접 추가한 각 공간에 전 사진 3장 필수(최대 10공간·30장), 서버 업로드·확인 검사 일치. 실제 라이브 세션 시작 후 고객 홈·내 예약 카드에 빨간 점 + 실시간 표시 및 시청 버튼 노출. 앱 전체 528개·서버 632개 테스트, 토큰 검사 통과.
+
+- [x] (2026-11-05) 매니저 카메라 요청 무한 대기 방지: getUserMedia 20초 제한, 시간 초과 후 늦게 열린 스트림 해제, 재연결 회귀 테스트 추가. 관련 13개 테스트·변경 파일 ESLint·토큰 검사·staging 빌드·Android assembleDebug 통과, Manager 에뮬레이터 업데이트. API 33 VirtualScene이 같은 음수 타임스탬프를 반복하는 오류를 확인해 Manager AVD의 후면 카메라를 Emulated로 전환. 복구 절차는 docs/mac-build.md.
+
+## 2026-11-09 고객 소셜 인증 개편
+
+- [x] 기존 고객 UI·공용 API·DB/Auth 설정 분석: phone identities 8개, 지원 social identity 없는 활성 고객 5개 확인.
+- [x] 고객 자체 비밀번호/직접 번호 인증 화면·어댑터 제거, 카카오·구글 로그인 및 공식 복구 링크, 취소·중복 클릭·오류 안내.
+- [x] Supabase SDK 세션 관리·기존 안전 저장소 이전·앱 재실행 확인·보호 페이지·SDK token refresh 연결.
+- [x] Android Kakao Talk SDK + Google Credential Manager, 요청별 nonce, ID token→Supabase 교환, PKCE 시스템 브라우저 fallback.
+- [x] 서버 JWT 권한 유지, DB provider 근거 신규 프로필 생성, 기존 user id 불변, 이메일/전화번호 기반 자체 병합 없음.
+- [x] SMS 고객 식별/첫 가정청소 체험 원장·유일 제약·예약 트랜잭션 연동. 새 SMS 업체 도입 없음.
+- [x] V061 및 읽기 전용 사전점검 SQL, 운영 기존 계정 전환 대책 문서 작성.
+- [x] 추가 승인으로 safe_clean_test 계정·업무 데이터 초기화. 사용자/identity/session/profile/예약/결제 0건 검증. 설정·약관 보존, 운영 환경 제외.
+- [x] 테스트 V061 적용, RLS 3개 새 테이블 및 Flyway 체크섬 확인.
+- [x] Kakao Developers 로그인 ON 및 테스트 REST callback 등록, Supabase Kakao provider 활성화/이메일 없는 계정 허용, 공개 설정 API로 kakao=true 검증.
+- [ ] Kakao 이메일 권한: 현재 앱이 비즈 앱이 아니어서 권한 없음. 비즈 앱 전환·이메일 권한 및 Android 실제 서명 hash 등록 필요.
+- [x] Google 웹·Android 디버그 OAuth 클라이언트 생성, 테스트 Supabase Google 활성화·신규 가입 허용·redirect allowlist 4개 확인.
+- [ ] 실제 사용자 OAuth 연결·세션 만료·Android 기기 재실행 검증.
+- [x] 테스트 Storage 객체 59개 공식 API 삭제, storage.objects=0 재확인. 버킷 유지.
+- [ ] 서버 배포는 미실행. 현재 원격 서버는 기존 코드이므로 새 고객/예약 식별 API 배포 필요.
+
+검증: 프론트 전체 547개 통과 + 새 SDK 세션 경계 테스트 5개 별도 통과. 서버 전체 단위 테스트 634개 통과. 고객 production build/Android assembleDebug 성공. PGlite로 migration/기존ID 보존/중복 차단/트랜잭션 롤백/RLS 거부 검증. eslint는 기존 build/ 생성물이 2404개 오류를 내므로 `npm run lint -- --ignore-pattern 'build/**'`로 소스 전체 통과. 토큰 검사 통과. 실제 OAuth·실기기 및 Docker IT는 별도 미실행. 이후 추가 코드 변경 시 관련 재검증.
+
+2026-11-10 최종 재검증: 프론트 197파일/557개 테스트 통과, 고객 staging build·Capacitor sync·Android assembleDebug 통과. 구글 Android 디버그 OAuth 생성 확인. 사용자 승인 후 테스트 Cloud Run 소스 배포 진행 중(운영 제외).
+
+2026-11-10: 테스트 배포 완료 — ansimclean-api-test-00018-rqn, 트래픽 100%. 기존 runtime/시크릿 v5 유지. Cloud Build 서버 테스트 634개 통과. HTTP health 200 UP, 무토큰 auth/me 401, 고객 비밀번호 login 403 확인. 테스트 서비스 manual 1 활성화. Storage 59개 삭제 후 0건, V061 checksum=500434441/success=true 재확인. 운영 미변경. 실제 SNS 로그인/기기 세션 복원은 미검증. 위의 배포 미실행/진행 중 기록은 이 결과로 대체.
+
+## 2026-11-10 첫 1회 청소 바텀시트
+
+- 가정·원룸 1회 선택 시 인증 안내 바텀시트. 휴대폰 아이콘/안내 문구/기존 ctaRounded primary 버튼/닫기. 인증 버튼은 SMS 요청 없이 동작 없음.
+- 완료 이력이 있는 home/store 고객의 1회 카드 숨김. 서버 completedOneTime은 본인 bookings + home/store + oneTime + done 존재 여부. 예약 혜택 원장 first_cleaning_claims와 실제 완료 이력은 분리.
+- 미인증 1회 예약의 다음 단계 우회 방지 유지. SMS 기존 구현 코드는 서버/API에 보존하되 이 안내 UI에서 호출하지 않음.
+- 프론트 전체 198파일/563테스트 통과, 관련 lint/토큰 검사 통과, 고객 staging build·Capacitor sync·Android assembleDebug 및 서버 compile 통과. PGlite로 실제 서버 SQL의 완료/취소/진행·정기/1회·고객 경계 검증.
+- 테스트 서버 배포 진행. 운영 변경 없음. 상세 docs/auth/first-cleaning-ui.md.
+- 테스트 배포 완료: ansimclean-api-test-00019-n76, 트래픽 100%. Cloud Build 서버 테스트 634개 통과.
+
+## 2026-11-10 고객 휴대폰 SMS OTP (Supabase Auth phone_change, 사용자 요청)
+
+- [x] 기존 구조 분석: 고객 = 카카오·구글(Supabase SDK 세션), 서버 = 자체 OtpService(매니저 가입·재설정, Solapi `SmsSender`), 고객 첫 1회 청소 SMS 는 자체 OtpService 를 쓰고 있었다 → 교체 대상. 네이버 로그인은 코드에 없음.
+- [x] 서버: `CustomerPhoneService` 를 Supabase phone_change(PUT /auth/v1/user → POST /auth/v1/verify)로 교체. 자체 OTP 생성·저장 없음. 한도(고객·번호 5/시간, IP 20, 전체 500), 60초 재발송, 3분 만료, 오답 5회 폐기(V062 `failed_attempts`), 확인 근거 = auth.users.phone·phone_confirmed_at, Supabase 가 만든 여분 세션 즉시 logout. `CustomerPhoneStore`(SQL), `SupabaseAuthClient.requestPhoneChange/verifyPhoneChange`.
+- [x] 서버: Send SMS Hook `POST /hooks/supabase/send-sms`(`SmsHookController/Service`) — Standard Webhooks 서명, 우리 서버가 1분 안에 시작한 요청만 발송(허용 목록), 번호별 한도, 기존 `SmsSender`(Solapi) 재사용. `SUPABASE_SMS_HOOK_SECRET` 비면 404. 개발은 끔.
+- [x] 서버: 매니저 가입이 휴대폰 인증한 소셜 고객의 Supabase 사용자를 '잔재' 로 재사용해 비밀번호를 덮어쓰지 않게 `AuthService.signup` 에 프로필 존재 검사(PHONE_TAKEN), `ProfileService.exists`.
+- [x] 앱: `PhoneVerify`(코드에서 정함, `/booking/:category/phone-verify`) — 안내 시트 '휴대폰 인증하기' 에서 진입, 3분 남은 시간·60초 재전송·숫자 6자리. 문구 `mock.js PHONE_VERIFY_COPY`. 가짜 서버 엔드포인트·테스트.
+- [x] 개발 도구: `npm run dev:sms -- 01000000001` — 테스트 번호 고정 인증번호를 에뮬레이터 문자함에 가상 SMS 로(`adb emu sms send`, emulator-* 만). 번호표 `scripts/dev-test-phones.json`. 에뮬레이터 수신 확인함.
+- [x] 문서: `docs/auth/phone-otp.md`(구조·Supabase 설정표·SOLAPI 전환·보안), `backend/docs/api.md`, `apps/customer/src/api/README.md`.
+- [x] 검증: 서버 단위 659개(새 31개 포함), 앱 200파일·569개, check:tokens, lint(`--ignore-pattern 'build/**'`), build 통과. 고객 staging 번들 sync·assembleDebug·에뮬레이터 설치. **IT 미작성·미실행**(Docker 없음 — V062 는 실제 Postgres 에서 아직 실행 안 됨).
+- [x] Supabase(safe_clean_test) 설정: sms_otp_exp=180, sms_otp_length=6, 테스트 번호 3개 — 사용자가 대시보드에서 직접 저장(2026-11-10). 운영 프로젝트 미변경.
+- [x] 테스트 서버 배포: `ansimclean-api-test-00020-2h6`, 트래픽 100%, 시크릿 v5·manual 1 유지. Flyway V062 적용 로그 확인, health UP, 무토큰 otp 401, Hook 404(꺼짐). 운영 미배포.
+- [x] 에뮬레이터 실측(Customer AVD, 로그인된 테스트 고객): 가정 → 1회 → 안내 시트 → 휴대폰 인증 → 010-0000-0001 '인증하기'(otp 200, 3:00·60초 표시) → `npm run dev:sms` 가상 SMS 수신 → 000000 입력 '인증번호가 맞지 않아요'(verify 400) → 123456 입력 성공(verify 200) → 토스트 '휴대폰 인증이 완료됐어요' → 주기 화면 '다음' 이 시트 없이 주소 검색으로 진행.
+- 참고: 이 테스트 고객 계정에 +821000000001 이 붙었다. 다시 해 보려면 다른 고객 계정이나 테스트 번호 0002·0003 을 쓴다(한 번 인증한 고객은 번호 변경 불가).
+- 판단: 화면·문구는 Figma 에 없어 코드에서 정함. 한 번호는 Supabase 계정 하나에만 붙는다(매니저와 같은 번호면 고객 인증 불가 — Supabase phone 고유 제약). 참고: `VITE_API_MOCK=1` 목 모드는 11-09 소셜 인증 개편 이후 Supabase 설정 없이는 앱 시작이 실패한다(이번 작업 전부터).
+- [x] (2026-11-10 후속, 사용자 시안 2장) `PhoneVerify` 를 2단계로: ① '휴대폰 번호 인증'(전화 아이콘 입력칸 010-1234-5678 형식, '인증번호 보내기', 회색 개인정보 안내) → **전송 성공 때만** ② '인증번호를 입력해주세요'(6칸, 6자리면 자동 확인 + '인증하고 계속하기' 활성, 3분 타이머 mm:ss, '인증번호 다시 받기' 60초 뒤, '휴대폰 번호 수정하기'). 로고·앱 이름은 빼고 버튼은 기존 파란 버튼(primary/outline + ctaRounded). 문구는 시안 그대로 `PHONE_VERIFY_COPY`.
+- [x] ui: `OtpCodeField`(새, 6칸 + 투명 input 하나, one-time-code, timer 슬롯) · `TextField icon` · `InfoNote icon`·`tone="neutral"` — 갤러리·테스트 추가. 판단: 세 가지 모두 Figma 에 없어 코드에서 정함.
+- [x] 검증: 앱 201파일·575개, check:tokens·lint·build 통과. 에뮬레이터에서 두 화면 확인(이미 인증한 테스트 계정이라 2단계 화면은 WebView 디버거로 전송 응답만 흉내 내 확인 — 코드 변경 없음).
+- [x] (2026-11-10) 테스트 계정 인증 초기화 SQL `docs/auth/reset-test-phone-proof.sql`(개발 프로젝트 SQL Editor 전용, 사용법 phone-otp.md). 사용자가 실행 → 앱에서 미인증 시트 다시 뜸 확인 → 새 2단계 화면으로 실서버 재실측: otp 200 → 2단계 이동 → 가상 SMS → 123456 입력 즉시 자동 확인(verify 200, 버튼 안 누름) → 주기 화면 복귀. 지금 이 계정은 다시 +821000000001 인증 상태.

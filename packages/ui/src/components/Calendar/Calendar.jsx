@@ -6,7 +6,7 @@
 // 예: 고객 앱 예약 일시 선택(BookingDateTime — notBookableWithin 으로 예약 가능 기간까지 막는다),
 //   매니저 앱 일정(Schedule 의 '달력' 보기 — isDisabled 로 모든 날짜를 열어 둔다).
 // 날짜는 'YYYY-MM-DD' 문자열(dateKey)로 주고받고, 칸은 로컬 자정 Date 로 그린다.
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import MonthChevronIcon from '../../icons/MonthChevronIcon.jsx';
 import { toDateKey, fromDateKey, startOfToday } from './dateKey.js';
 import { cx } from '../../utils/cx.js';
@@ -31,6 +31,8 @@ function buildGrid(year, month) {
  * @param {string} [props.title='방문 날짜 선택'] (Figma 문구)
  * @param {(date: Date) => boolean} [props.isDisabled] 선택 불가 판정. 기본: 오늘 이전 또는 토·일
  * @param {Date} [props.initialMonth] 처음 보여줄 달. 기본: value 의 달, 없으면 오늘
+ * @param {string[]} [props.markedDates] 파란 점으로 예약이 있음을 표시할 날짜
+ * @param {boolean} [props.responsive] 가로 폭에 맞춰 날짜 칸을 나눈다
  * @param {string} [props.className]
  * 주의: 이 블록은 아래 Calendar 의 props 설명이다. 사이에 defaultDisabled 선언이 있어 에디터 힌트는
  * Calendar 가 아니라 defaultDisabled 에 붙는다 (옮기려면 코드 순서를 바꿔야 한다).
@@ -41,22 +43,129 @@ const defaultDisabled = (d) => d < startOfToday() || d.getDay() === 0 || d.getDa
  * 한 달 달력 패널 (props 는 위 JSDoc 블록 참고). 날짜 칸을 누르면 onChange('YYYY-MM-DD') 를 부른다.
  * 이전·다음 달 버튼은 보이는 달만 바꾸고 선택값(value)은 그대로 둔다. 선택값은 부모가 들고 있다.
  */
-export default function Calendar({ value, onChange, title = '방문 날짜 선택', isDisabled = defaultDisabled, initialMonth, className }) {
+export default function Calendar({ value, onChange, title = '방문 날짜 선택', isDisabled = defaultDisabled, initialMonth, className, markedDates = [], responsive = false, hideTitle = false, swipeable = false, subtleSelection = false }) {
   // 처음 보여 줄 달. useState 초기값이라 첫 렌더에서만 쓰인다 — 나중에 value 가 바뀌어도 보이는 달은 따라가지 않는다.
   // initialMonth·value 가 둘 다 없으면 기기 날짜(new Date())의 달이다. 막는 날의 '오늘'(startOfToday)은 서울 날짜라, 시간대가 다른 기기에서는
   // 월말·월초에 처음 보이는 달이 서울의 이번 달과 다를 수 있다 (WeekCalendar 의 처음 주도 같다)
   const base = initialMonth ?? fromDateKey(value) ?? new Date();
   const [view, setView] = useState({ year: base.getFullYear(), month: base.getMonth() });
-  const rows = buildGrid(view.year, view.month);
+  const touchStart = useRef(null);
+  const [dragX, setDragX] = useState(0);
+  const [snapping, setSnapping] = useState(false);
+  const suppressClickUntil = useRef(0);
+  const marked = new Set(markedDates);
+
   // 달 이동. month 는 0~11 이라 12 를 넘거나 0 밑으로 가면 연도를 올리고 내린다.
   // JS 의 % 는 음수에서 음수를 돌려주므로 (x % 12 + 12) % 12 로 다시 0~11 로 맞춘다.
   const moveMonth = (delta) => setView((v) => ({ year: v.year + Math.floor((v.month + delta) / 12), month: (((v.month + delta) % 12) + 12) % 12 }));
 
+  const startSwipe = (event) => {
+    setSnapping(false);
+    suppressClickUntil.current = 0;
+    const touch = event.touches.length === 1 ? event.touches[0] : null;
+    touchStart.current = touch ? { x: touch.clientX, y: touch.clientY, id: touch.identifier } : null;
+  };
+  const finishSwipe = (event) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    setDragX(0);
+    if (!start) return;
+    const touch = Array.from(event.changedTouches).find((t) => t.identifier === start.id);
+    if (!touch) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) {
+      setSnapping(true);
+      return;
+    }
+    setSnapping(false);
+    moveMonth(dx < 0 ? 1 : -1);
+    // 스와이프 뒤 브라우저가 생성하는 클릭으로 날짜가 선택되는 것을 막는다.
+    suppressClickUntil.current = Date.now() + 500;
+  };
+
+  const trackSwipe = (event) => {
+    const start = touchStart.current;
+    if (event.touches.length !== 1) {
+      touchStart.current = null;
+      setDragX(0);
+      return;
+    }
+    if (!start) return;
+    const touch = event.touches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) > Math.abs(dy) * 1.5) setDragX(dx);
+  };
+  const cancelSwipe = () => { touchStart.current = null; setSnapping(true); setDragX(0); };
+
+  const renderMonth = (monthView) => <>
+      <div className={styles.weekdays} aria-hidden="true">
+        {WEEKDAYS.map((w) => (
+          <span key={w} className={cx('text-label-s', styles.weekday)}>
+            {w}
+          </span>
+        ))}
+      </div>
+      <div className={styles.grid} role="grid" aria-label={`${monthView.year}년 ${monthView.month + 1}월`}>
+        {buildGrid(monthView.year, monthView.month).map((row, r) => (
+          <div key={r} className={styles.row} role="row">
+            {row.map((d) => {
+              const key = toDateKey(d);
+              const outside = d.getMonth() !== monthView.month; // 앞뒤 달에서 채운 칸
+              const disabled = outside || isDisabled(d); // 앞뒤 달 칸은 규칙과 상관없이 누를 수 없다
+              const selected = key === value && !outside; // 앞뒤 달 칸은 같은 날짜여도 선택 표시를 하지 않는다
+              const hasMarker = !outside && marked.has(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="gridcell"
+                  aria-selected={selected}
+                  aria-label={`${d.getMonth() + 1}월 ${d.getDate()}일${hasMarker ? ', 예약 있음' : ''}`}
+                  disabled={disabled}
+                  className={cx('text-label-default', styles.cell, selected && styles.selected, hasMarker && styles.hasMarker, disabled && styles.disabled)}
+                  onClick={() => onChange && onChange(key)}
+                >
+                  {d.getDate()}
+                  {hasMarker && <span className={styles.marker} aria-hidden="true" />}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+  </>;
+
   // aria-live="polite": 달이 바뀌면 화면 낭독기가 새 'YYYY년 M월' 을 읽어 준다.
   // 날짜 칸은 role=grid/row/gridcell 표 구조로, 선택된 칸은 aria-selected 로 알린다.
   return (
-    <section className={cx(styles.panel, className)} aria-label={title}>
-      <h2 className={cx('text-heading-s', styles.title)}>{title}</h2>
+    <section className={cx(styles.panel, responsive && styles.responsive, hideTitle && styles.withoutTitle, subtleSelection && styles.subtleSelection, swipeable && styles.swipeable, className)} aria-label={title}
+      onTouchStart={swipeable ? startSwipe : undefined}
+      onTouchMove={swipeable ? trackSwipe : undefined}
+      onTouchEnd={swipeable ? finishSwipe : undefined}
+      onTouchCancel={swipeable ? cancelSwipe : undefined}
+      onPointerDown={swipeable ? (event) => {
+        if (event.pointerType !== 'mouse' || event.button !== 0) return;
+        startSwipe({ touches: [{ identifier: event.pointerId, clientX: event.clientX, clientY: event.clientY }] });
+      } : undefined}
+      onPointerMove={swipeable ? (event) => {
+        if (event.pointerType !== 'mouse' || !touchStart.current) return;
+        if (Math.abs(event.clientX - touchStart.current.x) > 10) event.currentTarget.setPointerCapture?.(event.pointerId);
+        trackSwipe({ touches: [{ clientX: event.clientX, clientY: event.clientY }] });
+      } : undefined}
+      onPointerUp={swipeable ? (event) => {
+        if (event.pointerType !== 'mouse') return;
+        finishSwipe({ changedTouches: [{ identifier: event.pointerId, clientX: event.clientX, clientY: event.clientY }] });
+      } : undefined}
+      onPointerCancel={swipeable ? cancelSwipe : undefined}
+      onClickCapture={swipeable ? (event) => {
+        if (event.detail > 0 && Date.now() < suppressClickUntil.current) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      } : undefined}>
+      {!hideTitle && <h2 className={cx('text-heading-s', styles.title)}>{title}</h2>}
       <div className={styles.monthNav}>
         <button type="button" className={styles.navButton} onClick={() => moveMonth(-1)} aria-label="이전 달">
           <MonthChevronIcon direction="prev" />
@@ -68,38 +177,15 @@ export default function Calendar({ value, onChange, title = '방문 날짜 선�
           <MonthChevronIcon direction="next" />
         </button>
       </div>
-      <div className={styles.weekdays} aria-hidden="true">
-        {WEEKDAYS.map((w) => (
-          <span key={w} className={cx('text-label-s', styles.weekday)}>
-            {w}
-          </span>
-        ))}
-      </div>
-      <div className={styles.grid} role="grid" aria-label={`${view.year}년 ${view.month + 1}월`}>
-        {rows.map((row, r) => (
-          <div key={r} className={styles.row} role="row">
-            {row.map((d) => {
-              const key = toDateKey(d);
-              const outside = d.getMonth() !== view.month; // 앞뒤 달에서 채운 칸
-              const disabled = outside || isDisabled(d); // 앞뒤 달 칸은 규칙과 상관없이 누를 수 없다
-              const selected = key === value && !outside; // 앞뒤 달 칸은 같은 날짜여도 선택 표시를 하지 않는다
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role="gridcell"
-                  aria-selected={selected}
-                  aria-label={`${d.getMonth() + 1}월 ${d.getDate()}일`}
-                  disabled={disabled}
-                  className={cx('text-label-default', styles.cell, selected && styles.selected, disabled && styles.disabled)}
-                  onClick={() => onChange && onChange(key)}
-                >
-                  {d.getDate()}
-                </button>
-              );
-            })}
-          </div>
-        ))}
+      <div className={styles.viewport}>
+        <div className={cx(styles.track, snapping && styles.snapping)} onTransitionEnd={() => setSnapping(false)} style={{ transform: `translateX(calc(-100% + ${dragX}px))` }}>
+          {[-1, 0, 1].map((offset) => {
+            const date = new Date(view.year, view.month + offset, 1);
+            return <div key={offset} className={styles.monthPage} aria-hidden={offset !== 0 ? true : undefined} inert={offset !== 0 ? true : undefined}>
+              {renderMonth({ year: date.getFullYear(), month: date.getMonth() })}
+            </div>;
+          })}
+        </div>
       </div>
     </section>
   );

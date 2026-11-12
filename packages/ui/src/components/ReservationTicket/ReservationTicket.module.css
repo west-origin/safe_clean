@@ -156,3 +156,11 @@
 .actionBrand {
   color: var(--color-brand-primary);
 }
+
+.liveBadge {
+  gap: calc(var(--spacing-2xs) / 2);
+  background: var(--color-status-live);
+}
+.liveDot {
+  flex-shrink: 0;
+}

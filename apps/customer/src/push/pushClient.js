@@ -10,7 +10,9 @@
 // 화면 이동(알림 탭)은 data.type/bookingId 로 — 라우터를 여기서 모르므로 onOpen 콜백으로 넘긴다.
 // 예: App.jsx 가 시작 때 initPush 를 부르고 알림을 탭하면 router.navigate(pushTarget(data)) 로 옮긴다.
 // 설정 화면은 getPushState·subscribePushState 로 OS 권한 상태를 보여 준다.
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+const pushConfiguration = registerPlugin('PushConfiguration');
 import { deviceToken } from './deviceToken.js';
 import { registerPushToken, subscribeSession, isSignedIn } from '../api/customer.js';
 import { session } from '../api/session.js';
@@ -146,6 +148,15 @@ export async function initPush({ onOpen, plugin, platform } = {}) {
 
 /** initPush 의 실제 작업: 플러그인 리스너 → 세션 구독 → 권한 확인·요청 → register(). 토큰은 'registration' 이벤트로 온다 */
 async function start({ onOpen, plugin, platform }) {
+  // Missing google-services.json makes the native FCM register call crash the process.
+  // Check before attaching listeners or watching sessions, so no later retry calls FCM.
+  if (!plugin && Capacitor.getPlatform() === 'android') {
+    const { configured } = await pushConfiguration.check();
+    if (!configured) {
+      setPermissionState('error');
+      return false;
+    }
+  }
   const push = plugin ?? (await import('@capacitor/push-notifications')).PushNotifications; // 네이티브에서만 플러그인을 불러온다 (동적 import)
   pushPlugin = push; // 로그아웃 때 등록 해제(unregister)·다음 로그인 때 다시 등록(register)에 쓴다
   const os = platform ?? Capacitor.getPlatform(); // ios | android

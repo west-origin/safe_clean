@@ -2,6 +2,7 @@
 // 84px 회색 원 안에 36px 아이콘, 제목 Heading/S, 설명 Body/Default, 세로 간격 14, 상하 72.
 // 목록이 비었을 때 목록 자리에 대신 보여 준다. 두 앱의 화면이 데이터가 비었을 때 조건부로 그린다
 // (별도 라우트가 아니다). 예: 매니저 앱 CallList, 고객 앱 Reservations.
+import CalendarIcon from '../../icons/CalendarIcon.jsx';
 import EmptySmileIcon from '../../icons/EmptySmileIcon.jsx';
 import EmptyCallIcon from '../../icons/EmptyCallIcon.jsx';
 import EmptyCalendarIcon from '../../icons/EmptyCalendarIcon.jsx';
@@ -9,7 +10,7 @@ import { cx } from '../../utils/cx.js';
 import styles from './EmptyState.module.css';
 
 // icon prop 이름 → 원 안에 넣을 아이콘 컴포넌트.
-const ICONS = { smile: EmptySmileIcon, call: EmptyCallIcon, calendar: EmptyCalendarIcon };
+const ICONS = { smile: EmptySmileIcon, call: EmptyCallIcon, calendar: EmptyCalendarIcon, reservationCalendar: CalendarIcon };
 
 /**
  * @param {object} props

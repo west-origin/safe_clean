@@ -18,6 +18,7 @@
     "cap:sync:development": "npm run cap:sync:development --workspaces --if-present",
     "tokens": "node scripts/build-tokens.js",
     "check:tokens": "node scripts/check-tokens.js",
+    "dev:sms": "node scripts/dev-sms.js",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",

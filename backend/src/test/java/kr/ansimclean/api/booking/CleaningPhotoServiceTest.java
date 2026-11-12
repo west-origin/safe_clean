@@ -133,7 +133,7 @@ class CleaningPhotoServiceTest {
     @Test
     void 위치_10곳을_넘으면_올리지_않는다() {
         Booking b = active();
-        when(photos.countByBookingId(b.getId())).thenReturn(10L);
+        when(photos.countByBookingId(b.getId())).thenReturn(30L);
         assertThatThrownBy(() -> service.addBefore(MANAGER, b.getId(), "거실", "image/png", png()))
                 .isInstanceOf(ApiException.class).hasMessage(CleaningPhotoService.TOO_MANY);
         verify(storage, never()).upload(any(), any(), any(), any());
@@ -284,7 +284,7 @@ class CleaningPhotoServiceTest {
         when(photos.findByBookingIdOrderBySortAsc(b.getId())).thenReturn(List.of(first, second));
 
         JobPhotosResponse res = service.managerList(MANAGER, b.getId());
-        assertThat(res.max()).isEqualTo(10);
+        assertThat(res.max()).isEqualTo(30);
         assertThat(res.photos()).extracting(CleaningPhotoResponse::location).containsExactly("거실", "주방");
         assertThat(res.photos().get(0).afterUrl()).isNull();
         assertThat(res.photos().get(1).afterUrl()).isEqualTo("signed:2-after.png");
