@@ -30,7 +30,15 @@
   - 테스트: `VoucherServiceTest` 9 · `AdminVoucherRefundServiceTest` 4 · `CheckoutServiceTest` +3(카드 금액 감소·대기 주문 닫기·선물 카드 환불) · `GiftPaymentBridgeTest` +1 · `VoucherControllerTest` 3 · `PushHandlerTest` +1 · `VoucherIT` 6(선물 vs 예약 사용 동시 5회·사용→카드 금액 감소→취소→복원·전부 덮기·구매 7일 카드 환불·계좌 환불 + 어드민 완료·탈퇴 가드) — **IT 미실행(Docker 없음)**. `scripts/verify-voucher-uses-v071.mjs`(PGlite) 통과. 백엔드 828 테스트 통과(IT 제외), 앱 609, 토큰·빌드 통과
   - 판단(코드에서 정함): 유효기간 만료는 상태값 없이 `valid_until` 로 판단, 95% 는 원 단위 내림, 7일 기준은 결제 확정 시각(`purchased_at`), 받은 사람은 구매 7일 안에만 100%, 일부 쓴 금액권은 만료 전 환불 불가, 환불이 끝난 금액권으로 예약 취소 금액이 돌아오면 그 금액이 새 잔액(held), 계좌번호는 숫자 6~20자리, 은행·예금주 20자, 토스 취소 사유 문구는 기존 '예약 취소' 그대로, 오류·푸시 문구
   - **배포 전 할 일**: `REFUND_ACCOUNT_KEY`(openssl rand -base64 32)를 시크릿에 추가 — 없으면 계좌 환불 접수가 막힌다(카드 환불·사용은 동작)
-- [ ] 4회차: 고객 앱 친구 화면
+- [x] 4회차: 고객 앱 친구 화면 — 결정(2026-11-13 질의응답): 초대 딥링크는 Android 매니페스트 intent-filter 한 줄 + 초대 코드 입력(설치 리퍼러·네이티브 코드 없음)
+  - ui `PersonRow`(새 프리미티브 — 이름표·보조 문구·오른쪽 작은 버튼 primary/neutral, 시각 36·터치 44, 갤러리·테스트). Figma 에 없어 코드에서 정함
+  - 화면(전부 코드에서 정함, 문구 `mock.js FRIENDS_COPY`): `/friends`(내 친구 코드 카드 + 카카오톡 초대·친구 찾기, 탭 친구/받은 요청/보낸 요청, 관리 시트 삭제·차단, 차단한 사람 메뉴) · `/friends/search`(닉네임#태그 검색 → 요청/요청 보냄/수락/친구/나, 초대 코드 입력) · `/friends/invite/:code`(초대 받기 — 수락·나중에, 만료 안내) · `/friends/blocks`(차단 해제). 닉네임 없는 고객은 `NicknameForm` 먼저
+  - `api/friends.js`(서버 계약 그대로) · `test/fakeFriends.js`(가짜 서버) · `invite/inviteLink.js`(링크 해석·로그인 전 초대 기억 → 가입 뒤 홈이 이어 감) · `App.jsx`(appUrlOpen·getLaunchUrl) · 푸시 `friendRequest` → `/friends?tab=received` · Android `AndroidManifest.xml` intent-filter `ansimclean://friend-invite`(iOS 는 기존 스킴)
+  - 초대 공유: `@capacitor/share` 8.0.3 추가(PLAN.md 패키지 표) — 앱은 OS 공유 시트, 웹은 navigator.share, 없으면 클립보드
+  - 설정 메뉴: V072 `settings_groups` 에 '친구·선물' 그룹 + '친구'(계정 다음). 앱 `MENU_PATHS.friends`
+  - 검증: 새 테스트 13(PersonRow 2 · 친구 화면 9 · inviteLink 2) + pushTarget, 앱 622 통과, 토큰·두 앱 build 통과, 바꾼 파일 eslint 0건, 백엔드 verify(IT 제외) 통과, V072 PGlite(그룹 위치·두 번 실행해도 한 번만). 브라우저 393px: 가짜 서버 + 임시 Supabase 공개값으로 띄워 친구 목록·받은 요청·찾기·초대 받기 확인 — 카드 버튼 넘침·찾기 버튼 모양을 고쳤다. **실기기·`cap:sync` 미실행**(딥링크·공유 시트는 실기기에서 확인 필요)
+  - 알아둘 것: `VITE_API_MOCK=1` 목 모드는 11-09 소셜 인증 개편 뒤 Supabase 공개값이 없으면 시작하지 못한다(이전부터). 친구 코드(`이름#0420`)가 토큰 검사의 hex 색상 규칙에 걸려 해당 줄에 `token-ok` 를 달았다
+  - 판단(코드에서 정함): 화면 구성·문구 전부, 친구 줄의 '관리' 시트(삭제·차단), 받은 요청은 검색 결과에서도 '수락'(서버가 자동 친구), 초대 '나중에' 는 아무것도 저장하지 않음, 내 친구 코드 카드의 버튼은 세로로
 - [ ] 5회차: 고객 앱 선물 화면
 - [ ] 6회차: 요금 정책 전환 (사용자 요금표 2026-11-13 — 가정·원룸 정기 월 요금, 원룸 1회 69,000, 첫 1회 체험 50,000, 후드 130/150/200k(+옵션), 대리석 코팅 290/360/420k, 크랙 수리 140k + 추가)
 

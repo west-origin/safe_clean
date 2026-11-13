@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ScreenLayout,
@@ -23,11 +24,17 @@ import homeArt from '@ansimclean/ui/assets/housing-house@3x.webp';
 import giftArt from '@ansimclean/ui/assets/gift-illustration@3x.webp';
 import HomePromotions from './HomePromotions.jsx';
 import UpcomingVisitCard from './UpcomingVisitCard.jsx';
+import { takePendingInvite } from '../../invite/inviteLink.js';
 import styles from './Home.module.css';
 
 // 기존 예약·실시간 상태 갱신은 새 홈에서도 유지한다.
 export default function Home() {
   const navigate = useNavigate();
+  // 로그인 전에 친구 초대 링크를 열었으면(App.jsx 가 기억함) 가입·로그인 뒤 처음 온 홈에서 초대 화면으로 이어 간다 (2026-11-13)
+  useEffect(() => {
+    const code = takePendingInvite();
+    if (code) navigate(`/friends/invite/${code}`);
+  }, [navigate]);
   const { data, error, reload } = usePolling(() => getHome(), [], {
     interval: 30_000,
     subscribe: onPushReceived,

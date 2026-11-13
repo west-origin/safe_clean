@@ -178,6 +178,7 @@ describe('pushClient — 기기 토큰 등록', () => {
     expect(pushTarget({ type: 'live', bookingId: 'b1' })).toBe('/service/live?booking=b1');
     expect(pushTarget({ type: 'recording', bookingId: 'b1' })).toBe('/service/live?booking=b1&replay=1');
     expect(pushTarget({ type: 'reservation', bookingId: 'b1' })).toBe('/reservations');
+    expect(pushTarget({ type: 'friendRequest', requestId: 'q1' })).toBe('/friends?tab=received'); // 친구 요청 (2026-11-13)
     expect(pushTarget({})).toBe('/home');
   });
 });

@@ -228,6 +228,7 @@ export function pushTarget(data = {}) {
     case 'live': return `/service/live?booking=${data.bookingId}`; // 푸시를 탭하면 바로 영상
     case 'recording': return `/service/live?booking=${data.bookingId}&replay=1`;
     case 'inquiry': return '/settings/inquiry'; // 문의 답변 — 화면 위쪽 '내 문의'
+    case 'friendRequest': return '/friends?tab=received'; // 친구 요청을 받음
     case 'reservation':
     case 'series': return '/reservations';
     default: return '/home';

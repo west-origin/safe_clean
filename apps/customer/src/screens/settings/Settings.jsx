@@ -19,6 +19,7 @@ const MENU_PATHS = {
   faq: '/settings/faq',
   inquiry: '/settings/inquiry',
   notice: '/settings/notices',
+  friends: '/friends', // 친구·선물 그룹 (2026-11-13, V072)
   terms: '/terms/service',
   privacy: '/terms/privacy',
 };

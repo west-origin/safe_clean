@@ -148,6 +148,7 @@ export const SETTINGS_HEADER = { title: '내 정보와\n설정을 관리해요',
 export const PROFILE = { name: '김하늘 님', phone: '010-1234-5678', avatarSrc: '' };
 export const SETTINGS_GROUPS = [
   { title: '계정', rows: [{ key: 'editProfile', label: '내 정보 수정' }, { key: 'addresses', label: '주소 관리' }, { key: 'payment', label: '결제 수단' }] },
+  { title: '친구·선물', rows: [{ key: 'friends', label: '친구' }] }, // 2026-11-13 코드에서 정함 (backend V072)
   { title: '알림', rows: [{ key: 'push', label: '푸시 알림', toggle: true }, { key: 'marketing', label: '마케팅 정보 수신', toggle: true }] },
   { title: '고객지원', rows: [{ key: 'faq', label: '자주 묻는 질문' }, { key: 'inquiry', label: '1:1 문의하기' }, { key: 'notice', label: '공지사항' }] },
   { title: '약관 및 정보', rows: [{ key: 'terms', label: '이용약관' }, { key: 'privacy', label: '개인정보 처리방침' }, { key: 'version', label: '버전 정보', value: 'v1.0.0' }] },
@@ -766,3 +767,80 @@ export const PAYMENT_COPY = {
   cancelled: '결제가 완료되지 않았어요. 다시 결제할 수 있어요.', failed: '결제창을 열지 못했어요. 다시 시도해주세요.',
   status: { pending: '결제를 진행해주세요.', authorized: '결제 결과를 확인하고 있어요. 창을 닫아도 서버에서 확인을 계속해요.', paid: '결제가 완료되었어요.', failed: '결제가 실패하거나 만료되었어요.', partially_refunded: '결제 금액의 일부가 환불되었어요.', refunded: '결제 금액이 환불되었어요.' },
 };
+
+// ── 고객 친구 (2026-11-13 — Figma 에 화면이 없어 코드에서 정함, PROGRESS.md 판단 항목) ──────────────
+/** 친구 화면 문구 (screens/friends). 모두 코드에서 정함 */
+export const FRIENDS_COPY = {
+  title: '친구',
+  myCodeLabel: '내 친구 코드',
+  myCodeHint: '친구가 이 코드로 나를 찾을 수 있어요',
+  invite: '카카오톡으로 초대하기',
+  inviteShareTitle: '안심클린 친구 초대',
+  inviteShareText: (handle) => `${handle} 님이 안심클린 친구로 초대했어요. 링크를 열어 친구 요청을 받아주세요.`,
+  inviteCopied: '초대 링크를 복사했어요. 친구에게 보내주세요',
+  inviteFailed: '초대 링크를 만들지 못했어요. 다시 시도해주세요.',
+  find: '친구 찾기',
+  tabs: { friends: '친구', received: '받은 요청', sent: '보낸 요청' },
+  empty: {
+    friends: { title: '아직 친구가 없어요', description: '내 친구 코드를 알려주거나 카카오톡으로 초대해보세요' },
+    received: { title: '받은 친구 요청이 없어요' },
+    sent: { title: '보낸 친구 요청이 없어요' },
+    blocks: { title: '차단한 사람이 없어요' },
+  },
+  manage: '관리',
+  accept: '수락',
+  reject: '거절',
+  cancel: '요청 취소',
+  remove: '친구 삭제',
+  block: '차단하기',
+  unblock: '차단 해제',
+  close: '닫기',
+  manageSheetTitle: (handle) => `${handle}`,
+  removeDone: '친구를 삭제했어요',
+  blockDone: '차단했어요. 이 사람은 나를 찾거나 요청·선물을 보낼 수 없어요',
+  manageGroup: '친구 관리',
+  blocksTitle: '차단한 사람',
+  actionFailed: '처리하지 못했어요. 다시 시도해주세요.',
+  // 닉네임 정하기 (소셜 가입 고객은 닉네임이 없다)
+  nicknameTitle: '친구 기능을 쓰려면 닉네임을 정해주세요',
+  nicknameDescription: '닉네임 뒤에 숫자 4자리가 붙어 내 친구 코드가 돼요',
+  nicknameLabel: '닉네임',
+  nicknamePlaceholder: '1~12자, # 은 쓸 수 없어요',
+  nicknameSave: '닉네임 정하기',
+  // 찾기
+  searchTitle: '친구 찾기',
+  searchLabel: '친구 코드',
+  searchPlaceholder: '닉네임#1234', // token-ok: 친구 코드 닉네임#태그 — 색이 아니다
+  searchButton: '찾기',
+  searchHint: '친구에게 받은 코드를 그대로 입력해주세요 (예: 청소왕#0420)', // token-ok: 친구 코드 닉네임#태그 — 색이 아니다
+  searchEmpty: { title: '찾는 친구가 없어요', description: '닉네임과 숫자 4자리를 다시 확인해주세요' },
+  request: '친구 요청',
+  requested: '요청 보냄',
+  requestSent: '친구 요청을 보냈어요',
+  becameFriends: '친구가 됐어요',
+  alreadyFriend: '친구',
+  self: '나',
+  codeTitle: '초대 코드로 추가',
+  codeLabel: '초대 코드',
+  codePlaceholder: '초대 링크의 코드 10자리',
+  codeButton: '확인',
+  codeInvalid: '초대 코드 10자리를 확인해주세요',
+  // 초대 받기
+  inviteTitle: '친구 초대',
+  inviteHeadline: (handle) => `${handle} 님이\n친구로 초대했어요`,
+  inviteAccept: '친구 수락',
+  inviteLater: '나중에',
+  inviteSelf: '내가 보낸 초대 링크예요',
+  inviteAlreadyFriend: '이미 친구예요',
+  inviteExpired: { title: '초대 링크를 찾을 수 없어요', description: '링크가 만료됐을 수 있어요. 친구에게 새 링크를 받아주세요' },
+  goFriends: '친구 목록으로',
+};
+
+/** 가짜 서버의 친구 데이터 (test/fakeFriends.js). 모양은 서버 응답 그대로 */
+export const FRIEND_ME = { nickname: '하늘', tag: '0123', handle: '하늘#0123', needsNickname: false }; // token-ok: 친구 코드 닉네임#태그 — 색이 아니다
+export const FRIEND_PEOPLE = [
+  { userId: 'f-1', nickname: '청소왕', tag: '0420', handle: '청소왕#0420', maskedName: '김*수' }, // token-ok: 친구 코드 닉네임#태그 — 색이 아니다
+  { userId: 'f-2', nickname: '반짝이', tag: '1004', handle: '반짝이#1004', maskedName: '이*' }, // token-ok: 친구 코드 닉네임#태그 — 색이 아니다
+  { userId: 'f-3', nickname: '깔끔쟁이', tag: '7777', handle: '깔끔쟁이#7777', maskedName: '박*영' }, // token-ok: 친구 코드 닉네임#태그 — 색이 아니다
+  { userId: 'f-4', nickname: '새친구', tag: '2026', handle: '새친구#2026', maskedName: '최*호' }, // token-ok: 친구 코드 닉네임#태그 — 색이 아니다
+];

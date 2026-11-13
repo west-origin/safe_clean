@@ -33,6 +33,14 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="ansimclean" android:host="auth" android:path="/callback" />
             </intent-filter>
+
+            <!-- 친구 초대 링크 ansimclean://friend-invite/{code} (2026-11-13 사용자 승인 — 서버 초대 페이지의 '앱에서 열기') -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ansimclean" android:host="friend-invite" />
+            </intent-filter>
         </activity>
 
         <activity android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity" android:exported="true">

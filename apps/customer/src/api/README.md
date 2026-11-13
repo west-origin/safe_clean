@@ -145,3 +145,21 @@ ServiceLivePortrait 가 완료 전에는 10초마다 묻고, `ready` 를 받으�
 ## `getHomeBanners()` → Home 혜택 배너(`HomePromotions`) (2026-11-12, rbac.md §15-22)
 서버 `GET /customer/banners` → `[{ id, title, description, imageUrl }]` 를 `{ id, title, description, image }` 로 바꿔 준다(`HomePromotionCard` 가 `image` 를 그린다).
 어드민이 매니저 앱 배너 관리에서 올린 배너 중 오늘 게시 중인 것만 순서대로. 비었거나 실패하면 홈은 배너 영역을 숨긴다. 가짜 서버는 예전 고정 배너 3장을 주고, `__fake.banners` 로 바꿀 수 있다.
+
+## 친구 — `api/friends.js` (2026-11-13, 계약 `backend/docs/api.md` '고객 친구')
+화면(`screens/friends/*`)은 이 함수만 부른다. 응답은 서버 모양 그대로(변환 없음).
+
+| 함수 | 서버 | 화면 계약 |
+|---|---|---|
+| `getMyFriendProfile()` / `setFriendNickname(nickname)` | `GET·PUT /customer/friends/me` | `{ nickname, tag, handle, needsNickname }` — needsNickname 이면 `NicknameForm` 먼저 |
+| `searchFriend(q)` | `GET /customer/friends/search?q=` | `{ user: FriendUser\|null, relation }` — `FriendUser = { userId, nickname, tag, handle, maskedName }` |
+| `getFriends()` · `removeFriend(userId)` | `GET /customer/friends` · `DELETE /customer/friends/{userId}` | `{ friends: FriendEntry[] }` — `FriendEntry = { user, requestId, at, atLabel }` |
+| `getFriendRequests(box)` | `GET /customer/friends/requests?box=received\|sent` | `{ box, requests: FriendEntry[] }` |
+| `sendFriendRequest(userId, key)` | `POST /customer/friends/requests` (+멱등 키) | `{ id, status: pending\|accepted, user }` |
+| `accept·reject·cancelFriendRequest(id)` | `POST …/requests/{id}/accept·reject·cancel` | `{ id, status, user }` |
+| `getBlockedFriends()` · `blockUser(userId)` · `unblockUser(userId)` | `GET·POST /customer/friends/blocks` · `DELETE …/blocks/{userId}` | `{ blocks: FriendEntry[] }` · `{ ok }` |
+| `createFriendInvite()` | `POST /customer/friends/invites` | `{ code, url, expiresAt }` — 공유는 `shareInvite`(@capacitor/share → navigator.share → 클립보드) |
+| `getFriendInvite(code)` · `acceptFriendInvite(code, key)` | `GET …/invites/{code}` · `POST …/invites/{code}/accept` (+멱등 키) | `{ inviter, relation }` (404 = 만료 안내) · `{ id, status: accepted, user }` |
+
+초대 링크: `invite/inviteLink.js` — `ansimclean://friend-invite/{code}`(Android intent-filter, iOS 는 기존 `ansimclean` 스킴)로 열리면 `App.jsx` 가 코드를 기억하고 `/friends/invite/{code}` 로. 로그인 전이면 가입 뒤 홈이 기억한 코드로 이어 간다. 푸시 `friendRequest` → `/friends?tab=received`.
+가짜 서버: `test/fakeFriends.js` — 친구 f-1·f-2, 받은 요청 f-3, 관계 없는 f-4(`새친구#2026`), 초대 코드 `Invite0001`(f-4)·`Expired001`(만료). `__fake.friend.me.needsNickname = true` 로 닉네임 없는 고객.

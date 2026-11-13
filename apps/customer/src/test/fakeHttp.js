@@ -20,6 +20,7 @@ import {
 import couponBanner from '@ansimclean/ui/assets/home-banner-coupon.png';
 import dailyBanner from '@ansimclean/ui/assets/home-banner-daily.png';
 import giftBanner from '@ansimclean/ui/assets/home-banner-gift.png';
+import { friendState, friendRoutes } from './fakeFriends.js';
 
 /**
  * api/http.js 의 ApiError 와 같은 모양 (status, code, message).
@@ -144,6 +145,8 @@ export function fakeHttpModule() {
     readyRecordings: new Set(),
     /** 서버 정리(24시간)로 이미 지워진 수리 사진 path. 테스트가 넣으면 그 사진을 붙인 예약 생성이 만료 오류(VALIDATION)로 막힌다 */
     expiredPhotos: new Set(),
+    /** 고객 친구 (test/fakeFriends.js) — 테스트가 friend.me.needsNickname 등을 바꿔 상황을 만든다 */
+    friend: friendState(),
   };
   const notFound = (what) => new ApiError(404, 'NOT_FOUND', `찾을 수 없어요: ${what}`); // 던질 오류를 만들기만 한다
   // 내 예약 카드 하나 (state 안의 그 객체라 바꾸면 목록에도 반영된다). 없으면 404
@@ -403,6 +406,10 @@ export function fakeHttpModule() {
       return state.addresses.map((a) => ({ ...a }));
     }],
   ];
+  // 친구 경로는 test/fakeFriends.js 에 따로 둔다 (이 파일이 너무 길어지지 않게)
+  const friends = friendRoutes(state);
+  Object.assign(exact, friends.exact);
+  patterns.push(...friends.patterns);
   // 모든 요청이 지나가는 곳: 기록 → (failOnce 면 한 번 실패) → route(exact → patterns, 없으면 404) → (holdOnce 면 도착을 늦춤).
   // async 함수라 처리 함수가 throw 해도 진짜 http.js 처럼 거부된(rejected) Promise 로 돌아간다.
   const call = async (method, path, body, opts = {}) => {
