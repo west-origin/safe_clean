@@ -53,4 +53,18 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID> {
     // 이름 풀이: findTop100 = 최대 100개, …OrderByDeletedAt = 오래 전에 탈퇴한 것부터.
     // 하루 한 번 도는 파기 스케줄러가 한 번에 최대 100건만 처리하고, 남은 계정은 다음 날 이어서 한다
     List<Profile> findTop100ByDeletedAtBeforeAndPurgedAtIsNullOrderByDeletedAt(java.time.Instant cutoff);
+
+    /** 이 닉네임(대소문자 무시)을 쓰는 다른 살아 있는 계정의 친구 태그 — 겹치지 않는 태그를 고른다 (ProfileService.assignFriendTag) */
+    @Query(value = """
+        select friend_tag from profiles
+        where lower(nickname) = lower(:nickname) and deleted_at is null and friend_tag is not null and id <> :id
+        """, nativeQuery = true)
+    List<String> takenFriendTags(String nickname, UUID id);
+
+    /**
+     * 트랜잭션 잠금(pg_advisory_xact_lock) — 같은 key 로 부른 다른 트랜잭션은 이 트랜잭션이 끝날 때까지 기다린다. 결과는 늘 1.
+     * 부르는 곳: ProfileService.assignFriendTag (key = 'friend-tag:' + 소문자 닉네임 — 같은 닉네임의 태그 고르기를 줄 세운다)
+     */
+    @Query(value = "select count(*) from (select pg_advisory_xact_lock(hashtextextended(:key, 0))) x", nativeQuery = true)
+    long advisoryLock(String key);
 }

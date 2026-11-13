@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -101,6 +102,23 @@ class PushHandlerTest {
         verify(push).send(eq(MANAGER), eq("방문 취소 요청이 거절됐어요"), any(), any(), any());
         handler.handle("AdminAssigned", json.writeValueAsString(new kr.ansimclean.api.common.events.AdminAssigned(BOOKING, MANAGER)));
         verify(push).send(eq(MANAGER), eq("관리자가 청소를 배정했어요"), any(), any(), any());
+    }
+
+    // 고객 친구 요청 (2026-11-13): 받은 고객에게 push 토글을 따라, 닉네임 없이. 토글을 끄면 보내지 않는다
+    @Test
+    @SuppressWarnings("unchecked")
+    void 친구_요청은_받은_고객에게_토글을_따라() {
+        UUID request = UUID.randomUUID();
+        String payload = json.writeValueAsString(new kr.ansimclean.api.common.events.FriendRequested(request, CUSTOMER));
+        handler.handle("FriendRequested", payload);
+        ArgumentCaptor<Map<String, String>> data = ArgumentCaptor.forClass(Map.class);
+        verify(push).send(eq(CUSTOMER), eq("친구 요청이 왔어요"), eq("안심클린 친구 요청을 확인해보세요"), data.capture(), any());
+        assertThat(data.getValue()).containsEntry("type", "friendRequest").containsEntry("requestId", request.toString());
+
+        clearInvocations(push);
+        doReturn(Map.of("push", false)).when(profiles).notifications(any(), any());
+        handler.handle("FriendRequested", payload);
+        verify(push, never()).send(any(), any(), any(), any(), any());
     }
 
     // 매칭 실패 이벤트의 retryable(나중에 다시 찾을 수 있나)·changeable(일정을 바꿀 수 있나) 조합 네 가지와

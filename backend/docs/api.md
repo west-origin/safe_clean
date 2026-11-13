@@ -1,5 +1,27 @@
 # API 계약
 
+## 고객 친구 (2026-11-13 — 규칙은 domain.md '고객 친구·금액권 선물' › 친구 규칙)
+
+모두 `ROLE_CUSTOMER`(가입 완료 고객). `FriendUser = { userId, nickname, tag, handle: "닉네임#1234", maskedName: "김*수" }` — 전화번호는 내보내지 않는다. `FriendEntry = { user: FriendUser, requestId \| null, at(ISO), atLabel: "11월 13일" }`. 남의 요청·차단 관계·탈퇴 상대는 `NOT_FOUND`.
+
+| 앱 함수 | 메서드 · 경로 | 요청 | 응답 / 오류 |
+|---|---|---|---|
+| `getMyFriendProfile()` | `GET /customer/friends/me` | — | `{ nickname, tag, handle, needsNickname }` — 닉네임이 없으면 `needsNickname: true`, 나머지 null |
+| `setFriendNickname(nickname)` | `PUT /customer/friends/me` | `{ nickname }` 1~12자, `#` 금지 | 위와 같은 모양. 태그는 서버가 붙인다(같은 닉네임끼리 겹치지 않게, 안 겹치면 유지). 형식 오류·태그가 다 찬 닉네임 `VALIDATION` |
+| `searchFriend(q)` | `GET /customer/friends/search?q=닉네임%231234` | — | `{ user: FriendUser \| null, relation: "none"\|"friend"\|"sent"\|"received"\|"self" \| null }` — 정확히 일치할 때만. 없거나 차단 관계면 `user: null`. 형식 오류 `VALIDATION`, 고객당 시간 30회 넘으면 `RATE_LIMITED` |
+| `getFriends()` | `GET /customer/friends` | — | `{ friends: FriendEntry[] }` 닉네임 순, 탈퇴 제외 |
+| `removeFriend(userId)` | `DELETE /customer/friends/{userId}` | — | `{ ok: true }` — 양쪽 해제, 알림 없음, 친구가 아니어도 같은 응답 |
+| `getFriendRequests(box)` | `GET /customer/friends/requests?box=received\|sent` | — | `{ box, requests: FriendEntry[] }` 대기 중만, 최근 순 |
+| `sendFriendRequest(userId)` | `POST /customer/friends/requests` (+`Idempotency-Key`) | `{ userId }` | `{ id, status: "pending"\|"accepted", user }` — 상대가 먼저 보낸 대기 요청이 있으면 바로 `accepted`(자동 친구), 내가 보낸 대기 요청이 있으면 그 요청. 이미 친구 `INVALID_STATE`, 닉네임 없음 `INVALID_STATE`, 나 자신 `VALIDATION`, 고객당 시간 30회 `RATE_LIMITED`. 새 요청이면 상대에게 푸시 `type: friendRequest` |
+| `acceptFriendRequest(id)` · `rejectFriendRequest(id)` | `POST /customer/friends/requests/{id}/accept` · `/reject` | — | `{ id, status, user }` 받은 사람만. 이미 같은 결과면 그대로, 처리된 요청 `INVALID_STATE` |
+| `cancelFriendRequest(id)` | `POST /customer/friends/requests/{id}/cancel` | — | `{ id, status: "cancelled", user }` 보낸 사람만, 대기 중만 |
+| `getBlockedFriends()` | `GET /customer/friends/blocks` | — | `{ blocks: FriendEntry[] }` |
+| `blockUser(userId)` · `unblockUser(userId)` | `POST /customer/friends/blocks` `{ userId }` · `DELETE /customer/friends/blocks/{userId}` | — | `{ ok: true }` — 차단은 친구 해제 + 대기 요청 취소. 해제해도 친구로 돌아오지 않는다 |
+| `createFriendInvite()` | `POST /customer/friends/invites` | — | `{ code, url: "<INVITE_BASE_URL>/i/{code}", expiresAt(ISO) }` — 7일 넘게 남은 코드가 있으면 그것, 없으면 30일짜리 새 코드. `INVITE_BASE_URL` 이 없거나 닉네임이 없으면 `INVALID_STATE` |
+| `getFriendInvite(code)` | `GET /customer/friends/invites/{code}` | — | `{ inviter: FriendUser, relation }` — 만료·없음·차단·초대한 사람 탈퇴면 `NOT_FOUND` |
+| `acceptFriendInvite(code)` | `POST /customer/friends/invites/{code}/accept` (+`Idempotency-Key`) | — | `{ id, status: "accepted", user }` 바로 친구(이미 친구여도 성공). 내 초대 `VALIDATION`, 차단·만료 `NOT_FOUND` |
+| (공개 페이지) | `GET /i/{code}` (로그인 없음, `/api/v1` 밖) | — | HTML: 앱에서 열기 `ansimclean://friend-invite/{code}` + 스토어 설치 버튼(Android 는 `referrer=invite={code}`). 만료·없음이면 404 '초대 링크가 만료됐어요' |
+
 ## 매니저 방문 취소 승인·재배정 (2026-11-13 — 규칙은 domain.md 같은 이름의 절. 아래 §5.3 `cancelJob` 설명보다 이 절이 우선한다)
 
 | 앱 함수 | 메서드 · 경로 | 요청 | 응답 / 오류 |

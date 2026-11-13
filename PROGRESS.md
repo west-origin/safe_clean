@@ -1,5 +1,22 @@
 # PROGRESS
 
+## 고객 친구·금액권 선물 (2026-11-13 사용자 요청 — 규칙 `backend/docs/domain.md` 같은 이름의 절)
+- [x] 0단계 조사: 청소권 개념·테이블 없음(결제는 예약 회차 단위), 카카오는 로그인만(공유 SDK 없음), 딥링크는 `ansimclean://auth/callback` 뿐, 소셜 고객은 `profiles.phone` 비어 있음, Home 하단 선물 문구는 정적
+- [x] 결정 기록 (2026-11-13 질의응답): 닉네임#태그 검색(전화번호 검색 없음) · 서버 초대 페이지 + OS 공유 시트 · 금액권(정액), 선물로만 생김, 요금표 항목 금액 · 받은 날부터 1년 · 환불 7일 이내 미사용 100%/만료 후 5만 원 초과 95%, 받은 사람 계좌 · 구매자에게 돌아온 것은 7일 안 카드 취소 · 첫 1회 체험은 선물 불가
+- [x] 1회차: 서버 친구 (V069)
+  - V069: `profiles.friend_tag`(숫자 4자리, `(lower(nickname), friend_tag)` 살아 있는 계정 유니크 + 기존 닉네임 고객 태그 채우기), `friend_requests`(대기·수락·거절·취소, source search|invite, 쌍당 대기 1건 부분 유니크), `friendships`(한 쌍 한 행 user_a<user_b), `friend_blocks`, `friend_invites`(10자 코드, 30일). RLS 켬, 앱 키 권한 없음
+  - `friend/` 패키지: `FriendService`(규칙) · `FriendStore`(SQL) · `FriendController`(`/customer/friends/**` 15개) · `InvitePageController`(공개 `GET /i/{code}` HTML) · `FriendAccountPurge`(5년 파기). 태그는 `ProfileService.assignFriendTag`(닉네임 advisory lock 뒤 겹치지 않는 값, 닉네임을 바꿔도 안 겹치면 유지)
+  - 동시성: 두 사람 쌍 advisory lock(`FriendStore.lockPair`) 뒤 다시 읽고 판단 → 서로 동시 요청은 자동 친구 1쌍, 수락·취소 경합은 하나만. 선물 회차용 `FriendService.lockFriendship`(같은 잠금으로 친구 여부 확인)
+  - 푸시 `FriendRequested` → '친구 요청이 왔어요'(고객 push 토글, 닉네임 없음, data `type: friendRequest`)
+  - 설정 `INVITE_BASE_URL`·`INVITE_ANDROID_STORE_URL`·`INVITE_IOS_STORE_URL`(`.env.example` 2곳) — **배포 전에 값을 넣어야 초대 링크가 만들어진다**
+  - 테스트: `FriendServiceTest` 16 · `FriendControllerTest` 3 · `ProfileServiceTest` 태그 3 · `PushHandlerTest` 1 · `FriendIT` 7(흐름·서로 동시 요청 5회·수락/취소 경합 5회·차단·초대·같은 닉네임 동시 태그·탈퇴 제외) — **IT 미실행(Docker 없음)**. 대신 `scripts/verify-friends-v069.mjs`(PGlite, V001~V069 + 기존 고객 태그 채우기·제약·서버 SQL) 통과. 백엔드 785 테스트 통과(IT 제외), 앱 609 통과, 토큰·빌드 통과
+  - 판단(코드에서 정함): 닉네임 1~12자·'#' 금지, 검색 30회/시간·요청 30회/시간·초대 60회/시간, 초대 코드 30일(7일 미만 남으면 새 코드), 초대 수락 = 바로 친구(초대한 사람에게 알림 없음), 자동 친구·수락 알림 없음, 탈퇴 즉시 관계 행은 남기고 조회에서 거름(5년 파기 때 삭제), 초대 페이지 문구·색(서버 HTML이라 토큰 못 씀), 푸시 문구
+- [ ] 2회차: 서버 금액권·선물
+- [ ] 3회차: 서버 금액권 사용·환불
+- [ ] 4회차: 고객 앱 친구 화면
+- [ ] 5회차: 고객 앱 선물 화면
+- [ ] 6회차: 요금 정책 전환 (사용자 요금표 2026-11-13 — 가정·원룸 정기 월 요금, 원룸 1회 69,000, 첫 1회 체험 50,000, 후드 130/150/200k(+옵션), 대리석 코팅 290/360/420k, 크랙 수리 140k + 추가)
+
 ## 매니저 방문 취소 승인·재배정 (2026-11-13 사용자 요청 — 규칙 `backend/docs/domain.md` 같은 이름의 절, 계약 `api.md`)
 매니저 '방문 취소' → 취소 요청 → 어드민 승인 → 24시간 재배정 콜(근처 매니저 전원, 선착순 1명) → 아무도 없으면 어드민 직접 배정. 3회차로 나눈다.
 - [x] 결정 기록 (2026-11-13 질의응답): 전부 승인제(앱 직접 취소 없음) · 승인 취소는 점수 0점(기록만) · 승인 뒤 콜 1번을 24시간 열어 둠(`reassign_window_hours`) · 방문까지 24시간 미만이면 콜 없이 바로 어드민 · 알림은 어드민 앱 푸시 + 관리자 목록 화면 · 어드민 직접 배정 API 이번에 · 상태는 `assigning` + 표시 컬럼(새 상태값 없음)

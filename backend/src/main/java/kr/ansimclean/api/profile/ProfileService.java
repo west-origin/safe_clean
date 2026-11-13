@@ -107,6 +107,7 @@ public class ProfileService {
     /** 가입 1단계: Supabase 사용자가 만들어진 뒤 profiles 행 */
     public Profile createForSignup(UUID id, String role, String name, String nickname, String phone) {
         Profile p = profiles.save(Profile.create(id, role, name, nickname, phone));
+        if (Roles.CUSTOMER.equals(role)) assignFriendTag(p); // 닉네임을 받은 고객은 바로 닉네임#태그 로 찾을 수 있게
         return p;
     }
 
@@ -245,8 +246,67 @@ public class ProfileService {
     /** Settings › 내 정보 수정 — 저장 (이름·닉네임만. 휴대폰은 §13-7) */
     public ProfileFormResponse updateProfile(UUID id, String name, String nickname) {
         Profile p = holdLive(id); // 탈퇴(익명화)와 직렬화 — 익명화한 이름을 되돌려 쓰지 않게 (감사 M-06)
+        String before = p.getNickname();
         p.rename(name.trim(), nickname == null ? null : nickname.trim()); // 닉네임이 null 이면 기존 닉네임을 그대로 둔다 (Profile.rename)
+        if (Roles.CUSTOMER.equals(p.getRole()) && !java.util.Objects.equals(before, p.getNickname())) assignFriendTag(p); // 새 닉네임에서 태그가 겹치면 다시 고른다
         return profileForm(id);
+    }
+
+    /** 친구 기능의 내 이름표. nickname 이 null 이면 아직 닉네임을 정하지 않은 고객 (소셜 가입) */
+    public record FriendHandle(String nickname, String tag) {
+        public boolean ready() { return nickname != null && tag != null; }
+    }
+
+    /** 친구 화면의 내 닉네임#태그. 닉네임은 있는데 태그가 없으면(V069 뒤 비어 있던 경우) 지금 붙인다 (friend.FriendService) */
+    public FriendHandle friendHandle(UUID id) {
+        Profile p = holdLive(id);
+        if (p.getNickname() != null && !p.getNickname().isBlank() && p.getFriendTag() == null) assignFriendTag(p);
+        return handleOf(p);
+    }
+
+    /** 친구 기능을 처음 쓸 때 닉네임 정하기 (소셜 가입 고객은 닉네임이 없다). 1~12자, '#' 금지 — 문구는 코드에서 정함 */
+    public FriendHandle setFriendNickname(UUID id, String nickname) {
+        String n = nickname == null ? "" : nickname.trim();
+        if (n.isEmpty() || n.codePointCount(0, n.length()) > FRIEND_NICKNAME_MAX) throw ApiException.validation("닉네임은 1~" + FRIEND_NICKNAME_MAX + "자로 정해주세요");
+        if (n.contains("#")) throw ApiException.validation("닉네임에는 #을 쓸 수 없어요");
+        Profile p = holdLive(id);
+        if (!Roles.CUSTOMER.equals(p.getRole())) throw ApiException.notFound();
+        p.rename(p.getName(), n);
+        assignFriendTag(p);
+        return handleOf(p);
+    }
+
+    /** 친구 닉네임 최대 글자 수 (코드에서 정함) */
+    public static final int FRIEND_NICKNAME_MAX = 12;
+
+    private static FriendHandle handleOf(Profile p) {
+        String nick = p.getNickname() == null || p.getNickname().isBlank() ? null : p.getNickname();
+        return new FriendHandle(nick, nick == null ? null : p.getFriendTag());
+    }
+
+    private final java.security.SecureRandom tagRandom = new java.security.SecureRandom();
+
+    /**
+     * 같은 닉네임(대소문자 무시)의 살아 있는 계정끼리 겹치지 않는 숫자 4자리 태그를 붙인다. 지금 태그가 안 겹치면 그대로 둔다.
+     * 같은 닉네임의 태그 고르기는 advisory lock 으로 줄을 세운다(트랜잭션 끝까지) — 동시에 같은 닉네임으로 바꿔도 같은 태그가 나오지 않는다.
+     * 마지막 방어는 V069 profiles_friend_handle 유니크 인덱스. 10000개가 다 차면 다른 닉네임을 고르게 한다
+     */
+    private void assignFriendTag(Profile p) {
+        String nick = p.getNickname();
+        if (nick == null || nick.isBlank()) return;
+        profiles.advisoryLock("friend-tag:" + nick.toLowerCase(java.util.Locale.ROOT));
+        java.util.Set<String> taken = new java.util.HashSet<>(profiles.takenFriendTags(nick, p.getId()));
+        if (p.getFriendTag() != null && !taken.contains(p.getFriendTag())) return;
+        if (taken.size() >= 10000) throw ApiException.validation("이 닉네임은 더 쓸 수 없어요. 다른 닉네임을 정해주세요");
+        int start = tagRandom.nextInt(10000);
+        for (int i = 0; i < 10000; i++) {
+            String tag = String.format("%04d", (start + i) % 10000);
+            if (!taken.contains(tag)) {
+                p.assignFriendTag(tag);
+                profiles.flush(); // 유니크 인덱스 위반이 잠금을 쥔 이 자리에서 드러나게
+                return;
+            }
+        }
     }
 
     /** Settings › 주소 관리 목록 */

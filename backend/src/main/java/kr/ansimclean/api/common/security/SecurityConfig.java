@@ -48,6 +48,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll() // 서버 상태 확인
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // 브라우저의 CORS 사전 요청(preflight)은 토큰 없이 온다
+                        .requestMatchers(HttpMethod.GET, "/i/*").permitAll() // 친구 초대 공개 페이지 (friend/InvitePageController) — 코드만 받고 개인정보는 초대한 사람 닉네임뿐
                         .requestMatchers(HttpMethod.POST, API + "/payments/webhooks/toss").permitAll() // 본문을 신뢰하지 않고 PG API로 재조회
                         .requestMatchers(API + "/auth/phone/**", API + "/auth/password/**", API + "/auth/login", API + "/auth/refresh").permitAll()   // 비밀번호 재설정은 로그인하지 못한 사용자가 쓴다
                         .requestMatchers(HttpMethod.POST, API + "/auth/signup").permitAll()   // 아직 토큰이 없는 신규 사용자

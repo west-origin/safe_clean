@@ -46,6 +46,12 @@ public class RateLimiter {
     public static final int RESCHEDULE_PER_USER_PER_HOUR = 10;
     /** 같은 사용자의 시간당 문의 등록 (감사 M-05) */
     public static final int INQUIRY_PER_USER_PER_HOUR = 10;
+    /** 같은 고객의 시간당 친구 검색(닉네임#태그) — 태그 네 자리를 차례로 넣어 보는 훑기를 막는다 (코드에서 정함, 2026-11-13) */
+    public static final int FRIEND_SEARCH_PER_USER_PER_HOUR = 30;
+    /** 같은 고객의 시간당 친구 요청 보내기 — 요청마다 상대에게 푸시가 간다 */
+    public static final int FRIEND_REQUEST_PER_USER_PER_HOUR = 30;
+    /** 같은 고객의 시간당 초대 코드 조회·수락 */
+    public static final int FRIEND_INVITE_PER_USER_PER_HOUR = 60;
     /**
      * 들고 있을 키 수 상한(메모리를 키 수만큼 늘리지 못하게, 감사 M-05). 넘으면 **가장 오래 쓰이지 않은 키**를 버린다.
      * 예전에는 새 키를 전부 막아, IP 를 바꿔 가며 키를 채운 한 사람이 모든 사용자의 로그인·토큰 갱신을 막을 수 있었다 (자체 점검 #12).

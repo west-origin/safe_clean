@@ -13,6 +13,7 @@ import kr.ansimclean.api.common.events.ManagerPenalized;
 import kr.ansimclean.api.common.events.ManagerReleased;
 import kr.ansimclean.api.common.events.CameraOffline;
 import kr.ansimclean.api.common.events.CameraOnline;
+import kr.ansimclean.api.common.events.FriendRequested;
 import kr.ansimclean.api.common.events.InquiryAnswered;
 import kr.ansimclean.api.common.events.ManagerLate;
 import kr.ansimclean.api.common.events.MatchingFailed;
@@ -49,7 +50,7 @@ public class PushHandler implements OutboxHandler {
     // 아래 handle 의 case 와 같아야 한다 — 여기 없으면 '핸들러 없음' 으로 실패 처리되고, case 가 없으면 default 에서 던진다
     static final Set<String> TYPES = Set.of("BookingCancelled", "BookingRescheduled", "BookingUnassigned", "SeriesEnding", "ManagerPenalized", "ManagerReleased",
             "OffersDispatched", "BookingAssigned", "BookingCompleted", "CameraOnline", "CameraOffline", "RecordingReady", "RecordingFailed", "MatchingFailed", "InquiryAnswered",
-            "ManagerLate", "CancelRequested", "CancelRequestDecided", "AdminAssignNeeded", "AdminAssigned");
+            "ManagerLate", "CancelRequested", "CancelRequestDecided", "AdminAssignNeeded", "AdminAssigned", "FriendRequested");
 
     /** booking/StaleBookingCleaner.REASON_NOT_STARTED 와 같다 (push 는 booking 을 보지 않는다 — 문자열만 맞춘다) */
     static final String NOT_STARTED = "not_started";
@@ -87,6 +88,11 @@ public class PushHandler implements OutboxHandler {
                 int failed = 0;
                 for (UUID managerId : e.managerIds()) failed += toManagerCount(managerId, "call", text, Map.of("type", "call", "bookingId", e.bookingId().toString()), collapse);
                 failIfAny(failed);
+            }
+            case "FriendRequested" -> {
+                // 친구 요청을 받음 → 받은 고객 (push 토글). 닉네임은 싣지 않는다. 탭하면 고객 앱 받은 요청 목록
+                FriendRequested e = json.readValue(payloadJson, FriendRequested.class);
+                toCustomer(e.addresseeId(), PushCopy.FRIEND_REQUESTED, Map.of("type", "friendRequest", "requestId", e.requestId().toString()), collapse);
             }
             case "BookingAssigned" -> {
                 // 매니저 배정 → 고객 (push 토글)

@@ -97,6 +97,10 @@ app:
   payment:
     client-key: ${TOSS_CLIENT_KEY:}
     secret-key: ${TOSS_SECRET_KEY:}
+  invite:                                   # 친구 초대 링크 (friend/InviteProperties). base-url 이 비면 초대 링크를 만들지 않는다
+    base-url: ${INVITE_BASE_URL:}            # 초대 페이지를 여는 이 서버의 공개 주소 — 링크는 <base-url>/i/{code}
+    android-store-url: ${INVITE_ANDROID_STORE_URL:}
+    ios-store-url: ${INVITE_IOS_STORE_URL:}
   push:
     mode: ${PUSH_MODE:}                     # fcm = Firebase. 기본값 없음 — 비면 PushSender 빈이 없어 기동 실패(운영이 조용히 로그 발송으로 돌지 않게). logging 은 local·test 프로필
     firebase-service-account-json: ${FIREBASE_SERVICE_ACCOUNT_JSON:}

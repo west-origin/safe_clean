@@ -35,6 +35,9 @@ public class Profile {
     @Column(columnDefinition = "text")
     private String phone;
 
+    @Column(name = "friend_tag", columnDefinition = "text")
+    private String friendTag; // 친구 찾기용 숫자 4자리 (V069). 닉네임#태그 가 살아 있는 계정 사이에서 유일 — ProfileService.assignFriendTag 만 붙인다
+
     @Column(name = "social_account", nullable = false)
     private boolean socialAccount;
 
@@ -80,6 +83,7 @@ public class Profile {
     public String getName() { return name; }
     public String getNickname() { return nickname; }
     public String getPhone() { return phone; }
+    public String getFriendTag() { return friendTag; }
     public String getAvatarPath() { return avatarPath; }
     public Instant getSignupCompletedAt() { return signupCompletedAt; }
     public Instant getDeletedAt() { return deletedAt; }
@@ -104,6 +108,12 @@ public class Profile {
     public void rename(String name, String nickname) {
         this.name = name;
         if (nickname != null) this.nickname = nickname;
+    }
+
+    /** 친구 태그를 붙인다 (ProfileService.assignFriendTag 가 같은 닉네임끼리 겹치지 않는 값을 골라 부른다) */
+    public void assignFriendTag(String tag) {
+        if (tag == null || !tag.matches("[0-9]{4}")) throw new IllegalArgumentException("친구 태그는 숫자 4자리: " + tag);
+        this.friendTag = tag;
     }
 
     /** 탈퇴: 개인정보를 지우고 행은 남긴다(예약·정산 이력 보존). 5년 뒤 남은 개인정보는 DeletedAccountPurger 가 파기한다(markPurged) */

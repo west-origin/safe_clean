@@ -16,6 +16,8 @@ final class PushCopy {
 
     // 매니저
     // ← OffersDispatched (우선 오퍼가 아닌 보통 콜)
+    /** 고객 친구 요청 (코드에서 정함, 2026-11-13) */
+    static final Text FRIEND_REQUESTED = new Text("친구 요청이 왔어요", "안심클린 친구 요청을 확인해보세요");
     static final Text NEW_CALL = new Text("새 콜이 도착했어요", "새로운 청소 요청을 확인해보세요");
     // ← OffersDispatched (preferred = 우선 오퍼 1명). 정기청소 다음 회차를 직전 매니저에게 먼저 줄 때(OfferService.dispatchPreferred)만 온다 —
     // 일정 변경으로 원래 매니저에게 가는 우선 오퍼는 이 이벤트를 적지 않고 아래 BOOKING_RESCHEDULED 가 안내한다 (문제 목록 15번)

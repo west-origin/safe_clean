@@ -323,4 +323,56 @@ class ProfileServiceTest {
         assertThatThrownBy(() -> service.makeDefaultAddress(customer, stranger)).isInstanceOf(ApiException.class)
                 .extracting("code").isEqualTo(kr.ansimclean.api.common.error.ErrorCode.NOT_FOUND); // 남의 주소는 존재를 드러내지 않는다
     }
+
+    // ── 친구 닉네임#태그 (V069, 2026-11-13) ───────────────────────────
+    // 같은 닉네임의 다른 계정이 쓰는 태그는 피하고, 지금 태그가 안 겹치면 그대로 둔다. 고르기 전에 닉네임 잠금을 잡는다
+
+    @Test
+    void 친구_닉네임을_정하면_겹치지_않는_태그를_붙인다() {
+        UUID id = UUID.randomUUID();
+        Profile c = Profile.create(id, "customer", "안심클린 고객", null, null);
+        when(profiles.findByIdAndDeletedAtIsNull(id)).thenReturn(Optional.of(c));
+        java.util.List<String> taken = new java.util.ArrayList<>();
+        for (int i = 0; i < 10000; i++) if (i != 1234) taken.add(String.format("%04d", i)); // 1234 하나만 비어 있다
+        when(profiles.takenFriendTags("청소왕", id)).thenReturn(taken);
+        ProfileService.FriendHandle h = service.setFriendNickname(id, " 청소왕 ");
+        assertThat(h.nickname()).isEqualTo("청소왕");
+        assertThat(h.tag()).isEqualTo("1234");
+        assertThat(h.ready()).isTrue();
+        var order = org.mockito.Mockito.inOrder(profiles);
+        order.verify(profiles).advisoryLock("friend-tag:청소왕");
+        order.verify(profiles).takenFriendTags("청소왕", id);
+    }
+
+    @Test
+    void 닉네임을_바꿔도_태그가_안_겹치면_그대로_두고_겹치면_다시_고른다() {
+        UUID id = UUID.randomUUID();
+        Profile c = Profile.create(id, "customer", "김고객", "옛닉", null);
+        c.assignFriendTag("0420");
+        when(profiles.findByIdAndDeletedAtIsNull(id)).thenReturn(Optional.of(c));
+        when(profiles.verifiedCustomerPhone(id)).thenReturn(Optional.empty());
+        when(profiles.takenFriendTags("새닉", id)).thenReturn(java.util.List.of("0001"));
+        service.updateProfile(id, "김고객", "새닉");
+        assertThat(c.getFriendTag()).isEqualTo("0420");
+
+        when(profiles.takenFriendTags("다른닉", id)).thenReturn(java.util.List.of("0420"));
+        service.updateProfile(id, "김고객", "다른닉");
+        assertThat(c.getFriendTag()).isNotEqualTo("0420").matches("[0-9]{4}");
+    }
+
+    @Test
+    void 친구_닉네임_검사와_다_찬_닉네임() {
+        UUID id = UUID.randomUUID();
+        Profile c = Profile.create(id, "customer", "김고객", null, null);
+        when(profiles.findByIdAndDeletedAtIsNull(id)).thenReturn(Optional.of(c));
+        assertThatThrownBy(() -> service.setFriendNickname(id, "  ")).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service.setFriendNickname(id, "청소#왕")).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service.setFriendNickname(id, "열세글자닉네임입니다요요요")).isInstanceOf(ApiException.class);
+        java.util.List<String> all = new java.util.ArrayList<>();
+        for (int i = 0; i < 10000; i++) all.add(String.format("%04d", i));
+        when(profiles.takenFriendTags("인기닉", id)).thenReturn(all);
+        assertThatThrownBy(() -> service.setFriendNickname(id, "인기닉")).isInstanceOf(ApiException.class).hasMessageContaining("다른 닉네임");
+        // 매니저는 친구 기능 대상이 아니다
+        assertThatThrownBy(() -> service.setFriendNickname(MANAGER, "매니저")).isInstanceOf(ApiException.class);
+    }
 }
