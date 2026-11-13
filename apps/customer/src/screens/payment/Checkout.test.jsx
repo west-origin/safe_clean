@@ -54,7 +54,8 @@ it('서버 금액으로 결제 버튼을 실행한다', async () => {
 });
 // 요금표 전환(2026-11-13): 주 N회 요금제 회차면 서버가 시리즈 한 달치 주문을 준다 (bookingId: null, seriesId)
 const series = { ...checkout, bookingId: null, seriesId: 'series-1', amount: 329000 };
-it('정기 요금제 회차는 한 달 결제 금액과 안내를 보이고, 금액권 칸은 그리지 않는다', async () => {
+// 2026-11-14: 정기 요금제에도 금액권을 쓸 수 있다 — 한 달 결제에 한 장, 서버가 회차 금액 비율로 나눠 쓴다
+it('정기 요금제 회차는 한 달 결제 금액과 안내를 보이고, 금액권 칸은 한 달 결제 안내로 보인다', async () => {
   payments.prepareCheckout.mockResolvedValue(series);
   payments.getPayment.mockResolvedValue(series);
   gifts.getVouchers.mockResolvedValue({ vouchers: [usable] });
@@ -62,7 +63,8 @@ it('정기 요금제 회차는 한 달 결제 금액과 안내를 보이고, 금
   expect(await screen.findByText('329,000원')).toBeInTheDocument();
   expect(screen.getByText('한 달 결제 금액')).toBeInTheDocument();
   expect(screen.getByText(/한 달치를 한 번에 결제해요/)).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: '금액권 쓰기' })).toBeNull();
+  expect(screen.getByRole('button', { name: '금액권 쓰기' })).toBeInTheDocument();
+  expect(screen.getByText(/한 달 결제에 금액권 한 장을 쓸 수 있어요/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '결제하기' }));
   expect(payments.openPayment).toHaveBeenCalledWith(series, 'booking');
 });

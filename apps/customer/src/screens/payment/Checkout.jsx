@@ -3,7 +3,7 @@
 // 금액권(2026-11-13 친구·선물 5회차): 카드 승인 요청 전에 금액권을 쓰거나 뺄 수 있다(CheckoutVoucher). 바꾸면 서버가 결제 대기 주문을 닫으므로
 // 새 멱등 키로 결제를 다시 준비한다(줄어든 금액). 금액권이 전부 덮으면 결제 준비를 부르지 않고 '금액권으로 결제가 끝났어요'.
 // 요금표 전환(2026-11-13, 6-b): 주 N회 요금제 회차면 서버가 그 시리즈의 한 달치 주문을 준다(bookingId: null, seriesId). 어느 회차에서 열어도 같은 주문이다.
-//   결제창에서 돌아올 때 ?series= 로 시리즈를 확인한다. 정기 요금제에는 금액권을 아직 쓸 수 없어(서버 규칙) 금액권 칸을 그리지 않는다.
+//   결제창에서 돌아올 때 ?series= 로 시리즈를 확인한다. 금액권은 한 달 결제에 한 장 — 서버가 회차 금액 비율로 나눠 쓴다(2026-11-14).
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import {
@@ -78,12 +78,13 @@ export default function Checkout() {
   if (!data) return <ScreenLoading navBar={navBar} />;
   const { payment, voucher } = data;
   const series = Boolean(payment?.seriesId); // 주 N회 요금제 한 달치 결제
-  const voucherSection = (editable) => series ? null : (
+  const voucherSection = (editable) => (
     <CheckoutVoucher
       bookingId={bookingId}
       voucher={voucher}
       vouchers={mine.data ?? []}
       editable={editable && !callback.key}
+      series={series}
       onChanged={() => {
         setKey(newIdempotencyKey());
         mine.reload();

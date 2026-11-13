@@ -135,6 +135,8 @@ export default function BookingConfirm() {
               {/* 유료 옵션은 회차마다 더한다 — 정기 요금제면 '× 8회' 를 붙여 한 달 금액과 헷갈리지 않게 */}
               {quote.perVisit.optionsLabel && <div className={styles.priceRow}><dt>{QUOTE_COPY.optionsLabel}</dt><dd>{plan?.weekly ? PLAN_COPY.perVisits(quote.perVisit.optionsLabel, quote.visitsPlanned) : quote.perVisit.optionsLabel}</dd></div>}
               {quote.savingNote && <div className={styles.priceRow}><dt>{QUOTE_COPY.savingLabel}</dt><dd className={styles.saving}>{quote.savingNote}</dd></div>}
+              {/* 가정 정기청소 첫 결제 혜택 (V075 — 분해청소 1회 전액, 서버 견적이 판정). 총 결제금액은 이미 뺀 금액 */}
+              {quote.discountAmount > 0 && <div className={styles.priceRow}><dt>{quote.discountNote}</dt><dd className={styles.saving}>{quote.discountLabel}</dd></div>}
             </dl>
             {plan?.weekly && <p className={cx('text-body-s', styles.description)}>{PLAN_COPY.monthPayment(quote.visitsPlanned)}</p>}
             {frequency === 'recurring' && <div className={styles.chips}>{quote.visits.map((v) => <Chip key={v.date}>{v.label}</Chip>)}</div>}

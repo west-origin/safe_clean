@@ -42,6 +42,17 @@ describe('Booking/Complete', () => {
     expect(await screen.findByText('내 예약 화면')).toBeInTheDocument();
   });
 
+  // 가정 정기청소 첫 결제 혜택 (V075): 분해청소가 전액 할인되면 주문 금액은 정가, 총 결제 금액은 0원
+  it('첫 결제 혜택으로 무료인 분해청소는 총 결제 금액이 0원', async () => {
+    const { __fake } = await import('../../api/http.js');
+    __fake.firstPaymentBenefit = true;
+    const hood = await createBooking('appliance', { hoodSize: '900', date: inTwoDays(), time: '10:00', roadAddress: '서울 강남구 강남대로 396', submitKey: 'hood' });
+    renderAt(hood.id);
+    expect(await screen.findByText('150,000원')).toBeInTheDocument();
+    expect(screen.getByText('0원')).toBeInTheDocument();
+    expect(__fake.firstPaymentBenefit).toBe(false); // 한 번만
+  });
+
   it('홈으로 가기 → 홈', async () => {
     renderAt(booking.id);
     fireEvent.click(await screen.findByRole('button', { name: '홈으로 가기' }));

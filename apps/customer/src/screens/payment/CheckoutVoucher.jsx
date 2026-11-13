@@ -14,8 +14,9 @@ import styles from '../gifts/gifts.module.css';
  * @param {{ id: string, label: string, balanceLabel: string, validUntilLabel: string|null }[]} props.vouchers 지금 쓸 수 있는 내 금액권 (usable)
  * @param {boolean} props.editable 카드 결제 승인 요청 전이라 바꿀 수 있나
  * @param {() => void} props.onChanged 쓰거나 뺀 뒤 — 결제 화면이 새 금액으로 다시 준비한다
+ * @param {boolean} [props.series] 주 N회 요금제 한 달치 결제 — 안내 문구만 다르다 (서버가 회차 금액 비율로 나눠 쓴다, 2026-11-14)
  */
-export default function CheckoutVoucher({ bookingId, voucher, vouchers, editable, onChanged }) {
+export default function CheckoutVoucher({ bookingId, voucher, vouchers, editable, onChanged, series = false }) {
   const [picking, setPicking] = useState(false);
   const [chosen, setChosen] = useState(null);
   const change = useAction(async (fn) => {
@@ -38,7 +39,7 @@ export default function CheckoutVoucher({ bookingId, voucher, vouchers, editable
       {editable && !applied && (
         <Button variant="outline" chevron={false} onClick={() => { change.reset(); setChosen(vouchers[0].id); setPicking(true); }}>{C.useVoucher}</Button>
       )}
-      <p className={`text-body-s ${styles.plain}`}>{C.perBooking}</p>
+      <p className={`text-body-s ${styles.plain}`}>{series ? C.perSeries : C.perBooking}</p>
       {!picking && <ActionError error={change.error} fallback={C.voucherFailed} />}
 
       <Sheet open={picking} onClose={() => setPicking(false)} title={C.pickVoucher}>

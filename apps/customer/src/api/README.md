@@ -192,5 +192,7 @@ ServiceLivePortrait 가 완료 전에는 10초마다 묻고, `ready` 를 받으�
 | — | `durationHours` = 요금제 시간(가정 3·원룸 2·분해청소 2) | 서버는 요금제면 이 값을 무시한다 |
 
 견적 응답 모양은 그대로(`perVisit` = 첫 회차, `totalAmount`·`totalLabel` = 결제 금액 — 정기면 한 달). 확인 화면은 요금제면 `totalLabel` 을 '총 결제금액' 으로 쓴다. 예약 응답 `+ pricePlan`.
-결제: `prepareCheckout(bookingId)` 가 주 N회 요금제 회차면 시리즈 한 달치 주문(`bookingId: null`, `seriesId`)을 준다. `openPayment(checkout, fromBookingId)` 는 결제를 연 회차로 돌아오고 `?series=` 를 붙인다. 결제 화면은 시리즈 결제면 금액권 칸을 그리지 않는다(서버가 막는다).
+결제: `prepareCheckout(bookingId)` 가 주 N회 요금제 회차면 시리즈 한 달치 주문(`bookingId: null`, `seriesId`)을 준다. `openPayment(checkout, fromBookingId)` 는 결제를 연 회차로 돌아오고 `?series=` 를 붙인다. 금액권은 한 달 결제에 한 장(2026-11-14 — 서버가 회차 금액 비율로 나눠 쓴다, 화면은 `CheckoutVoucher series` 로 안내 문구만 다르다).
+
+첫 결제 혜택(2026-11-14, V075): 견적 응답 `discountAmount`·`discountLabel`·`discountNote`(있으면 확인 화면 요금에 할인 줄, `totalLabel` 은 할인 뒤), 예약 응답 `discountAmount`·`payLabel`(완료 화면 '총 결제 금액'). 가짜 서버는 `__fake.firstPaymentBenefit = true` 면 다음 분해청소 한 건을 0원으로.
 가짜 서버(`test/fakeHttp.js` `planOf`·`planQuote`)가 같은 규칙·검증 문구를 흉내 낸다. 원룸 첫 달 할인은 가짜 서버에서도 첫 원룸 정기 생성 한 번만.

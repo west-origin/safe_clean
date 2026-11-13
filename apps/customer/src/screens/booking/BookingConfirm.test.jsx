@@ -119,6 +119,22 @@ describe('Booking/Confirm 검증', () => {
     expect(alert).toHaveTextContent('네트워크 연결을 확인해주세요');
     expect(alert).toHaveClass(styles.error);
   });
+  // 가정 정기청소 첫 결제 혜택 (V075, 서버 견적이 판정): 분해청소 확인 화면에 할인 줄과 0원
+  it('첫 결제 혜택이 있으면 분해청소 요금에 할인 줄이 보이고 총 결제금액은 0원', async () => {
+    const { __fake } = await import('../../api/http.js');
+    __fake.firstPaymentBenefit = true;
+    sessionStorage.setItem('ansimclean.booking.appliance', JSON.stringify({ hoodSize: '600', paidOptions: ['panel'], date: '2026-11-02', time: '10:00', reuseAddress: 'no', roadAddress: '서울 강남구 테헤란로 1' }));
+    render(
+      <MemoryRouter initialEntries={['/booking/appliance/confirm']}>
+        <Routes><Route path="/booking/:category/confirm" element={<BookingConfirm />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('가정 정기청소 첫 결제 혜택')).toBeInTheDocument();
+    expect(screen.getByText('-150,000원')).toBeInTheDocument(); // 130,000 + 판넬 20,000
+    expect(screen.getByText('0원')).toBeInTheDocument();
+    expect(screen.getByText('후드 600mm')).toBeInTheDocument();
+    __fake.firstPaymentBenefit = false;
+  });
   it('새 주소의 상세주소가 비어 있어도 완료할 수 있다 (단독주택, 2026-11-11)', async () => {
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ frequency: 'oneTime', date: '2026-11-02', time: '10:00', reuseAddress: 'no', roadAddress: '서울 강남구 테헤란로 1', detailAddress: '   ' }));
     renderConfirm();

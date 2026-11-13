@@ -139,7 +139,10 @@ const planQuote = (b, plan, options) => {
   const share = Math.floor(plan.amount / dates.length);
   const base = share + (plan.amount - share * dates.length); // 첫 회차
   const total = base + options;
-  const sum = plan.amount + options * dates.length;
+  const full = plan.amount + options * dates.length;
+  // 가정 정기청소 첫 결제 혜택 (V075): 분해청소 1회를 추가 요금까지 전액 (__benefit = 가짜 서버 state.firstPaymentBenefit, 한 번 쓰면 끝)
+  const discount = b.__benefit && b.category === 'appliance' ? full : 0;
+  const sum = full - discount;
   return {
     perVisit: { base, options, total, label: won(total), baseLabel: won(base), optionsLabel: options ? `+${won(options)}` : null },
     savingNote: plan.regular > plan.amount ? `첫 달 ${won(plan.regular - plan.amount)} 할인` : null,
@@ -148,6 +151,9 @@ const planQuote = (b, plan, options) => {
     totalAmount: sum,
     totalLabel: won(sum),
     paymentNote: '결제는 청소 완료 후 진행돼요',
+    discountAmount: discount,
+    discountLabel: discount ? `-${won(discount)}` : null,
+    discountNote: discount ? '가정 정기청소 첫 결제 혜택' : null,
     __plan: plan, // 생성이 pricePlan 을 적는다 (응답에는 나가지 않는다 — 아래 quote 경로가 지운다)
   };
 };
@@ -184,6 +190,7 @@ export function fakeHttpModule() {
   const state = {
     user: user(), // 지금 로그인한 사용자. 가입 단계 요청·비밀번호 재설정이 바꾼다
     phoneVerified: true, // 첫 1회 청소 휴대폰 인증을 마쳤는가 (GET /customer/identity/first-cleaning)
+    firstPaymentBenefit: false, // 가정 정기청소 첫 결제 혜택이 남았나 (true 면 다음 분해청소 예약이 0원 — 서버 V075)
     phoneOtpFor: null, // 인증번호를 요청한 번호
     calls: [], // 받은 요청 기록 { method, path, body, …opts(idempotencyKey 등) } — 테스트가 무엇을 보냈는지 확인한다
     inquiries: [], // 1:1 문의 내용(문자열). 목록에서는 첫 번째 것만 '답변 완료'로 보여준다
@@ -335,7 +342,7 @@ export function fakeHttpModule() {
       return SAVED_ADDRESS;
     },
     'POST /customer/bookings/quote': (b) => {
-      const { __plan, ...quote } = quoteOf(b);
+      const { __plan, ...quote } = quoteOf({ ...b, __benefit: state.firstPaymentBenefit });
       return quote;
     },
     // 예약 생성: 멱등 검사 → 무료 옵션 개수·카테고리 검사 → 금액 계산 → 예약 저장 → 회차마다 '내 예약' 카드 추가
@@ -352,8 +359,9 @@ export function fakeHttpModule() {
       if (repair && (b.repair?.photos ?? []).some((p) => state.expiredPhotos.has(p))) throw new ApiError(400, 'VALIDATION', '첨부한 사진이 만료됐어요. 사진을 다시 올려주세요');
       if (!repair && !BOOKING_CATEGORIES[b.category]) throw notFound(b.category);
       // 원룸 첫 달 할인은 그 고객의 첫 원룸 정기 한 번만 (서버 BookingService — 생성 때 다시 판정)
-      const q = repair ? { visits: [{ date: b.date, label: dateLongWeekday(b.date) }], perVisit: { label: '0원' }, totalAmount: 0, totalLabel: '0원' } : quoteOf({ ...b, __studioPlanUsed: state.studioPlanUsed });
+      const q = repair ? { visits: [{ date: b.date, label: dateLongWeekday(b.date) }], perVisit: { label: '0원' }, totalAmount: 0, totalLabel: '0원' } : quoteOf({ ...b, __studioPlanUsed: state.studioPlanUsed, __benefit: state.firstPaymentBenefit });
       if (q.__plan?.weekly && b.homeType === 'studio') state.studioPlanUsed = true;
+      if (q.discountAmount) state.firstPaymentBenefit = false; // 혜택은 한 번 (취소해 돌려받는 것은 흉내 내지 않는다)
       // 예약 id 는 bookings 키 개수로 매긴다. 멱등 키가 있으면 한 예약이 키를 두 개 차지해 번호가 건너뛸 수 있다
       const id = `booking-${Object.keys(state.bookings).length + 1}`;
       const seriesId = b.frequency === 'recurring' && b.category !== 'appliance' ? `${id}-series` : null; // 정기청소 회차들을 묶는 id — 전체 취소(wholeSeries)가 이것으로 찾는다
@@ -362,7 +370,8 @@ export function fakeHttpModule() {
         homeType: b.category === 'home' ? b.homeType ?? null : null,
         serviceLabel: repair ? '수리 서비스' : BOOKING_CATEGORIES[b.category].label, cleaner: CLEANER_PENDING, managerAssigned: false, matchingFailed: false, cancelled: false, seriesId, repair: b.repair ?? null, repairType: b.repairType ?? null,
         visits: q.visits.map((v, i) => ({ id: i === 0 ? id : `${id}-${i}`, ...v })),
-        perVisitLabel: q.perVisit.label, totalAmount: q.totalAmount, totalLabel: q.totalLabel, pricePlan: q.__plan?.key ?? null,
+        perVisitLabel: q.perVisit.label, totalAmount: q.totalAmount + (q.discountAmount ?? 0), totalLabel: q.discountAmount ? won(q.totalAmount + q.discountAmount) : q.totalLabel, pricePlan: q.__plan?.key ?? null,
+        discountAmount: q.discountAmount ?? 0, payLabel: q.totalLabel, // 주문 금액(totalLabel) · 할인 뒤 낼 금액(payLabel) — 서버 V075
         // 테스트가 들여다보는 원본 요청
         __request: b,
       };

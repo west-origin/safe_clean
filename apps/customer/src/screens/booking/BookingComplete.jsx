@@ -4,7 +4,7 @@
 //   예약 하나를 보는 상세 화면이 따로 없어 '예약상세 보기' 는 내 예약 탭(/reservations)으로 간다 — 결제하기 버튼도 거기 있다.
 //   예전 카드(예약일·시간·주소·담당 클리너)와 '결제하기' 버튼은 시안에 없어 뺐다. 뒤로가기는 확인 화면이 아니라 홈으로 (예약은 이미 만들어졌다).
 // 예약 완료 화면(/booking/:category/complete?id=…). 확인 화면(BookingConfirm)이 예약을 만든 뒤 replace 로 이리 보낸다.
-// 금액은 GET /customer/bookings/{id} 로 다시 받은 서버 총액(totalLabel) — 할인 항목이 따로 없어 두 줄이 같은 값이다.
+// 금액은 GET /customer/bookings/{id} 로 다시 받은 서버 값: 주문 금액 = totalLabel, 총 결제 금액 = payLabel(첫 결제 혜택 할인 뒤 — V075, 할인이 없으면 같은 값).
 import { useNavigate, useSearchParams } from 'react-router';
 import { ScreenLayout, NavBar, Button, SuccessCheckIcon, ScreenError, ScreenLoading, useAsync, cx } from '@ansimclean/ui';
 import { getBooking } from '../../api/customer.js';
@@ -25,6 +25,7 @@ export default function BookingComplete() {
   if (!booking) return <ScreenLoading navBar={navBar} />;
 
   const amount = booking.totalLabel ?? '';
+  const pay = booking.payLabel ?? amount;
   return (
     <ScreenLayout noPadding gap="none" navBar={navBar}>
       <div className={cx(common.page, styles.body)}>
@@ -41,7 +42,7 @@ export default function BookingComplete() {
           </div>
           <div className={cx(styles.row, styles.total)}>
             <dt className="text-body-default">{COPY.totalAmount}</dt>
-            <dd className={cx('text-body-bold', styles.value)}>{amount}</dd>
+            <dd className={cx('text-body-bold', styles.value)}>{pay}</dd>
           </div>
         </dl>
 
