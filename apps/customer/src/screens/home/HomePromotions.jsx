@@ -5,7 +5,7 @@ import styles from './HomePromotions.module.css';
 import HomePromotionCard from './HomePromotionCard.jsx';
 
 // 배너는 서버가 준다 (2026-11-12 — 어드민이 매니저 앱 배너 관리에서 올린다, rbac.md §15-22). 예전에는 이 파일에 3장이 고정돼 있었고,
-// 그 이미지(@ansimclean/ui/assets/home-banner-*.png)는 scripts/seed-home-banners.mjs 가 처음 한 번 서버에 올린다.
+// 그 이미지(@ansimclean/ui/assets/home-banner-*.png)는 scripts/seed-home-banners.py 가 처음 한 번 서버에 올린다.
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 /**

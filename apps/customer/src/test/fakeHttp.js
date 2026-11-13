@@ -16,7 +16,7 @@ import {
   CONFIRM_COPY, SAVED_ADDRESS, CLEANER_PENDING, ADDRESS_RESULTS, PROFILE_FORM, ADDRESSES, LIVE_SESSION, LIVE_CHECKLIST, CLEANING_PHOTOS,
   FAQ, NOTICES, SCHEDULE_PRICE,
 } from '../api/mock.js';
-// 홈 혜택 배너 (GET /customer/banners) — 서버로 옮기기 전 앱에 있던 3장을 가짜 서버가 준다 (scripts/seed-home-banners.mjs 와 같은 문구)
+// 홈 혜택 배너 (GET /customer/banners) — 서버로 옮기기 전 앱에 있던 3장을 가짜 서버가 준다 (scripts/seed-home-banners.py 와 같은 문구)
 import couponBanner from '@ansimclean/ui/assets/home-banner-coupon.png';
 import dailyBanner from '@ansimclean/ui/assets/home-banner-daily.png';
 import giftBanner from '@ansimclean/ui/assets/home-banner-gift.png';
