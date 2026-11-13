@@ -1,5 +1,26 @@
 # 도메인 규칙
 
+## 매니저 방문 취소 승인·재배정 (2026-11-13 사용자 결정 — 아래 §6.1·§6.2 의 '방문 취소' 설명보다 이 절이 우선한다)
+
+매니저는 수락한 방문을 **직접 취소하지 못하고 취소를 요청**한다. 어드민이 승인해야 배정이 풀리고, 승인한 순간부터 24시간 동안 근처 매니저에게 재배정 콜을 보낸다. 그래도 맡을 매니저가 없으면 어드민이 직접 배정한다.
+
+| 단계 | 규칙 | 코드 |
+|---|---|---|
+| ① 요청 | `POST /manager/jobs/{id}/cancel` 는 이제 **취소 요청**을 만든다(`manager_cancel_requests.status=pending`, V068). 예약은 그 매니저에게 배정된 `scheduled` 그대로다. 조건은 예전 방문 취소와 같다: `scheduled`, 방문 `cancelCutoffHours`(4)시간 전까지(아니면 고객센터 안내 409), 사유 key 가 `manager_cancel_reasons` 안. 대기 중인 요청이 있으면 새로 만들지 않고 그 요청을 돌려준다(예약당 대기 1건 — 부분 유니크 인덱스). 어드민에게 푸시 '방문 취소 요청이 들어왔어요'(`CancelRequested`) | `job/JobService.cancelByManager` |
+| 요청의 자동 종료 | 승인 전에 작업이 시작되거나(매니저가 그대로 방문), 고객이 예약을 취소하거나 일정을 바꾸면 대기 요청은 `closed`(사유 `job_started`·`booking_cancelled`·`rescheduled`) | `JobService.doStart`, `OfferService.onCancelled`·`onRescheduled` → `JobService.closeCancelRequests` |
+| ② 거절 | 어드민 `POST /admin/cancel-requests/{id}/reject { note }` → `rejected`. 예약은 그대로, 매니저에게 '방문 취소 요청이 거절됐어요' 푸시(`CancelRequestDecided`) + 활동 이력 | `offer/ReassignService.reject` |
+| ③ 승인 | 어드민 `POST /admin/cancel-requests/{id}/approve` — 한 트랜잭션에서 예약 → 요청 순서로 잠그고: 요청이 대기 중이고 예약이 그 매니저의 `scheduled` 일 때만(아니면 `INVALID_STATE`, 이미 승인한 요청은 같은 응답). `Booking.releaseByManager`(scheduled → assigning) · 상태 이력 reason `cancel_approved` · 체크리스트 비움 · **패널티 원장에 0점 행**(`cancel_approved`, V068 — 점수 없음, 사용자 결정 2026-11-13. 행은 '이 예약·이 정기청소 우선 콜에서 빠지는 매니저' 판정에 쓰인다) · 요청 `approved` · 활동 이력 · 고객 푸시 '매니저 배정이 취소됐어요'(`ManagerReleased`) · 매니저 푸시 '방문 취소가 승인됐어요' · 카메라 정리(`CameraReleased`) → ④ | `ReassignService.approve` |
+| ④ 재배정 콜 | 옛 콜 정리(accepted → superseded, pending → cancelled), 밤 보류 표시 지움, 새 회차·새 매칭 구간(`restartAfterRelease`). **방문까지 `reassign_window_hours`(24)시간이 안 남았으면** 콜 없이 곧바로 ⑥(사유 `imminent`). 아니면 `bookings.reassign_until = 승인 시각 + 24시간`, 기존 후보 선정(`findCandidates` — 활동 지역·근무시간·근무 불가·겹치는 작업, 정지·미승인 제외)에서 취소한 매니저(원장 `bookingDroppers`)를 빼고 **전원에게 콜 1번**(`offers.reassign=true`, `expires_at = reassign_until`). 후보가 없으면 곧바로 ⑥(사유 `no_candidates`). 어드민 승인이라 밤에도 지금 보낸다(운영자 재매칭과 같다). 콜 푸시는 '재배정 콜이 도착했어요' | `ReassignService.startReassign` |
+| ⑤ 수락 | 기존 수락(`OfferService.doAccept`) 그대로 — 매니저 → 예약 → 오퍼 `FOR UPDATE` + `offers_one_accepted` 유니크 + `bookings_manager_no_overlap` 배타 제약. 늦게 누른 매니저는 `OFFER_TAKEN` "다른 매니저가 먼저 수락했어요", 나머지 대기 콜은 `cancelled`. 배정되면 재배정 표시를 지우고 상태 이력 reason `reassigned` | `Booking.assign` |
+| ⑥ 관리자 배정 대기 | 재배정 콜이 **모두 거절·만료·정지로 닫히면**(만료는 `reassign_until`, `OfferExpirer` 30초) 다음 회차로 다시 보내지 않고 `bookings.admin_assign_pending_at = now`, `admin_assign_reason = no_accept`. 상태값은 `assigning` 그대로(새 상태값을 만들지 않는다 — 사용자 결정). 자동 재발송 없음: 회차 재매칭(`redispatch`)·매시 자동 재매칭(`MatchingRetry` — `matching_failed_at` 만 본다)·밤 보류 어느 것도 이 예약을 집지 않는다. 고객에게 매칭 실패 푸시를 보내지 않는다(카드는 '배정 후 알려드려요' 그대로). 어드민에게 푸시 '재배정이 필요한 예약이 있어요'(`AdminAssignNeeded`, 개인정보 없음) + 로그 WARN(예약 id 만) | `OfferService.afterClosed` → `ReassignService.awaitAdmin` |
+| ⑦ 어드민 배정 | `GET /admin/reassignments`(대기 목록 — 예약 id·고객 이름·연락처·방문 일시·주소·취소한 매니저·요청/승인 시각·사유), `GET /admin/bookings/{id}/assignable-managers`(활동 지역 ∧ 승인 ∧ 정지 아님 ∧ 겹치는 작업 없음 ∧ 이 예약을 취소하지 않음, 근무시간 안인지는 `available` 로 표시), `POST /admin/bookings/{id}/assign { managerId }` — 매니저 → 예약 순서로 잠그고 같은 조건을 다시 본 뒤 `assigning` 예약을 그 매니저에게(수락된 콜 행 1건을 새 회차로 만든다 — 작업 금액·이력이 콜 수락과 같은 모양). 근무시간 밖이어도 어드민이 매니저와 통화했다고 보고 배정한다. 체크리스트·라이브 세션 준비, 이력 reason `admin_assigned`, 활동 이력, 고객 '매니저가 배정됐어요' + 매니저 '관리자가 청소를 배정했어요'. 기존 `redispatch` 도 쓸 수 있다 — 그러면 재배정 표시를 지우고 일반 매칭(30분 콜·회차·매칭 실패 안내)으로 돌아간다 | `ReassignService.assign`, `OfferService.redispatchByAdmin` |
+| 고객 취소·일정 변경 | 재배정 중이든 대기 중이든 고객 취소는 기존대로(`onCancelled` 가 대기 콜을 닫는다). 일정 변경은 재배정 표시를 지우고 일반 매칭으로 다시 시작한다(`Booking.reschedule`) | |
+| 기록 | 취소 사유·상세·요청/결정 시각·결정한 어드민 = `manager_cancel_requests`, 승인 0점 행 = `manager_penalties`, 재배정 시도 = `offers`(reassign=true, 회차), 상태 흐름 = `booking_status_history`(cancel_approved → reassigned / admin_assigned), 어드민 작업 = `activity_logs`, 최종 매니저 = `bookings.manager_id`, 재배정을 시작한 요청 = `bookings.reassign_request_id` | |
+
+- 중복 실행 방지: 요청은 예약당 대기 1건(부분 유니크) + 매니저 `Idempotency-Key`. 승인·거절은 예약 → 요청 행 잠금 뒤 상태를 다시 본다 — 두 어드민이 동시에 눌러도 한 번만 처리되고 뒤 사람은 같은 결과(승인) 또는 `INVALID_STATE`(이미 다르게 처리됨)를 받는다.
+- 패널티: 승인 취소는 0점. 지각·미방문 점수는 그대로. 예전 '24시간 전 월 2회 무료 / 24~4시간 1점' 은 앱 직접 취소가 없어져 더 쓰이지 않는다(원장의 옛 행은 그대로 남는다).
+- 문구(푸시·오류)는 Figma 에 없어 코드에서 정했다 — `push/PushCopy`, PROGRESS.md 판단 항목.
+
 ## 고객 체크리스트·이력·영상 구간 (2026-10-17)
 
 - V053은 녹화 시작 시각과 실제 파일 시작 확인 여부, V054는 체크·해제 이력이다. 기존 V051(잠금)·V052(결제)는 보존한다.

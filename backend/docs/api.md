@@ -1,5 +1,21 @@
 # API 계약
 
+## 매니저 방문 취소 승인·재배정 (2026-11-13 — 규칙은 domain.md 같은 이름의 절. 아래 §5.3 `cancelJob` 설명보다 이 절이 우선한다)
+
+| 앱 함수 | 메서드 · 경로 | 요청 | 응답 / 오류 |
+|---|---|---|---|
+| `cancelJob(id, { reason, detail })` (매니저) | `POST /manager/jobs/{id}/cancel` (+`Idempotency-Key`) | `{ reason, detail }` (detail 500자까지) | **취소 요청** `{ id, bookingId, status: "pending", requestedAt(ISO) }` — 예약은 배정된 그대로. 대기 요청이 이미 있으면 그 요청. `scheduled` 가 아니면 `INVALID_STATE`, 방문 4시간 전부터 `INVALID_STATE` + 고객센터 안내, 모르는 사유 `VALIDATION` |
+| `getJob(id)` (매니저) | `GET /manager/jobs/{id}` | — | 기존 모양 + `cancelRequest: null \| { status: "pending", requestedAt }` — 대기 중인 요청이 있을 때만 |
+| `getCalls()`·`getCall(id)` (매니저) | 기존 | — | 콜 카드에 `reassign: boolean` 추가 — 매니저 방문 취소로 다시 나온 콜(재배정 건) |
+| (어드민) `getAdminCancelRequests()` | `GET /admin/cancel-requests` | — | `[{ id, bookingId, managerName, reason(라벨), detail, requestedAt(ISO), requestedLabel, visitLabel, address, customerName }]` 대기 중만, 요청 오래된 순 |
+| (어드민) `approveCancelRequest(id)` | `POST /admin/cancel-requests/{id}/approve` | — | `{ id, bookingId, status: "approved", next: "calling" \| "awaitingAdmin", reassignUntil(ISO) \| null }`. 이미 승인한 요청은 같은 응답. 처리된(거절·종료) 요청이나 예약이 바뀌었으면 `INVALID_STATE`, 없으면 `NOT_FOUND` |
+| (어드민) `rejectCancelRequest(id, note)` | `POST /admin/cancel-requests/{id}/reject` | `{ note }` (선택, 500자까지) | `{ id, bookingId, status: "rejected" }`. 대기 중이 아니면 `INVALID_STATE` |
+| (어드민) `getReassignments()` | `GET /admin/reassignments` | — | `[{ bookingId, reason: "no_accept"\|"imminent"\|"no_candidates", pendingSince(ISO), visitAt(ISO), visitLabel, address: [도로명, 상세], customer: { name, phone }, cancelledManager: { id, name } \| null, requestedAt(ISO) \| null, approvedAt(ISO) \| null, cancelReason(라벨) \| null }]` — 관리자 배정 대기 예약, 방문 가까운 순 |
+| (어드민) `getAssignableManagers(bookingId)` | `GET /admin/bookings/{id}/assignable-managers` | — | `[{ id, name, phone, available: boolean }]` — `available` = 그 시간 근무시간 안. 예약이 `assigning` 이 아니면 `INVALID_STATE` |
+| (어드민) `assignBooking(bookingId, managerId)` | `POST /admin/bookings/{id}/assign` | `{ managerId }` | `{ bookingId, managerId }`. 예약이 `assigning` 이 아니면 `INVALID_STATE` "배정을 기다리는 예약만 배정할 수 있어요", 매니저가 조건에 맞지 않으면 `INVALID_STATE`(이유별 문구), 없는 예약·매니저 `NOT_FOUND` |
+
+어드민 API 는 모두 admin + MFA(aal2) — `SecurityConfig` `/admin/**` + `AccessPolicy` `BOOKING_CANCEL_DECIDE`·`BOOKING_ASSIGN`. 푸시 data `type`: 어드민 `admin-cancel-request`·`admin-reassign`(+ bookingId), 매니저 `job`(+ bookingId).
+
 2026-10-26 녹화 장애 처리: `GET /live/sessions/{id}`는 `recordingStatus: none|recording|uploading|ready|failed`와 `recordingStartFailed:boolean`을 추가한다. 시작 실패는 `failed` + Egress ID 없음으로 저장하고 재조정기가 재시도한다. `/finish-video`는 녹화 실패·ID 없음도 허용하며, 실제 방 종료 성공 전에는 후 사진 촬영을 허용하지 않는다. 상세 계약: [recording-labels.md](recording-labels.md#녹화-시작-실패-2026-10-26).
 
 2026-10-24 필수 사진/영상 라벨 변경: [recording-labels.md](recording-labels.md). 전 사진 필수 검사 후 송출, 영상 종료 후 후 사진 필수 검사 후 완료한다. 사진 목록 응답에 `requiredRooms`, `phase`가 추가되며 `/rooms`, `/photos/confirm-before`, `/finish-video` API와 `recording_segments` 저장이 추가되었다. 아래 2026-10-23 사진 설명보다 이 변경 계약이 우선한다.
