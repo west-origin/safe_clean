@@ -237,6 +237,8 @@ export function pushTarget(data = {}) {
     case 'schedule': return '/schedule';
     case 'inquiry': return '/profile/support'; // 문의 답변 — 화면 위쪽 '내 문의'
     case 'penalty': return '/profile/penalties'; // 패널티 기록 — 예전에는 홈으로 갔다 (자체 점검 #28)
+    case 'admin-cancel-request': return '/admin/cancel-requests'; // 어드민: 매니저 방문 취소 요청이 들어왔다 (2026-11-13)
+    case 'admin-reassign': return '/admin/reassignments'; // 어드민: 재배정 콜로 못 찾아 관리자 배정 대기
     default: return '/';
   }
 }

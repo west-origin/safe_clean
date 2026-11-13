@@ -10,7 +10,7 @@ import {
   MANAGER_TERMS, MANAGER_TERM_BODIES, MANAGER_PRIVACY_NOTE, HOME, CALLS, CALL_DETAIL, REJECT_REASONS, JOB_DETAIL, EQUIPMENT_OK, ACTIVE_JOB, PAUSE_REASONS,
   PAUSED_JOB, COMPLETED_JOB, SETTLEMENT, SETTLEMENT_DETAIL, SCHEDULE, SCHEDULE_WEEK, AVAILABILITY, PROFILE, EQUIPMENT_DEVICE, JOB_CONTACT, PROFILE_DETAILS,
   MANAGER_NOTIFICATION_SETTINGS, MANAGER_NOTIFICATION_ROWS,
-  MANAGER_NOTICES, ADMIN_NOTICES,
+  MANAGER_NOTICES, ADMIN_NOTICES, ADMIN_CANCEL_REQUESTS, ADMIN_REASSIGNMENTS, ADMIN_ASSIGNABLE_MANAGERS,
 } from '../api/mock.js';
 // 배너 관리 미리보기 이미지 — 서버로 옮기기 전 고객 앱에 있던 배너 3장 (가짜 서버의 처음 목록)
 import couponBanner from '@ansimclean/ui/assets/home-banner-coupon.png';
@@ -92,6 +92,11 @@ export function fakeHttpModule() {
     calls: [], // 보낸 요청 { method, path, body, idempotencyKey… } 기록 — 테스트가 요청 본문·멱등 키를 확인한다
     inquiries: [], // 접수된 문의 내용(문자열)
     adminNotices: ADMIN_NOTICES.map((n) => ({ ...n })), // 어드민 공지 관리 (최신순)
+    // 어드민 방문 취소 요청·배정 대기 (서버 ReassignService 와 같은 모양). 승인·거절하면 목록에서 빠지고, 배정하면 대기 목록에서 빠진다
+    adminCancelRequests: ADMIN_CANCEL_REQUESTS.map((r) => ({ ...r })),
+    adminReassignments: ADMIN_REASSIGNMENTS.map((r) => ({ ...r })),
+    adminAssignable: ADMIN_ASSIGNABLE_MANAGERS.map((m) => ({ ...m })), // __fake.adminAssignable = [] → 배정할 매니저 없음
+    approveNext: 'calling', // __fake.approveNext = 'awaitingAdmin' → 승인 뒤 바로 배정 대기(방문 임박·후보 없음)
     noticeKeys: {}, // 공지 올리기 멱등 키 → 만든 공지 id
     // 어드민 배너 관리 (순서대로). 서버 AdminBannerService 와 같은 모양. 기간 문구·상태는 처음 값 그대로 둔다(가짜 서버는 날짜 계산을 흉내 내지 않는다)
     adminBanners: [
@@ -240,6 +245,9 @@ export function fakeHttpModule() {
       state.adminBanners = ids.map((id) => state.adminBanners.find((x) => x.id === id));
       return state.adminBanners.map((x) => ({ ...x }));
     },
+    // 어드민 방문 취소 요청·배정 대기 (backend/docs/api.md '매니저 방문 취소 승인·재배정')
+    'GET /admin/cancel-requests': () => state.adminCancelRequests.map((r) => ({ ...r })),
+    'GET /admin/reassignments': () => state.adminReassignments.map((r) => ({ ...r })),
     // 어드민 공지 관리 (서버 AdminNoticeService 와 같은 검사 문구)
     'GET /admin/notices': () => state.adminNotices.map((n) => ({ ...n, body: null })),
     'POST /admin/notices': (b, opts) => {
@@ -309,6 +317,30 @@ export function fakeHttpModule() {
   // 경로에 id 가 들어가는 요청. [메서드, 정규식, 처리 함수] — 정규식 괄호로 잡은 값들이 첫 인자 배열로 온다.
   // exact 를 먼저 보므로 '/manager/jobs/active' 는 아래 '/manager/jobs/:id' 에 id='active' 로 걸리지 않는다.
   const patterns = [
+    // 어드민 승인·거절: 대기 중이 아닌 요청이면 서버처럼 409. 승인 결과의 next 는 __fake.approveNext
+    ['POST', /^\/admin\/cancel-requests\/([^/]+)\/approve$/, ([id]) => {
+      const r = state.adminCancelRequests.find((x) => x.id === id);
+      if (!r) throw new ApiError(409, 'INVALID_STATE', '이미 처리된 취소 요청이에요');
+      state.adminCancelRequests = state.adminCancelRequests.filter((x) => x.id !== id);
+      return { id, bookingId: r.bookingId, status: 'approved', next: state.approveNext, reassignUntil: state.approveNext === 'calling' ? '2026-11-14T05:00:00Z' : null };
+    }],
+    ['POST', /^\/admin\/cancel-requests\/([^/]+)\/reject$/, ([id], b) => {
+      const r = state.adminCancelRequests.find((x) => x.id === id);
+      if (!r) throw new ApiError(409, 'INVALID_STATE', '이미 처리된 취소 요청이에요');
+      if (b?.note && b.note.length > 500) throw new ApiError(400, 'VALIDATION', '메모는 500자까지 적을 수 있어요');
+      state.adminCancelRequests = state.adminCancelRequests.filter((x) => x.id !== id);
+      return { id, bookingId: r.bookingId, status: 'rejected', next: null, reassignUntil: null };
+    }],
+    ['GET', /^\/admin\/bookings\/([^/]+)\/assignable-managers$/, ([id]) => {
+      if (!state.adminReassignments.some((r) => r.bookingId === id)) throw new ApiError(409, 'INVALID_STATE', '배정을 기다리는 예약만 배정할 수 있어요');
+      return state.adminAssignable.map((m) => ({ ...m }));
+    }],
+    ['POST', /^\/admin\/bookings\/([^/]+)\/assign$/, ([id], b) => {
+      if (!state.adminReassignments.some((r) => r.bookingId === id)) throw new ApiError(409, 'INVALID_STATE', '배정을 기다리는 예약만 배정할 수 있어요');
+      if (!state.adminAssignable.some((m) => m.id === b?.managerId)) throw new ApiError(409, 'INVALID_STATE', '그 시간에 다른 작업이 있는 매니저예요');
+      state.adminReassignments = state.adminReassignments.filter((r) => r.bookingId !== id);
+      return { bookingId: id, managerId: b.managerId };
+    }],
     ['GET', /^\/admin\/banners\/([^/?]+)$/, ([id]) => ({ ...adminBannerOf(id) })],
     ['PUT', /^\/admin\/banners\/([^/?]+)\/image$/, ([id], form) => {
       const file = form.get?.('file');

@@ -3,7 +3,7 @@
 // (요일 번호, 반복 문구, 날짜·시각 형식, 서버가 null 로 주는 선택 문구 → undefined).
 // 로그인·가입의 세션 저장(session.js)과 가입 초안(localStorage), DEV 확인용 ?scenario=empty|error 도 여기서 처리한다.
 // 부르는 곳은 대부분 screens/* 화면이다. 화면 밖의 예: live/liveClient.js(라이브 세션 함수), App.jsx(refreshMe).
-import { REPEAT_OPTIONS, SUPPORT_COPY, AUTH_COPY, ADMIN_COPY, ADMIN_NOTICE_COPY, ADMIN_BANNER_COPY, MANAGER_PASSWORD_OK_MESSAGE, PHOTO_COPY } from './mock.js';
+import { REPEAT_OPTIONS, SUPPORT_COPY, AUTH_COPY, ADMIN_COPY, ADMIN_REASSIGN_COPY, ADMIN_NOTICE_COPY, ADMIN_BANNER_COPY, MANAGER_PASSWORD_OK_MESSAGE, PHOTO_COPY } from './mock.js';
 import { deviceToken } from '../push/deviceToken.js';
 
 import { http, ApiError, newIdempotencyKey } from './http.js';
@@ -432,6 +432,47 @@ export const currentUserName = () => session.user()?.name ?? '';
 /** 관리자 홈 문구 (Figma 에 없어 코드에서 정함 — api/mock.js ADMIN_COPY) */
 export async function getAdminCopy() {
   return ADMIN_COPY;
+}
+
+// ── 관리자 › 방문 취소 요청 · 배정 대기 (코드에서 정함, 서버 /admin/cancel-requests·/admin/reassignments·/admin/bookings — backend/docs/api.md '매니저 방문 취소 승인·재배정') ──
+/** 문구 (api/mock.js ADMIN_REASSIGN_COPY) */
+export async function getAdminReassignCopy() {
+  return ADMIN_REASSIGN_COPY;
+}
+
+/** ISO 시각 → 서울 시각 "11월 13일 오후 3:05" (서버가 ISO 로만 주는 요청·승인 시각을 화면 글자로). null 이면 null */
+export function seoulDateTimeLabel(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+/** 대기 중인 방문 취소 요청, 오래된 순 → [{ id, bookingId, managerName, reason, detail, requestedAt, requestedLabel, visitLabel, address, customerName }] */
+export async function getAdminCancelRequests() {
+  return http.get('/admin/cancel-requests');
+}
+/** 승인 → { id, bookingId, status: 'approved', next: 'calling'|'awaitingAdmin'|null, reassignUntil } (이미 승인한 요청은 같은 응답) */
+export async function approveCancelRequest(id) {
+  return http.post(`/admin/cancel-requests/${encodeURIComponent(id)}/approve`);
+}
+/** 거절 (메모 선택, 500자까지) → { id, bookingId, status: 'rejected' } */
+export async function rejectCancelRequest(id, note) {
+  return http.post(`/admin/cancel-requests/${encodeURIComponent(id)}/reject`, { note: note?.trim() ? note.trim() : null });
+}
+/**
+ * 관리자 배정 대기 예약, 방문 가까운 순. 서버 모양 그대로에 화면 글자 두 칸을 더한다(어댑터 변환):
+ * requestedLabel·approvedLabel = requestedAt·approvedAt 의 서울 시각 글자 (없으면 null)
+ */
+export async function getReassignments() {
+  const items = await http.get('/admin/reassignments');
+  return items.map((r) => ({ ...r, requestedLabel: seoulDateTimeLabel(r.requestedAt), approvedLabel: seoulDateTimeLabel(r.approvedAt) }));
+}
+/** 이 예약에 배정할 수 있는 매니저 → [{ id, name, phone, available }] (근무시간 안 먼저) */
+export async function getAssignableManagers(bookingId) {
+  return http.get(`/admin/bookings/${encodeURIComponent(bookingId)}/assignable-managers`);
+}
+/** 직접 배정 → { bookingId, managerId } */
+export async function assignBooking(bookingId, managerId) {
+  return http.post(`/admin/bookings/${encodeURIComponent(bookingId)}/assign`, { managerId });
 }
 
 // ── 관리자 › 공지 관리 (코드에서 정함, 서버 /admin/notices — backend/docs/api.md "어드민 공지") ──

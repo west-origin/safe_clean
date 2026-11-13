@@ -66,3 +66,60 @@
   flex: 1 1 0;
   min-width: 0;
 }
+
+/* ── 방문 취소 요청 · 배정 대기 (2026-11-13, 코드에서 정함) ── */
+
+/* 카드 목록 (ul) — 기본 점·여백을 없애고 세로로 쌓는다 */
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 라벨 · 값 줄 묶음 (dl) */
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin: 0;
+}
+
+/* 한 줄: 왼쪽 라벨 고정 폭, 오른쪽 값 (줄바꿈 허용) */
+.fact {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.fact dt {
+  flex: 0 0 auto;
+  min-width: 88px; /* 가장 긴 라벨 "취소한 매니저" 가 들어가는 폭 */
+}
+
+.fact dd {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 카드 아래 버튼 줄 — 같은 폭으로 나누고, 높이가 다른 버튼(secondary·primary)은 세로 가운데로 */
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.rowActions > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* 매니저 고르기 목록 */
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}

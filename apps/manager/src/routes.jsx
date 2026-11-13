@@ -23,6 +23,9 @@
 //   [코드에서 정함, rbac.md §15-20] 어드민: /auth/login → /auth/mfa(인증앱 6자리) → /admin(관리자 홈). 어드민은 매니저 화면 대신 /admin… 만 (RequireAuth)
 //     /admin ─ 배너 관리 → /admin/banners ─ 배너 올리기 → /admin/banners/new · 수정 → /admin/banners/:id ─ 올리기·저장·삭제 → /admin/banners (위로·아래로는 목록에서)
 //     /admin ─ 공지 관리 → /admin/notices ─ 공지 올리기 → /admin/notices/new · 공지 한 줄 → /admin/notices/:id ─ 올리기·저장·삭제 → /admin/notices
+//     /admin ─ 방문 취소 요청 → /admin/cancel-requests ─ 승인·거절(시트) (2026-11-13, backend/docs/domain.md '매니저 방문 취소 승인·재배정')
+//     /admin ─ 배정 대기 → /admin/reassignments ─ 매니저 배정 → /admin/reassignments/:id ─ 배정하기 → /admin/reassignments
+//     어드민 푸시 탭: admin-cancel-request → /admin/cancel-requests · admin-reassign → /admin/reassignments (push/pushClient.js)
 import { createBrowserRouter } from 'react-router';
 import RouteError from './screens/RouteError.jsx';
 import RouteShell from './screens/RouteShell.jsx';
@@ -81,6 +84,9 @@ const protectedRoutes = [
   { path: '/admin/banners/:id', lazy: page(() => import('./screens/admin/AdminBannerEdit.jsx')) }, // :id = 'new' 면 새 배너
   { path: '/admin/notices', lazy: page(() => import('./screens/admin/AdminNotices.jsx')) }, // 공지 관리 목록
   { path: '/admin/notices/:id', lazy: page(() => import('./screens/admin/AdminNoticeEdit.jsx')) }, // :id = 'new' 면 새 공지
+  { path: '/admin/cancel-requests', lazy: page(() => import('./screens/admin/AdminCancelRequests.jsx')) }, // 매니저 방문 취소 요청 승인·거절
+  { path: '/admin/reassignments', lazy: page(() => import('./screens/admin/AdminReassignments.jsx')) }, // 관리자 배정 대기 목록
+  { path: '/admin/reassignments/:id', lazy: page(() => import('./screens/admin/AdminAssign.jsx')) }, // :id = 예약 id — 매니저 고르기·배정
 ];
 
 // 경로 없는 RequireAuth 라우트로 감싼다: 로그인돼 있으면 자식 화면을(Outlet), 아니면 로그인·가입 화면으로 보낸다

@@ -177,6 +177,8 @@ describe('pushClient — 기기 토큰 등록', () => {
     expect(pushTarget({ type: 'call' })).toBe('/call');
     expect(pushTarget({ type: 'penalty' })).toBe('/profile/penalties'); // 자체 점검 #28
     expect(pushTarget({ type: 'settlement' })).toBe('/settlement');
+    expect(pushTarget({ type: 'admin-cancel-request', bookingId: 'b1' })).toBe('/admin/cancel-requests'); // 어드민 방문 취소 요청 (2026-11-13)
+    expect(pushTarget({ type: 'admin-reassign', bookingId: 'b1' })).toBe('/admin/reassignments'); // 어드민 배정 대기
     expect(pushTarget({})).toBe('/');
   });
 });

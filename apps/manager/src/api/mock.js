@@ -385,10 +385,76 @@ export const ACTION_FAILED_COPY = { accept: '수락하지 못했어요. 다시 �
 /** 관리자 홈 문구 (Figma 에 없어 코드에서 정함 — 어드민은 매니저 앱에서 배너·공지 관리만 한다, rbac.md §15-20·24) */
 export const ADMIN_COPY = {
   title: '관리자',
-  description: '고객 앱에 보이는 배너와 공지를 관리해요.',
+  description: '매니저 방문 취소와 배정, 고객 앱에 보이는 배너와 공지를 관리해요.', // 2026-11-13 취소 요청·배정 대기 메뉴 추가
   logout: '로그아웃',
   menuTitle: '관리',
 };
+
+/**
+ * 관리자 › 방문 취소 요청 · 배정 대기 문구 (Figma 에 없어 코드에서 정함 — backend/docs/domain.md '매니저 방문 취소 승인·재배정', 2026-11-13).
+ * 서버 오류 문구(이미 처리된 요청·배정할 수 없는 매니저)는 서버 것을 그대로 보인다
+ */
+export const ADMIN_REASSIGN_COPY = {
+  // 취소 요청
+  requestsMenu: '방문 취소 요청',
+  requestsTitle: '방문 취소 요청',
+  requestsDescription: '승인하면 배정이 풀리고 근처 매니저에게 24시간 동안 재배정 콜이 가요. 방문까지 24시간이 안 남았으면 바로 배정 대기로 가요.',
+  requestsEmpty: '기다리는 취소 요청이 없어요',
+  managerLabel: '매니저',
+  customerLabel: '고객',
+  addressLabel: '주소',
+  reasonLabel: '사유',
+  requestedLabel: '요청 시각',
+  approve: '승인',
+  reject: '거절',
+  approveTitle: '이 취소 요청을 승인할까요?',
+  approveDescription: '매니저의 배정이 풀리고 고객에게 다른 매니저를 찾는다고 알려요. 점수는 매기지 않아요.',
+  approveConfirm: '승인하기',
+  rejectTitle: '이 취소 요청을 거절할까요?',
+  rejectDescription: '매니저에게 예정대로 방문하라고 알려요.',
+  rejectNoteLabel: '메모 (선택)',
+  rejectNotePlaceholder: '매니저와 통화한 내용 등을 적어주세요',
+  rejectConfirm: '거절하기',
+  back: '돌아가기',
+  approvedCalling: '승인했어요. 근처 매니저에게 재배정 콜을 보냈어요',
+  approvedWaiting: '승인했어요. 배정 대기 목록에서 매니저를 배정해주세요',
+  rejected: '거절했어요',
+  // 배정 대기
+  waitingMenu: '배정 대기',
+  waitingTitle: '배정 대기',
+  waitingDescription: '재배정 콜로 매니저를 찾지 못한 예약이에요. 매니저와 통화한 뒤 배정해주세요.',
+  waitingEmpty: '배정을 기다리는 예약이 없어요',
+  waitingReasons: { no_accept: '재배정 콜을 수락한 매니저 없음', imminent: '방문까지 24시간 미만', no_candidates: '콜을 받을 매니저 없음' },
+  bookingIdLabel: '예약 ID',
+  phoneLabel: '연락처',
+  cancelledManagerLabel: '취소한 매니저',
+  approvedLabel: '승인 시각',
+  assignButton: '매니저 배정',
+  // 매니저 고르기
+  assignTitle: '매니저 배정',
+  assignListLabel: '배정할 매니저',
+  assignOutsideHours: '근무시간 밖',
+  assignEmpty: '배정할 수 있는 매니저가 없어요',
+  assignEmptyDescription: '활동 지역·일정이 맞는 매니저가 없어요. 매니저의 활동 지역이나 일정을 확인해주세요.',
+  assignConfirm: '배정하기',
+  assigned: '배정했어요',
+  notWaiting: '이미 배정됐거나 배정 대기가 아닌 예약이에요',
+};
+
+/** 가짜 서버(test/fakeHttp.js)의 관리자 예시 데이터 — 서버 /admin/cancel-requests·/admin/reassignments·assignable-managers 와 같은 모양 (코드에서 정함, 실제 사람 아님) */
+export const ADMIN_CANCEL_REQUESTS = [
+  { id: 'cancel-1', bookingId: 'job-1', managerName: '김매니저', reason: '질병·부상', detail: '독감으로 이틀 동안 움직이기 어려워요', requestedAt: '2026-11-13T05:00:00Z', requestedLabel: '11월 13일 오후 2:00',
+    visitLabel: '2026년 11월 20일 오전 10:00', address: '서울특별시 강남구 테헤란로 1', customerName: '이고객' },
+];
+export const ADMIN_REASSIGNMENTS = [
+  { bookingId: 'job-2', reason: 'no_accept', pendingSince: '2026-11-14T05:00:00Z', visitAt: '2026-11-18T01:00:00Z', visitLabel: '2026년 11월 18일 오전 10:00',
+    address: ['서울특별시 강남구 역삼로 10', '101동 1203호'], customer: { name: '박고객', phone: '010-1234-5678' }, cancelledManager: { id: 'mgr-a', name: '최매니저' },
+    requestedAt: '2026-11-13T04:00:00Z', approvedAt: '2026-11-13T05:00:00Z', cancelReason: '개인 사정' },
+];
+export const ADMIN_ASSIGNABLE_MANAGERS = [
+  { id: 'mgr-b', name: '정매니저', phone: '010-2222-3333', available: true },
+  { id: 'mgr-c', name: '한매니저', phone: '010-4444-5555', available: false },
+];
 
 /** 관리자 › 공지 관리 문구 (Figma 에 없어 코드에서 정함, rbac.md §15-23). 대상 키는 서버 notices.audience 값 */
 export const ADMIN_NOTICE_COPY = {
