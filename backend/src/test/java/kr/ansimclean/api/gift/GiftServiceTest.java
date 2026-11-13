@@ -163,6 +163,20 @@ class GiftServiceTest {
         assertThat(list.get(0).expiringSoon()).isTrue();
         assertThat(list.get(1).giftable()).isFalse();
         assertThat(list.get(1).blockedReason()).contains("유효기간");
+        assertThat(list.get(1).usable()).isTrue(); // 선물은 막혀도 예약 결제에는 쓸 수 있다
+        assertThat(list.get(1).useBlockedReason()).isNull();
+    }
+
+    @Test
+    void 금액권_목록은_예약_결제에_쓸_수_있는지도_알려준다() {
+        when(store.vouchersOf(me)).thenReturn(java.util.List.of(
+                voucher(me, 69000, 69000, "gifting", true, NOW.plus(Duration.ofDays(300))),
+                voucher(me, 69000, 69000, "held", true, NOW.minus(Duration.ofDays(1)))));
+        var list = service.vouchers(me).vouchers();
+        assertThat(list.get(0).usable()).isFalse();
+        assertThat(list.get(0).useBlockedReason()).contains("선물 중");
+        assertThat(list.get(1).usable()).isFalse();
+        assertThat(list.get(1).useBlockedReason()).contains("유효기간");
     }
 
     // ── 받기·거절·취소·만료 ──

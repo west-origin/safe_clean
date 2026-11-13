@@ -98,10 +98,11 @@ public class GiftService {
 
     private VoucherView voucherView(GiftStore.VoucherRow v, Instant now) {
         String blocked = giftBlockReason(v, now);
+        String useBlocked = VoucherService.useBlockReason(v, now); // 예약 결제에 쓸 수 있나 — 사용 API 와 같은 규칙
         boolean soon = v.validUntil() != null && v.validUntil().isBefore(now.plus(EXPIRING_SOON));
         return new VoucherView(v.id(), v.label(), v.faceAmount(), v.balance(), KoreanFormat.won(v.balance()), v.status(),
                 iso(v.validUntil()), v.validUntil() == null ? null : KoreanFormat.dateLong(AppClock.toSeoul(v.validUntil()).toLocalDate()) + "까지",
-                blocked == null, soon, blocked);
+                blocked == null, soon, blocked, useBlocked == null, useBlocked);
     }
 
     /** 보유 금액권을 선물할 수 없는 이유 (할 수 있으면 null). 문구는 코드에서 정함 */

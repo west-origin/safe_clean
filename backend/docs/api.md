@@ -29,7 +29,7 @@
 | 앱 함수 | 메서드 · 경로 | 요청 | 응답 / 오류 |
 |---|---|---|---|
 | `getGiftCatalog()` | `GET /customer/gifts/catalog` | — | `{ items: [{ key, group, label, amount, amountLabel }], acceptDays: 7, validDays: 365 }` — `app_settings.gift_catalog`(첫 1회 체험 없음) |
-| `getVouchers()` | `GET /customer/vouchers` | — | `{ vouchers: [{ id, label, faceAmount, balance, balanceLabel, status: "held"\|"gifting", validUntil(ISO)\|null, validUntilLabel: "2027년 11월 13일까지"\|null, giftable, expiringSoon, blockedReason\|null }] }` — `expiringSoon` = 유효기간 30일 안 |
+| `getVouchers()` | `GET /customer/vouchers` | — | `{ vouchers: [{ id, label, faceAmount, balance, balanceLabel, status: "held"\|"gifting", validUntil(ISO)\|null, validUntilLabel: "2027년 11월 13일까지"\|null, giftable, expiringSoon, blockedReason\|null, usable, useBlockedReason\|null }] }` — `expiringSoon` = 유효기간 30일 안. `usable` = 지금 예약 결제에 쓸 수 있나(보유·유효기간 안·잔액 > 0, 아니면 `useBlockedReason` 문구 — 5회차 추가) |
 | `sendGift(req)` | `POST /customer/gifts` (+`Idempotency-Key`) | `{ recipientId, method: "purchase"\|"voucher", catalogKey?, voucherId?, message? }` (메시지 200자, 금액은 받지 않는다) | `{ gift: GiftView, checkout: CheckoutResponse\|null }`. 구매면 `gift.status = awaiting_payment` + `checkout`(기존 결제 응답 모양 + `giftId`, `orderName: "안심클린 금액권 선물"`) → 토스 결제창 → 기존 `POST /customer/payments/{checkout.id}/confirm` → 결제가 확정되면 서버가 선물을 보낸다(앱은 `GET /customer/payments/{id}` 또는 `GET /customer/gifts/{id}` 로 확인). 보유 금액권이면 바로 `sent`. 친구 아님 `INVALID_STATE` "친구에게만 선물할 수 있어요", 선물할 수 없는 금액권 `INVALID_STATE`(이유 문구), 나 자신·모르는 상품·방식 `VALIDATION`, 남의 금액권 `NOT_FOUND`, 결제 키 없음 `INVALID_STATE`, 고객당 시간 20회 `RATE_LIMITED` |
 | `getGifts(box)` | `GET /customer/gifts?box=sent\|received` | — | `{ box, gifts: GiftView[] }` 최근 100건 (받은 목록에는 결제 전·결제 실패 선물이 없다) |
 | `getGift(id)` | `GET /customer/gifts/{id}` | — | `{ gift, checkout }` — `checkout` 은 보낸 사람의 결제 대기 선물일 때만(결제창 다시 열기) |
@@ -51,6 +51,8 @@
 | (어드민) | `GET /admin/voucher-refunds?status=requested\|paid\|rejected` | — | `[{ id, voucherId, voucherLabel, ownerName, rate, baseAmount, amount, amountLabel, bankName, accountHolder, accountLast4, status, requestedAt }]` 계좌 환불만, 오래된 순 |
 | (어드민) | `GET /admin/voucher-refunds/{id}/account` | — | `{ bankName, accountHolder, accountNumber }` 송금 대기 요청만(활동 이력 `voucher_refund.account_view`) |
 | (어드민) | `POST /admin/voucher-refunds/{id}/pay` · `/reject` | `{ note }` 선택 | `{ id, status }` — 완료: 금액권 `refunded`, 계좌 원문 삭제, 고객 푸시 '환불이 완료됐어요' / 반려: 금액권 `held`, 고객 푸시. 처리된 요청 `INVALID_STATE`, 같은 결정은 같은 응답 |
+
+고객 설정 탭 `settings_groups` 의 '친구·선물' 그룹 행: `friends`(V072) · `gifts` '선물하기' · `giftBox` '선물함'(V073). 앱은 각각 `/friends` · `/gifts/new` · `/gifts` 로 잇는다.
 
 어드민 API 는 admin + MFA(aal2) — `AccessPolicy.VOUCHER_REFUND_MANAGE`. 푸시 data `type: voucher` + `refundId`. 금액권 목록(`GET /customer/vouchers`)의 `status` 에 `refund_requested` 가 더해졌다.
 
