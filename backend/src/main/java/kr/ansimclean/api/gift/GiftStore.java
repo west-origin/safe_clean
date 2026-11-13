@@ -167,19 +167,20 @@ public class GiftStore {
                 .param("o", owner).param("v", ts(validUntil)).param("r", ts(receivedAt), Types.TIMESTAMP).param("id", id).update();
     }
 
-    /** 내 금액권 (보유·선물 중), 최근 순 */
+    /** 내 금액권 (보유·선물 중·환불 접수), 최근 순. 모두 쓴(used)·환불 끝난 것은 빠진다 */
     public List<VoucherRow> vouchersOf(UUID owner) {
-        return jdbc.sql("select " + VOUCHER_COLS + " from vouchers where owner_id = :o and status in ('held', 'gifting') order by created_at desc")
+        return jdbc.sql("select " + VOUCHER_COLS + " from vouchers where owner_id = :o and status in ('held', 'gifting', 'refund_requested') order by created_at desc")
                 .param("o", owner).query(GiftStore::voucher).list();
     }
 
     // ── 탈퇴 ─────────────────────────────────────────────────────────
 
-    /** 처리 중인 선물(보낸·받은)이나 잔액 있는 금액권이 있나 (GiftDeletionGuard) */
+    /** 처리 중인 선물(보낸·받은)이나 쓸 수 있거나 환불받을 수 있는 금액권(만료 ∧ 5만 원 이하는 소멸이라 빼고), 환불 접수 중인 금액권이 있나 (GiftDeletionGuard) */
     public boolean hasOpenGiftOrBalance(UUID user) {
         return jdbc.sql("""
                 select exists(select 1 from gifts where (sender_id = :u or recipient_id = :u) and status in ('awaiting_payment', 'sent'))
-                    or exists(select 1 from vouchers where owner_id = :u and status in ('held', 'gifting') and balance > 0)
+                    or exists(select 1 from vouchers where owner_id = :u and (status = 'refund_requested'
+                        or (status in ('held', 'gifting') and balance > 0 and (valid_until is null or valid_until > now() or balance > 50000))))
                 """).param("u", user).query(Boolean.class).single();
     }
 

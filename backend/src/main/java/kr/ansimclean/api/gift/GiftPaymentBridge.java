@@ -18,13 +18,20 @@ import java.util.UUID;
 public class GiftPaymentBridge implements GiftPaymentHooks {
     private static final Logger log = LoggerFactory.getLogger(GiftPaymentBridge.class);
     private final GiftStore store;
+    private final VoucherStore vouchers;
     private final GiftLifecycle lifecycle;
     private final AppClock clock;
 
-    public GiftPaymentBridge(GiftStore store, GiftLifecycle lifecycle, AppClock clock) {
+    public GiftPaymentBridge(GiftStore store, VoucherStore vouchers, GiftLifecycle lifecycle, AppClock clock) {
         this.store = store;
+        this.vouchers = vouchers;
         this.lifecycle = lifecycle;
         this.clock = clock;
+    }
+
+    @Override
+    public long voucherCredit(UUID bookingId) {
+        return vouchers.creditFor(bookingId);
     }
 
     @Override
@@ -53,6 +60,9 @@ public class GiftPaymentBridge implements GiftPaymentHooks {
             }
             store.markPaidGifting(g.voucherId(), clock.now());
             lifecycle.send(g, clock.now());
+        } else if ("refunded".equals(paymentStatus)) {
+            // 구매 7일 안 카드 결제 취소가 PG 에서 확인됨 (금액권은 접수 때 이미 refunded)
+            vouchers.cardRefundDone(g.voucherId(), clock.now());
         } else if ("failed".equals(paymentStatus) && awaiting) {
             store.decide(giftId, "payment_failed", clock.now());
             store.setStatus(g.voucherId(), "void");

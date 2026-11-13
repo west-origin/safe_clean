@@ -52,6 +52,36 @@ public class CheckoutService {
         return giftResponse(p);
     }
 
+    static final String VOUCHER_CHANGED = "voucher_changed";
+
+    /**
+     * 금액권을 예약에 쓰거나 뺄 때(gift.VoucherService): 이 예약의 살아 있는 카드 결제 상태. 결제 대기 주문(승인 요청 전)이면 닫고 "none".
+     * 부르는 쪽이 예약 → 금액권을 먼저 잠근다(잠금 순서 예약 → 금액권 → 결제). 결제가 없으면 "none"
+     */
+    public String closePendingBookingPayment(UUID bookingId) {
+        Payment p = payments.findFirstByBookingIdAndProviderAndStatusNotOrderByCreatedAtDesc(bookingId, "toss", "failed").orElse(null);
+        if (p == null) return "none";
+        p = payments.lockById(p.getId()).orElseThrow();
+        if (p.abandon(VOUCHER_CHANGED, clock.now())) return "none";
+        return "failed".equals(p.getStatus()) ? "none" : p.getStatus();
+    }
+
+    /**
+     * 구매 7일 안 카드 결제 취소(금액권 환불, gift.VoucherService). 결제 확정된 선물 주문에 전액 환불 행을 만들고 작업을 아웃박스에 넣는다.
+     * PaymentWorkHandler 가 토스 취소를 부르고, 확인되면 GiftPaymentHooks.paymentChanged(…, "refunded"). 부르는 쪽이 선물 → 금액권을 먼저 잠근다.
+     * 확정된 결제가 없으면 false (환불할 수 없음)
+     */
+    public boolean requestGiftRefund(UUID giftId) {
+        Payment found = payments.findFirstByGiftIdOrderByCreatedAtDesc(giftId).orElse(null);
+        if (found == null) return false;
+        Payment p = payments.lockById(found.getId()).orElseThrow();
+        if (!"paid".equals(p.getStatus())) return false;
+        refunds.findByPaymentId(p.getId()).orElseGet(() -> refunds.save(PaymentRefund.pending(p, clock.now())));
+        p.defer(clock.now()); // 아웃박스가 실패해도 재조정이 5분 뒤 다시 집는다
+        outbox.publish(new PaymentWorkRequested(p.getId()));
+        return true;
+    }
+
     /** 이 선물의 가장 최근 결제 상태 (없으면 empty). 부르는 쪽(GiftService)이 선물을 먼저 잠근 뒤 읽는다 */
     @Transactional(readOnly = true)
     public java.util.Optional<String> giftPaymentStatus(UUID giftId) {
@@ -69,9 +99,16 @@ public class CheckoutService {
             profiles.holdLive(userId);
             Booking b = ownBooking(userId, bookingId);
             Payment p = payments.findFirstByBookingIdAndProviderAndStatusNotOrderByCreatedAtDesc(bookingId, "toss", "failed").orElse(null);
+            // 금액권을 쓰고 있으면 카드로 낼 금액은 그만큼 줄어든다 (3회차, 예약당 1장)
+            long due = b.getTotalAmount() - gifts.voucherCredit(bookingId);
+            if (p != null && "pending".equals(p.getStatus()) && p.getAmount() != due) {
+                p.abandon(VOUCHER_CHANGED, clock.now()); // 금액이 바뀐 옛 대기 주문 — 보통은 금액권을 쓸 때 이미 닫혀 있다
+                p = null;
+            }
             if (p == null || "failed".equals(p.getStatus())) {
                 if (b.getStatus() == BookingStatus.CANCELLED || b.getTotalAmount() <= 0) throw new ApiException(ErrorCode.INVALID_STATE, "이 예약은 결제할 수 없어요");
-                p = payments.save(Payment.pending(bookingId, null, "toss", b.getTotalAmount(), clock.now()));
+                if (due <= 0) throw new ApiException(ErrorCode.INVALID_STATE, "금액권으로 결제가 끝났어요");
+                p = payments.save(Payment.pending(bookingId, null, "toss", due, clock.now()));
             }
             return response(p, b);
         });

@@ -136,6 +136,17 @@ class PushHandlerTest {
         verify(push).send(eq(MANAGER), eq("선물이 돌아왔어요"), eq("받는 기간이 지나 금액권이 돌아왔어요"), any(), any());
     }
 
+    // 금액권 계좌 환불 완료·반려 → 요청한 고객 (거래성)
+    @Test
+    void 금액권_환불_결과는_요청한_고객에게() {
+        UUID refund = UUID.randomUUID();
+        doReturn(Map.of("push", false)).when(profiles).notifications(any(), any());
+        handler.handle("VoucherRefundDecided", json.writeValueAsString(new kr.ansimclean.api.common.events.VoucherRefundDecided(refund, CUSTOMER, "paid")));
+        verify(push).send(eq(CUSTOMER), eq("환불이 완료됐어요"), any(), eq(Map.of("type", "voucher", "refundId", refund.toString())), any());
+        handler.handle("VoucherRefundDecided", json.writeValueAsString(new kr.ansimclean.api.common.events.VoucherRefundDecided(refund, CUSTOMER, "rejected")));
+        verify(push).send(eq(CUSTOMER), eq("환불 요청이 반려됐어요"), any(), any(), any());
+    }
+
     // 매칭 실패 이벤트의 retryable(나중에 다시 찾을 수 있나)·changeable(일정을 바꿀 수 있나) 조합 네 가지와
     // 두 값이 없는(null) 예전 이벤트까지, 고객 푸시 본문이 각각 맞는 문구인지 본다.
     // body 는 테스트 안의 작은 함수(BiFunction = 인자 둘을 받아 값을 돌려주는 람다): 앞의 호출 기록을 지우고(clearInvocations)

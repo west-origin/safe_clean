@@ -23,7 +23,14 @@ PG 호출 성공 후 프로세스가 죽거나 아웃박스의 sent 기록이 �
 `payments` 한 행은 예약(`booking_id`) 또는 금액권 선물(`gift_id`) 중 정확히 하나의 결제다(`payments_one_target`). 선물 결제는 선물당 살아 있는 주문 하나(`payments_one_gift`).
 주문은 `GiftService` 가 선물·금액권과 같은 트랜잭션에서 `CheckoutService.prepareGift` 로 만들고, 승인·조회·웹훅·재조정·`PaymentWorkHandler` 는 예약 결제와 같은 길을 쓴다.
 잠금 순서는 선물 → 금액권 → 결제(`GiftPaymentHooks.lockForPayment`). PG 확정(`apply` → paid)과 선물 보내기(금액권 `gifting`, 선물 `sent`, 받는 사람 푸시)가 같은 트랜잭션에서 커밋된다. 실패 확정이면 선물 `payment_failed`·금액권 `void`.
-선물 결제의 환불(구매 7일 안 카드 취소)은 3회차. 그 전까지 승인 요청 뒤에는 선물 취소를 막아 '취소된 선물의 결제 확정' 이 생기지 않게 한다.
+승인 요청 뒤에는 선물 취소를 막아 '취소된 선물의 결제 확정' 이 생기지 않게 한다.
+
+## 금액권 사용·환불 (V071, 2026-11-13)
+
+- 예약 결제의 카드 금액 = 예약 금액 − 금액권 사용액(`GiftPaymentHooks.voucherCredit`). 금액권을 쓰거나 빼면 승인 요청 전의 대기 주문을 닫는다(`failed`, `failure_reason = voucher_changed`) — 토스는 서버 승인 없이 청구하지 않는다. 승인 요청 뒤에는 금액권을 바꿀 수 없다.
+- 금액권이 전부 덮은 예약은 `payments` 행 없이 `bookings.payment_status = paid`, 취소되면 금액권 복원(`VoucherRestorer`)과 함께 `refunded`.
+- 구매 7일 안 금액권 환불(구매자가 갖고 있고 아무도 받지 않음)은 `CheckoutService.requestGiftRefund` 가 기존 `payment_refunds` 행(전액)을 만들고 같은 `PaymentWorkHandler` 로 토스 취소를 부른다. 확인되면 `voucher_refunds` 카드 행 `done`.
+- 계좌 환불은 PG 를 거치지 않는다 — 운영자가 송금하고 어드민 API 로 완료 처리. 계좌번호 암호화 키 `REFUND_ACCOUNT_KEY`(base64 32바이트). 처리 중 요청이 있을 때 키를 바꾸면 그 계좌를 열 수 없다.
 
 ## API
 

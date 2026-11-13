@@ -27,6 +27,7 @@ class GiftPaymentBridgeTest {
     GiftStore store = mock(GiftStore.class);
     OutboxService outbox = mock(OutboxService.class);
     AppSettingsService settings = mock(AppSettingsService.class);
+    VoucherStore vouchers = mock(VoucherStore.class);
     GiftPaymentBridge bridge;
     final UUID sender = UUID.randomUUID();
     final UUID recipient = UUID.randomUUID();
@@ -35,7 +36,7 @@ class GiftPaymentBridgeTest {
     @BeforeEach
     void setUp() {
         when(settings.integer("gift_accept_days")).thenReturn(7);
-        bridge = new GiftPaymentBridge(store, new GiftLifecycle(store, outbox, settings), new AppClock(Clock.fixed(NOW, AppClock.ZONE)));
+        bridge = new GiftPaymentBridge(store, vouchers, new GiftLifecycle(store, outbox, settings), new AppClock(Clock.fixed(NOW, AppClock.ZONE)));
     }
 
     private GiftStore.GiftRow gift(String status) {
@@ -83,5 +84,15 @@ class GiftPaymentBridgeTest {
         bridge.paymentChanged(g.id(), "paid");
         verify(store, never()).markSent(any(), any(), any());
         verify(outbox, never()).publish(any());
+    }
+
+    @Test
+    void 예약_결제의_금액권_금액과_카드_환불_완료를_전한다() {
+        UUID booking = UUID.randomUUID();
+        when(vouchers.creditFor(booking)).thenReturn(30000L);
+        assertThat(bridge.voucherCredit(booking)).isEqualTo(30000L);
+        var g = gift("accepted");
+        bridge.paymentChanged(g.id(), "refunded");
+        verify(vouchers).cardRefundDone(voucher, NOW);
     }
 }

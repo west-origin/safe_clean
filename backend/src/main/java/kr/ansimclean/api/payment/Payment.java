@@ -107,6 +107,16 @@ public class Payment {
         providerTxId = key; status = "authorized"; updatedAt = now; nextCheckAt = now;
     }
 
+    /**
+     * 승인 요청이 없던 결제 대기 주문을 닫는다(금액권을 쓰거나 빼서 결제 금액이 바뀌었을 때). 다음 결제는 새 주문 —
+     * 토스는 서버 승인(confirm) 없이는 청구하지 않으므로 닫은 주문으로 돈이 나가지 않는다. 대기가 아니면 아무것도 안 한다
+     */
+    public boolean abandon(String reason, Instant now) {
+        if (!"pending".equals(status) || providerTxId != null) return false;
+        status = "failed"; failureReason = reason; updatedAt = now; nextCheckAt = null;
+        return true;
+    }
+
     public void defer(Instant now) { nextCheckAt = now.plusSeconds(300); }
     public boolean acceptWebhook(Instant now) {
         if (lastWebhookAt != null && lastWebhookAt.plusSeconds(30).isAfter(now)) return false;

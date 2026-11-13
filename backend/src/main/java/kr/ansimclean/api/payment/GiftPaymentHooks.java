@@ -20,4 +20,7 @@ public interface GiftPaymentHooks {
      * failed 면 선물 payment_failed·금액권 void. 그 밖의 상태는 무시해도 된다
      */
     void paymentChanged(UUID giftId, String paymentStatus);
+
+    /** 이 예약 결제에 쓰는 중인 금액권 금액(원, 없으면 0) — 카드 결제 금액 = 예약 금액 − 이 값 (3회차) */
+    long voucherCredit(UUID bookingId);
 }

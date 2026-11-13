@@ -39,6 +39,21 @@
 
 푸시 data `type: gift` + `giftId`: 받는 사람 '선물이 도착했어요', 보낸 사람 '선물을 받았어요' · '선물이 돌아왔어요'(거절·만료). 모두 거래성(토글 무관).
 
+## 금액권 사용·환불 (2026-11-13 — 규칙은 domain.md 금액권 사용·환불 규칙)
+
+| 앱 함수 | 메서드 · 경로 | 요청 | 응답 / 오류 |
+|---|---|---|---|
+| `getBookingVoucher(bookingId)` | `GET /customer/bookings/{id}/voucher` | — | `{ bookingId, voucherId\|null, label\|null, appliedAmount, appliedLabel, remainingDue, remainingLabel, coveredByVoucher }` — `remainingDue` = 카드로 낼 금액 |
+| `applyVoucher(bookingId, voucherId)` | `POST /customer/bookings/{id}/voucher` | `{ voucherId }` | 위와 같은 모양. 예약당 1장(다른 금액권이 쓰이는 중이면 `INVALID_STATE`, 같은 금액권이면 같은 결과). 카드 승인 요청 뒤·취소된 예약·쓸 수 없는 금액권(만료·선물 중·환불 접수·잔액 0) `INVALID_STATE`, 남의 예약·금액권 `NOT_FOUND`. 결제 대기 주문이 있으면 닫힌다 — 이후 `POST /customer/bookings/{id}/checkout` 의 `amount` 가 줄어든 금액. 다 덮으면 결제 준비가 `INVALID_STATE` "금액권으로 결제가 끝났어요" |
+| `removeVoucher(bookingId)` | `DELETE /customer/bookings/{id}/voucher` | — | 위와 같은 모양(쓰는 금액권 없음). 카드 승인 요청 뒤 `INVALID_STATE` |
+| `getVoucherRefund(voucherId)` | `GET /customer/vouchers/{id}/refund` | — | `{ eligible, method: "card"\|"bank"\|null, rate: 100\|95\|null, amount, amountLabel, reason, needsAccount, openStatus }` |
+| `requestVoucherRefund(voucherId, account)` | `POST /customer/vouchers/{id}/refund` (+`Idempotency-Key`) | `{ bankName, accountNumber, accountHolder }` (카드 환불이면 비워도 됨) | `{ refundId, method, status: "processing"\|"requested", rate, amount, amountLabel }`. 환불 불가 `INVALID_STATE`(이유), 계좌 형식 `VALIDATION`, 암호화 키 없음 `INVALID_STATE`. 계좌번호는 응답·로그에 나가지 않는다 |
+| (어드민) | `GET /admin/voucher-refunds?status=requested\|paid\|rejected` | — | `[{ id, voucherId, voucherLabel, ownerName, rate, baseAmount, amount, amountLabel, bankName, accountHolder, accountLast4, status, requestedAt }]` 계좌 환불만, 오래된 순 |
+| (어드민) | `GET /admin/voucher-refunds/{id}/account` | — | `{ bankName, accountHolder, accountNumber }` 송금 대기 요청만(활동 이력 `voucher_refund.account_view`) |
+| (어드민) | `POST /admin/voucher-refunds/{id}/pay` · `/reject` | `{ note }` 선택 | `{ id, status }` — 완료: 금액권 `refunded`, 계좌 원문 삭제, 고객 푸시 '환불이 완료됐어요' / 반려: 금액권 `held`, 고객 푸시. 처리된 요청 `INVALID_STATE`, 같은 결정은 같은 응답 |
+
+어드민 API 는 admin + MFA(aal2) — `AccessPolicy.VOUCHER_REFUND_MANAGE`. 푸시 data `type: voucher` + `refundId`. 금액권 목록(`GET /customer/vouchers`)의 `status` 에 `refund_requested` 가 더해졌다.
+
 ## 매니저 방문 취소 승인·재배정 (2026-11-13 — 규칙은 domain.md 같은 이름의 절. 아래 §5.3 `cancelJob` 설명보다 이 절이 우선한다)
 
 | 앱 함수 | 메서드 · 경로 | 요청 | 응답 / 오류 |

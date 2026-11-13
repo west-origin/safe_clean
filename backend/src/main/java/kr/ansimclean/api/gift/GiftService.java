@@ -107,6 +107,7 @@ public class GiftService {
     /** 보유 금액권을 선물할 수 없는 이유 (할 수 있으면 null). 문구는 코드에서 정함 */
     private String giftBlockReason(GiftStore.VoucherRow v, Instant now) {
         if ("gifting".equals(v.status())) return "선물을 보내고 받는 사람의 결정을 기다리고 있어요";
+        if ("refund_requested".equals(v.status())) return "환불을 접수한 금액권이에요";
         if (!"held".equals(v.status())) return "선물할 수 없는 금액권이에요";
         if (!v.transferable()) return "선물할 수 없는 금액권이에요";
         if (v.balance() != v.faceAmount()) return "사용한 금액권은 선물할 수 없어요";

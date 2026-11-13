@@ -152,4 +152,50 @@ class CheckoutServiceTest {
         service.apply(p.getId(), new TossPaymentGateway.Result("key", p.getId().toString(), "ABORTED", "KRW", 69000, 69000));
         verify(gifts).paymentChanged(giftId, "failed");
     }
+
+    // ── 금액권 사용 (3회차): 카드 결제 금액 = 예약 금액 − 금액권, 다 덮으면 카드 결제 없음, 결제 대기 주문은 닫는다 ──
+    @Test void card_amount_is_reduced_by_the_voucher_and_full_cover_needs_no_card() {
+        when(gifts.voucherCredit(booking.getId())).thenReturn(30000L);
+        when(payments.findFirstByBookingIdAndProviderAndStatusNotOrderByCreatedAtDesc(booking.getId(), "toss", "failed")).thenReturn(Optional.empty());
+        assertThat(service.prepare(user, booking.getId(), "k").amount()).isEqualTo(55000);
+
+        // 옛 금액의 대기 주문은 닫고 새 금액으로
+        var old = Payment.pending(booking.getId(), null, "toss", 85000, now);
+        when(payments.findFirstByBookingIdAndProviderAndStatusNotOrderByCreatedAtDesc(booking.getId(), "toss", "failed")).thenReturn(Optional.of(old));
+        assertThat(service.prepare(user, booking.getId(), "k2").amount()).isEqualTo(55000);
+        assertThat(old.getStatus()).isEqualTo("failed");
+
+        when(gifts.voucherCredit(booking.getId())).thenReturn(85000L);
+        when(payments.findFirstByBookingIdAndProviderAndStatusNotOrderByCreatedAtDesc(booking.getId(), "toss", "failed")).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.prepare(user, booking.getId(), "k3")).isInstanceOf(ApiException.class).hasMessageContaining("금액권으로 결제가 끝났어요");
+    }
+    @Test void closing_pending_order_only_before_approval() {
+        assertThat(service.closePendingBookingPayment(booking.getId())).isEqualTo("none"); // 결제 없음
+        var p = p();
+        when(payments.findFirstByBookingIdAndProviderAndStatusNotOrderByCreatedAtDesc(booking.getId(), "toss", "failed")).thenReturn(Optional.of(p));
+        assertThat(service.closePendingBookingPayment(booking.getId())).isEqualTo("none");
+        assertThat(p.getStatus()).isEqualTo("failed");
+        var q = Payment.pending(booking.getId(), null, "toss", 85000, now);
+        q.requestConfirmation("key", 85000, now);
+        when(payments.findFirstByBookingIdAndProviderAndStatusNotOrderByCreatedAtDesc(booking.getId(), "toss", "failed")).thenReturn(Optional.of(q));
+        when(payments.lockById(q.getId())).thenReturn(Optional.of(q));
+        assertThat(service.closePendingBookingPayment(booking.getId())).isEqualTo("authorized");
+        assertThat(q.getStatus()).isEqualTo("authorized");
+    }
+    @Test void gift_card_refund_creates_one_refund_and_queues_work() {
+        UUID giftId = UUID.randomUUID();
+        var p = giftPayment(giftId);
+        p.requestConfirmation("key", 69000, now);
+        p.apply(new TossPaymentGateway.Result("key", p.getId().toString(), "DONE", "KRW", 69000, 69000), now);
+        when(payments.findFirstByGiftIdOrderByCreatedAtDesc(giftId)).thenReturn(Optional.of(p));
+        when(refunds.findByPaymentId(p.getId())).thenReturn(Optional.empty());
+        when(refunds.save(any())).thenAnswer(i -> i.getArgument(0));
+        assertThat(service.requestGiftRefund(giftId)).isTrue();
+        verify(refunds, times(1)).save(any());
+        verify(outbox).publish(new PaymentWorkRequested(p.getId()));
+        UUID unpaid = UUID.randomUUID();
+        var q = giftPayment(unpaid);
+        when(payments.findFirstByGiftIdOrderByCreatedAtDesc(unpaid)).thenReturn(Optional.of(q));
+        assertThat(service.requestGiftRefund(unpaid)).isFalse();
+    }
 }

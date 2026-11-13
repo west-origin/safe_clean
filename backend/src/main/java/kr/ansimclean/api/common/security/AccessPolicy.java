@@ -26,6 +26,7 @@ public class AccessPolicy {
         BANNER_MANAGE,       // 고객 앱 홈 배너 목록·등록·수정·순서·삭제 (/admin/banners/**) — §15-22
         BOOKING_CANCEL_DECIDE, // 매니저 방문 취소 요청 목록·승인·거절 (/admin/cancel-requests/**) — docs/domain.md '매니저 방문 취소 승인·재배정'
         BOOKING_ASSIGN,      // 관리자 배정 대기 목록·배정할 매니저·직접 배정 (/admin/reassignments, /admin/bookings/{id}/assign…) — §6.3 재배정(어드민)
+        VOUCHER_REFUND_MANAGE, // 금액권 계좌 환불 목록·계좌 열람·완료·반려 (/admin/voucher-refunds/**) — docs/domain.md 금액권 사용·환불 규칙
     }
 
     /** 작업 대상. type = 대상 종류("booking"·"penalty" 등), id = 그 행 id(없으면 null). 권역 규칙(R5 이후)이 여기에 권역을 더한다 */
@@ -49,6 +50,7 @@ public class AccessPolicy {
             case NOTICE_MANAGE -> isAdminWithMfa(actor); // rbac.md §10
             case BANNER_MANAGE -> isAdminWithMfa(actor); // rbac.md §15-22
             case BOOKING_CANCEL_DECIDE, BOOKING_ASSIGN -> isAdminWithMfa(actor); // 2026-11-13 — 지역 매니저 권한(담당 권역)은 R10 에서
+            case VOUCHER_REFUND_MANAGE -> isAdminWithMfa(actor); // 2026-11-13 — 돈을 내보내는 일이라 어드민만
         };
     }
 

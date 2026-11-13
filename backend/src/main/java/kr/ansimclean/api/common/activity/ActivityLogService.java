@@ -29,6 +29,9 @@ public class ActivityLogService {
     public static final String CANCEL_REQUEST_APPROVE = "booking.cancel_request.approve"; // 매니저 방문 취소 요청 승인 (배정 풀림 → 재배정)
     public static final String CANCEL_REQUEST_REJECT = "booking.cancel_request.reject";   // 매니저 방문 취소 요청 거절
     public static final String BOOKING_ASSIGN = "booking.assign";                         // 어드민 직접 배정
+    public static final String VOUCHER_REFUND_ACCOUNT_VIEW = "voucher_refund.account_view"; // 금액권 계좌 환불의 계좌번호 열람
+    public static final String VOUCHER_REFUND_PAY = "voucher_refund.pay";                   // 송금 완료 처리
+    public static final String VOUCHER_REFUND_REJECT = "voucher_refund.reject";             // 반려
 
     private final ActivityLogRepository logs;
     private final AppClock clock;

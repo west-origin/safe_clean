@@ -20,7 +20,16 @@
   - 테스트: `GiftServiceTest` 10 · `GiftPaymentBridgeTest` 4 · `CheckoutServiceTest` 선물 결제 4 · `GiftControllerTest` 2 · `PushHandlerTest` 1 · `GiftIT` 7(구매→승인→확정과 보내기 같이→받기·소유자 이전·1년, 결제 실패, 친구 아님, 같은 금액권 동시 선물 5회, 받기·취소 경합 5회, 만료 반환, 탈퇴 가드) — **IT 미실행(Docker 없음)**. `scripts/verify-gifts-v070.mjs`(PGlite, 기존 예약 결제 유지·새 제약·서버 SQL·설정) 통과. 백엔드 806 테스트 통과(IT 제외), 앱 609 통과, 토큰·빌드 통과
   - 판단(코드에서 정함): 선물 목록 상품 이름(요금표 문구에서 만듦)·정기청소는 월 요금을 금액으로, 원룸 주 1회는 첫 달 할인(199,000) 아닌 정가 229,000, 결제창 이탈 1시간 뒤 정리, 보유 금액권 선물은 유효기간이 받는 기간(7일)보다 많이 남아야 함·30일 안이면 경고, 받은 금액권을 다시 선물해도 유효기간은 늘지 않음, 아무도 받지 않고 돌아온 금액권은 구매일 + 1년, 받기는 아직 친구일 때만, 선물 보내기 20회/시간, 잔액 있는 금액권·처리 중 선물이 있으면 탈퇴 막음, 푸시·오류 문구
   - 남은 것(3회차): 예약 결제에 금액권 차감·취소 시 복원, 환불(구매 7일 안 미사용 100% 카드 취소 / 만료 후 5만 원 초과 95% 계좌), 만료 처리
-- [ ] 3회차: 서버 금액권 사용·환불
+- [x] 3회차: 서버 금액권 사용·환불 (V071) — 결정(2026-11-13 질의응답): 계좌번호는 암호화 저장 후 송금하면 삭제, 예약당 금액권 1장
+  - V071: 금액권 상태 `used`·`refund_requested`·`refunded` 추가, `voucher_uses`(예약당 쓰는 중 1장 유니크, applied→restored), `voucher_refunds`(card|bank, 100|95%, 기준·환불 금액, 계좌 암호문·끝 4자리, 금액권당 진행 중 1건 유니크)
+  - 사용: `POST·DELETE·GET /customer/bookings/{id}/voucher` (`gift/VoucherService`) — 잠금 예약 → 금액권 → 결제. 카드 결제 금액 = 예약 금액 − 금액권(`CheckoutService.prepare` ← `GiftPaymentHooks.voucherCredit`), 대기 주문은 닫고 새 금액으로(`Payment.abandon`). 다 덮으면 카드 결제 없이 `paid`. 카드 승인 요청 뒤에는 쓰기·빼기 불가
+  - 복원: `VoucherRestorer`(1분)가 취소된 예약의 사용을 찾아 잔액 복원(다 덮은 예약은 `payment_status = refunded`). 카드로 낸 부분은 기존 결제 환불 그대로
+  - 환불: `GET·POST /customer/vouchers/{id}/refund` — 7일 안 미사용 100%(구매자가 갖고 아무도 안 받았으면 토스 카드 취소 = 기존 `payment_refunds`·`PaymentWorkHandler`, 받은 금액권은 계좌) / 만료 ∧ 잔액 5만 원 초과 95% 계좌 / 그 밖 불가. 계좌번호는 `RefundAccountCipher`(AES-256-GCM, `REFUND_ACCOUNT_KEY`) 암호문만 저장
+  - 어드민: `/admin/voucher-refunds`(목록·계좌 열람·완료·반려, `AccessPolicy.VOUCHER_REFUND_MANAGE`, 활동 이력 3종) — 완료·반려 때 계좌 원문 삭제, 고객 푸시 `VoucherRefundDecided`
+  - 탈퇴 가드: 쓸 수 있거나 환불받을 수 있는 금액권·환불 접수 중만 센다(만료 ∧ 5만 원 이하는 소멸). 5년 파기 때 남은 계좌 암호문·예금주 삭제
+  - 테스트: `VoucherServiceTest` 9 · `AdminVoucherRefundServiceTest` 4 · `CheckoutServiceTest` +3(카드 금액 감소·대기 주문 닫기·선물 카드 환불) · `GiftPaymentBridgeTest` +1 · `VoucherControllerTest` 3 · `PushHandlerTest` +1 · `VoucherIT` 6(선물 vs 예약 사용 동시 5회·사용→카드 금액 감소→취소→복원·전부 덮기·구매 7일 카드 환불·계좌 환불 + 어드민 완료·탈퇴 가드) — **IT 미실행(Docker 없음)**. `scripts/verify-voucher-uses-v071.mjs`(PGlite) 통과. 백엔드 828 테스트 통과(IT 제외), 앱 609, 토큰·빌드 통과
+  - 판단(코드에서 정함): 유효기간 만료는 상태값 없이 `valid_until` 로 판단, 95% 는 원 단위 내림, 7일 기준은 결제 확정 시각(`purchased_at`), 받은 사람은 구매 7일 안에만 100%, 일부 쓴 금액권은 만료 전 환불 불가, 환불이 끝난 금액권으로 예약 취소 금액이 돌아오면 그 금액이 새 잔액(held), 계좌번호는 숫자 6~20자리, 은행·예금주 20자, 토스 취소 사유 문구는 기존 '예약 취소' 그대로, 오류·푸시 문구
+  - **배포 전 할 일**: `REFUND_ACCOUNT_KEY`(openssl rand -base64 32)를 시크릿에 추가 — 없으면 계좌 환불 접수가 막힌다(카드 환불·사용은 동작)
 - [ ] 4회차: 고객 앱 친구 화면
 - [ ] 5회차: 고객 앱 선물 화면
 - [ ] 6회차: 요금 정책 전환 (사용자 요금표 2026-11-13 — 가정·원룸 정기 월 요금, 원룸 1회 69,000, 첫 1회 체험 50,000, 후드 130/150/200k(+옵션), 대리석 코팅 290/360/420k, 크랙 수리 140k + 추가)

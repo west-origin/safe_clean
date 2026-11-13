@@ -16,6 +16,7 @@ import kr.ansimclean.api.common.events.CameraOnline;
 import kr.ansimclean.api.common.events.FriendRequested;
 import kr.ansimclean.api.common.events.GiftReceived;
 import kr.ansimclean.api.common.events.GiftResolved;
+import kr.ansimclean.api.common.events.VoucherRefundDecided;
 import kr.ansimclean.api.common.events.InquiryAnswered;
 import kr.ansimclean.api.common.events.ManagerLate;
 import kr.ansimclean.api.common.events.MatchingFailed;
@@ -52,7 +53,7 @@ public class PushHandler implements OutboxHandler {
     // 아래 handle 의 case 와 같아야 한다 — 여기 없으면 '핸들러 없음' 으로 실패 처리되고, case 가 없으면 default 에서 던진다
     static final Set<String> TYPES = Set.of("BookingCancelled", "BookingRescheduled", "BookingUnassigned", "SeriesEnding", "ManagerPenalized", "ManagerReleased",
             "OffersDispatched", "BookingAssigned", "BookingCompleted", "CameraOnline", "CameraOffline", "RecordingReady", "RecordingFailed", "MatchingFailed", "InquiryAnswered",
-            "ManagerLate", "CancelRequested", "CancelRequestDecided", "AdminAssignNeeded", "AdminAssigned", "FriendRequested", "GiftReceived", "GiftResolved");
+            "ManagerLate", "CancelRequested", "CancelRequestDecided", "AdminAssignNeeded", "AdminAssigned", "FriendRequested", "GiftReceived", "GiftResolved", "VoucherRefundDecided");
 
     /** booking/StaleBookingCleaner.REASON_NOT_STARTED 와 같다 (push 는 booking 을 보지 않는다 — 문자열만 맞춘다) */
     static final String NOT_STARTED = "not_started";
@@ -110,6 +111,12 @@ public class PushHandler implements OutboxHandler {
                     default -> PushCopy.GIFT_EXPIRED;
                 };
                 toCustomerAlways(e.senderId(), text, Map.of("type", "gift", "giftId", e.giftId().toString()), collapse);
+            }
+            case "VoucherRefundDecided" -> {
+                // 금액권 계좌 환불 송금 완료·반려 → 요청한 고객 (거래성). 탭하면 고객 앱 금액권 목록
+                VoucherRefundDecided e = json.readValue(payloadJson, VoucherRefundDecided.class);
+                toCustomerAlways(e.ownerId(), "paid".equals(e.result()) ? PushCopy.VOUCHER_REFUND_PAID : PushCopy.VOUCHER_REFUND_REJECTED,
+                        Map.of("type", "voucher", "refundId", e.refundId().toString()), collapse);
             }
             case "BookingAssigned" -> {
                 // 매니저 배정 → 고객 (push 토글)

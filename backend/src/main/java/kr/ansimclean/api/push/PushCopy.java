@@ -23,6 +23,8 @@ final class PushCopy {
     static final Text GIFT_ACCEPTED = new Text("선물을 받았어요", "친구가 보낸 금액권 선물을 받았어요");
     static final Text GIFT_REJECTED = new Text("선물이 돌아왔어요", "친구가 선물을 받지 않아 금액권이 돌아왔어요");
     static final Text GIFT_EXPIRED = new Text("선물이 돌아왔어요", "받는 기간이 지나 금액권이 돌아왔어요");
+    static final Text VOUCHER_REFUND_PAID = new Text("환불이 완료됐어요", "금액권 환불 금액을 입력한 계좌로 보냈어요");
+    static final Text VOUCHER_REFUND_REJECTED = new Text("환불 요청이 반려됐어요", "금액권은 다시 쓸 수 있어요. 자세한 내용은 고객센터로 문의해주세요");
     static final Text NEW_CALL = new Text("새 콜이 도착했어요", "새로운 청소 요청을 확인해보세요");
     // ← OffersDispatched (preferred = 우선 오퍼 1명). 정기청소 다음 회차를 직전 매니저에게 먼저 줄 때(OfferService.dispatchPreferred)만 온다 —
     // 일정 변경으로 원래 매니저에게 가는 우선 오퍼는 이 이벤트를 적지 않고 아래 BOOKING_RESCHEDULED 가 안내한다 (문제 목록 15번)
