@@ -34,6 +34,7 @@ import { STATUS } from '../components/StatusBadge/status.js';
 import ChecklistItem from '../components/ChecklistItem/index.js';
 import CameraStatusItem from '../components/CameraStatusItem/index.js';
 import ListItem from '../components/ListItem/index.js';
+import PersonRow from '../components/PersonRow/index.js';
 import CallCard from '../components/CallCard/index.js';
 import JobCard from '../components/JobCard/index.js';
 import ScheduleCard from '../components/ScheduleCard/index.js';
@@ -352,6 +353,14 @@ function ManagerGallery() {
         <Row label="Label">
           <ListItem label="매니저 정보" onClick={() => {}} />
           <ListItem label="장비 관리" onClick={() => {}} />
+        </Row>
+      </Section>
+
+      <Section title="PersonRow" figma="Figma 없음 — 코드에서 정함 (고객 친구 화면)">
+        <Row label="버튼 없음 / primary+neutral / 진행 중(disabled)">
+          <PersonRow title="청소왕#0420" subtitle="김*수 · 11월 13일" /> {/* token-ok: 친구 코드 닉네임#태그 — 색이 아니다 */}
+          <PersonRow title="비이#0001" subtitle="이*희" actions={[{ label: '수락', tone: 'primary', onClick: () => {} }, { label: '거절', onClick: () => {} }]} /> {/* token-ok: 친구 코드 닉네임#태그 — 색이 아니다 */}
+          <PersonRow title="씨이#7777" subtitle="박*" actions={[{ label: '요청 중', disabled: true, onClick: () => {} }]} /> {/* token-ok: 친구 코드 닉네임#태그 — 색이 아니다 */}
         </Row>
       </Section>
 

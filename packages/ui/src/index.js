@@ -95,6 +95,7 @@ export { default as UnderlineTabs } from './components/UnderlineTabs/index.js';
 export { default as ReservationCard, RESERVATION_STATUS } from './components/ReservationCard/index.js';
 export { default as Toggle } from './components/Toggle/index.js';
 export { default as MenuRow } from './components/MenuRow/index.js';
+export { default as PersonRow } from './components/PersonRow/index.js';
 export { default as MenuGroup } from './components/MenuGroup/index.js';
 export { default as ProfileCard } from './components/ProfileCard/index.js';
 export { default as RepairCategoryList, REPAIR_CATEGORIES } from './components/RepairCategoryList/index.js';
