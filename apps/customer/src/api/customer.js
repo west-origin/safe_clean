@@ -7,6 +7,7 @@ import { startOfToday, toDateKey } from '@ansimclean/ui';
 import { deviceToken } from '../push/deviceToken.js';
 
 import { http, ApiError, newIdempotencyKey } from './http.js';
+import { draftPlan, homeTypeOf, visitsPerWeekOf } from './pricePlans.js';
 import { session } from './session.js';
 
 /** 가입까지 끝난 로그인 상태 (RequireAuth). 토큰만 있고 가입이 덜 끝났으면 false → signupStep() 으로 이어간다 */
@@ -326,19 +327,29 @@ export async function getSavedAddress() {
   }
 }
 
-/** 초안 → 서버 요청 본문 (견적·생성이 같은 필드를 보낸다) */
-const bookingBody = (category, draft) => ({
-  category,
-  frequency: draft.frequency ?? 'recurring',
-  date: draft.date,
-  time: draft.time,
-  freeOptions: draft.freeOptions ?? [],
-  paidOptions: draft.paidOptions ?? [],
-  // 가정/원룸 구분 (홈의 '가정'·'원룸' 버튼이 초안 homeService 에 남긴 값) — home 카테고리일 때만. 서버가 내 예약 카드 이름을 가정·원룸으로 나눈다 (2026-11-03)
-  ...(category === 'home' && draft.homeService ? { homeType: draft.homeService } : {}),
-  // 날짜/시간 화면에서 고른 청소 시간(시작~종료). 서버가 종료 시각(endTime)을 이 값으로 정한다 — 금액도 같은 시간 기준으로 서버에서 검증한다
-  ...(category !== 'repair' ? { durationHours: draft.durationHours ?? SCHEDULE_PRICE.standardHours } : {}),
-});
+/**
+ * 초안 → 서버 요청 본문 (견적·생성이 같은 필드를 보낸다).
+ * 요금표 전환(2026-11-13, api.md '요금표 전환'): 가정·원룸은 homeType(없으면 가정)이 꼭 가고, 정기면 visitsPerWeek(주 몇 회)·weekdays(0=월…6=일).
+ * 분해청소는 1회만 + hoodSize("600"|"900"|"1200"). 소요 시간은 요금제가 정한다(서버가 durationHours 를 무시) — 그래도 화면과 같은 값을 보낸다
+ */
+const bookingBody = (category, draft) => {
+  const plan = draftPlan(category, draft);
+  const frequency = category === 'appliance' ? 'oneTime' : (draft.frequency ?? 'recurring');
+  return {
+    category,
+    frequency,
+    date: draft.date,
+    time: draft.time,
+    freeOptions: draft.freeOptions ?? [],
+    paidOptions: draft.paidOptions ?? [],
+    // 가정/원룸 구분 (홈의 '가정'·'원룸' 버튼이 초안 homeService 에 남긴 값) — home 카테고리일 때만. 서버가 요금제와 내 예약 카드 이름을 가정·원룸으로 나눈다
+    ...(category === 'home' ? { homeType: homeTypeOf(draft) } : {}),
+    ...(plan?.weekly ? { visitsPerWeek: visitsPerWeekOf(draft), weekdays: draft.weekdays ?? [] } : {}),
+    ...(category === 'appliance' && draft.hoodSize ? { hoodSize: draft.hoodSize } : {}),
+    // 날짜/시간 화면에서 고른 청소 시간(시작~종료). 서버가 종료 시각(endTime)을 이 값으로 정한다 — 금액도 같은 시간 기준으로 서버에서 검증한다
+    ...(category !== 'repair' ? { durationHours: plan ? plan.hours : (draft.durationHours ?? SCHEDULE_PRICE.standardHours) } : {}),
+  };
+};
 
 /**
  * Booking/Confirm 진입 시 견적 — { perVisit: { base, options, total, label }, visits: [{ date, label }], visitsPlanned, totalAmount, totalLabel, paymentNote }.

@@ -204,7 +204,8 @@ export const BOOKING_OPTIONS = {
   },
   appliance: {
     free: [{ key: 'filter', label: '필터 세척', icon: 0 }, { key: 'polish', label: '외관 광택', icon: 1 }, { key: 'drain', label: '배수구 청소', icon: 2 }],
-    paid: [{ key: 'ac', label: '에어컨\n분해 청소', price: '+40,000원', icon: 3 }, { key: 'washer', label: '세탁조\n살균', price: '+25,000원', icon: 4 }],
+    // 요금표 전환(V074): 에어컨·세탁조는 새 예약에서 빠지고 후드 추가 요금 2개 (서버와 같다)
+    paid: [{ key: 'panel', label: '콘센트 가림판넬\n분리', price: '+20,000원', icon: 3 }, { key: 'noExtinguisher', label: '자동 소화장치\n없는 경우', price: '+20,000원', icon: 4 }],
   },
   'move-in': {
     free: [{ key: 'sill', label: '창틀 청소', icon: 0 }, { key: 'veranda', label: '베란다', icon: 1 }, { key: 'closet', label: '붙박이장', icon: 2 }],
@@ -376,6 +377,37 @@ export const SCHEDULE_COPY = {
 export const OPTIONS_COPY = { title: '옵션을\n선택해 주세요.', free: '무료 선택', paid: '유료 추가' };
 
 export const SCHEDULE_PRICE = { standardHours: 2, maxHours: 8, hourly: 20800, recurringDiscount: 2000 };
+
+/**
+ * 요금표 (사용자 요금표 2026-11-13 — 서버 V074 app_settings.price_plans 와 같은 숫자, 6-b). 예약 화면 하단의 표시용 금액에만 쓴다.
+ * 실제 금액은 확인 화면의 서버 견적(POST /customer/bookings/quote)과 예약 생성이 정한다. 서버 요금표를 바꾸면 여기도 같이 바꾼다.
+ * hood.hours = 분해청소 소요 시간(서버 duration_hours.appliance — 요금표에는 없다). weekly 키 = 주 몇 회, firstMonth = 원룸 주 1회 첫 달
+ */
+export const PRICE_PLANS = {
+  house: { hours: 3, trial: 50000, weekly: { 1: 329000, 2: 599000, 3: 889000 } },
+  studio: { hours: 2, once: 69000, weekly: { 1: 229000, 2: 399000, 3: 599000 }, firstMonth: { 1: 199000 } },
+  hood: { hours: 2, sizes: { 600: 130000, 900: 150000, 1200: 200000 } },
+  weeks: 4,
+};
+
+/** 요금제 고르기 문구 (코드에서 정함 — 요금표 전환 6-b, PROGRESS.md 판단 항목). 주 N회·요일·후드 크기 */
+export const PLAN_COPY = {
+  visitsTitle: '주 몇 회 방문할까요?',
+  visitsLabel: (n) => `주 ${n}회`,
+  visitsLine: (n, weeks, amount) => `한 달 ${n * weeks}회 방문 · ${amount}`,
+  firstMonth: (amount) => `첫 달 ${amount}`,
+  consult: '주 4회 이상은 상담으로 안내해 드려요',
+  hoodTitle: '후드 크기',
+  weekdaysTitle: (n) => `방문 요일 (주 ${n}회)`,
+  weekdaysHint: (n) => `매주 방문할 요일을 ${n}개 선택해 주세요.`,
+  weekdaysFirst: '방문 요일을 먼저 선택해 주세요.',
+  weekdays: ['월', '화', '수', '목', '금', '토', '일'], // 서버 weekdays 순서 0=월 … 6=일
+  repeat: (days, weeks) => `매주 ${days} · ${weeks}주`,
+  monthLabel: (n, weeks) => `주 ${n}회 · ${weeks}주 ${n * weeks}회`,
+  hoodLabel: (size) => `후드 ${size}mm`,
+  monthPayment: (visits) => `한 달 ${visits}회를 한 번에 결제해요`,
+  perVisits: (label, visits) => `${label} × ${visits}회`,
+};
 
 /** Booking/Frequency 문구 — 2026-10-31 사용자 첨부 시안 그대로 (Figma 에 없음).
  *  description 은 카테고리별(지금은 시안에 있는 home 만), labels 는 FREQUENCY_OPTIONS 의 표시 이름을 이 화면에서만 바꾼다(확인 화면 등은 그대로),
@@ -763,6 +795,8 @@ export const PAYMENT_COPY = {
   title: '결제', amount: '이번 방문 결제 금액', refund: '환불 금액', pay: '결제하기',
   checking: '결제 결과를 확인하고 있어요.', refresh: '결제 결과 다시 확인', retry: '다시 결제하기',
   reservations: '내 예약 보기', perVisit: '정기청소도 방문 회차별로 결제해요. 자동결제는 등록되지 않아요.',
+  // 요금표 전환 6-b (코드에서 정함): 주 N회 요금제 회차의 결제는 시리즈 한 달치
+  series: '정기 요금제는 한 달치를 한 번에 결제해요. 회차를 취소하면 그 회차 금액만 환불돼요. 자동결제는 등록되지 않아요.', seriesAmount: '한 달 결제 금액',
   invalid: '결제 정보를 확인할 수 없어요. 내 예약에서 다시 열어주세요.',
   cancelled: '결제가 완료되지 않았어요. 다시 결제할 수 있어요.', failed: '결제창을 열지 못했어요. 다시 시도해주세요.',
   status: { pending: '결제를 진행해주세요.', authorized: '결제 결과를 확인하고 있어요. 창을 닫아도 서버에서 확인을 계속해요.', paid: '결제가 완료되었어요.', failed: '결제가 실패하거나 만료되었어요.', partially_refunded: '결제 금액의 일부가 환불되었어요.', refunded: '결제 금액이 환불되었어요.' },

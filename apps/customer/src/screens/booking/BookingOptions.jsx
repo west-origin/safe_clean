@@ -13,7 +13,7 @@ import { getBookingOptions, saveBookingStep } from '../../api/customer.js';
 import { OPTIONS_COPY as COPY, SCHEDULE_PRICE } from '../../api/mock.js';
 import BookingPriceFooter from './BookingPriceFooter.jsx';
 import { useBookingDraft } from './bookingDraft.js';
-import { schedulePrice, optionPrice } from './bookingPrice.js';
+import { displayPrice, optionPrice } from './bookingPrice.js';
 import common from './booking.module.css';
 import { useReturnTo } from './useReturnTo.js';
 import styles from './BookingOptions.module.css';
@@ -52,11 +52,10 @@ export default function BookingOptions() {
   if (error) return <ScreenError error={error} onRetry={reload} navBar={navBar} />;
   if (!options) return <ScreenLoading navBar={navBar} />;
 
-  // 하단 금액(표시용): 날짜/시간 화면의 서비스 시간 금액 + 고른 유료 옵션
+  // 하단 금액(표시용): 날짜/시간 화면의 서비스 시간 금액(요금표 카테고리면 요금제 금액) + 고른 유료 옵션(요금제면 회차 수만큼)
   const hours = draft.durationHours ?? SCHEDULE_PRICE.standardHours;
-  const basePrice = schedulePrice(hours, draft.frequency ?? 'recurring');
   const paidChosen = options.paid.filter((o) => paid.includes(o.key));
-  const total = basePrice + paidChosen.reduce((sum, o) => sum + optionPrice(o.price), 0);
+  const total = displayPrice(category, draft, hours, paidChosen.reduce((sum, o) => sum + optionPrice(o.price), 0));
 
   // key 를 field('freeOptions' | 'paidOptions') 목록에 넣거나 뺀다. 함수형 update 라 빠르게 연달아 눌러도 직전 값에서 계산한다
   const toggle = (key, field) =>

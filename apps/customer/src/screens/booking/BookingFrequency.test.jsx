@@ -55,7 +55,8 @@ describe('Booking/Frequency', () => {
     );
     expect(await screen.findByRole('heading', { name: '기본 청소' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /정기/ })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: /10%할인/ })).toBeInTheDocument();
+    // 요금표 전환(2026-11-13): '10%할인' 은 요금표와 맞지 않아 가정·원룸에서 뺐다 (매장 등은 그대로 — 아래 테스트)
+    expect(screen.queryByRole('radio', { name: /10%할인/ })).toBeNull();
     expect(screen.queryByText(/청연 VIP 라운지/)).toBeNull(); // 2026-11-03: '10%할인' 만 남김
     expect(screen.queryByRole('heading', { name: '정기 서비스는?' })).toBeNull();
     expect(screen.queryByRole('heading', { name: '날짜/시간 선택' })).toBeNull(); // hidden 안이라 접근성 트리에서 빠진다
@@ -87,6 +88,65 @@ describe('Booking/Frequency', () => {
     at('/booking/store/frequency');
     await screen.findByRole('heading', { name: '서비스 주기' });
     expect(screen.queryByText(/요금 안내|견적 안내/)).toBeNull();
+  });
+});
+
+describe('요금표 요금제 고르기 (2026-11-13)', () => {
+  beforeEach(() => sessionStorage.clear());
+  const at = (category) => render(
+    <MemoryRouter initialEntries={[`/booking/${category}/frequency`]}><Routes>
+      <Route path="/booking/:category/frequency" element={<BookingFrequency />} />
+      <Route path="/booking/:category/address" element={<p>주소 화면</p>} />
+    </Routes></MemoryRouter>,
+  );
+  const draftOf = (category) => JSON.parse(sessionStorage.getItem(`ansimclean.booking.${category}`));
+
+  it('가정 정기는 주 1·2·3회와 한 달 금액을 고르고, 4회 이상은 상담 안내', async () => {
+    at('home');
+    expect(await screen.findByRole('radio', { name: /주 1회.*329,000원/ })).toHaveAttribute('aria-checked', 'true'); // 기본 주 1회
+    expect(screen.getByText('주 4회 이상은 상담으로 안내해 드려요')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: /주 3회.*한 달 12회 방문 · 889,000원/ }));
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
+    expect(await screen.findByText('주소 화면')).toBeInTheDocument();
+    expect(draftOf('home')).toMatchObject({ frequency: 'recurring', visitsPerWeek: 3 });
+  });
+
+  it('원룸 주 1회는 첫 달 금액을 함께 보이고, 1회를 고르면 주 N회 칸이 사라진다', async () => {
+    sessionStorage.setItem('ansimclean.booking.home', JSON.stringify({ homeService: 'studio' }));
+    at('home');
+    expect(await screen.findByRole('radio', { name: /주 1회.*229,000원 · 첫 달 199,000원/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: '1회' }));
+    expect(screen.queryByRole('radio', { name: /주 1회/ })).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull(); // 원룸 1회는 체험이 아니다 — 휴대폰 인증 안내 없음
+  });
+
+  it('원룸 1회는 체험 이력·인증과 상관없이 늘 고를 수 있다', async () => {
+    const api = await import('../../api/customer.js');
+    const spy = vi.spyOn(api, 'getFirstCleaningEligibility').mockResolvedValue({ verified: false, eligible: false, reason: 'already_used', completedOneTime: true });
+    sessionStorage.setItem('ansimclean.booking.home', JSON.stringify({ homeService: 'studio', frequency: 'oneTime' }));
+    at('home');
+    expect(await screen.findByRole('radio', { name: '1회' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
+    expect(await screen.findByText('주소 화면')).toBeInTheDocument();
+    spy.mockRestore();
+  });
+
+  it('분해청소는 주기 대신 후드 크기를 고르고, 고르기 전에는 다음이 잠긴다', async () => {
+    sessionStorage.setItem('ansimclean.booking.appliance', JSON.stringify({ frequency: 'recurring' }));
+    at('appliance');
+    expect(await screen.findByRole('radiogroup', { name: '후드 크기' })).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: '서비스 주기' })).toBeNull();
+    expect(screen.getByRole('button', { name: '다음' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('radio', { name: /900mm.*150,000원/ }));
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
+    expect(await screen.findByText('주소 화면')).toBeInTheDocument();
+    expect(draftOf('appliance')).toMatchObject({ frequency: 'oneTime', hoodSize: '900' });
+  });
+
+  it('매장 정기는 예전처럼 10%할인 문구', async () => {
+    at('store');
+    expect(await screen.findByRole('radio', { name: /10%할인/ })).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: '주 몇 회 방문할까요?' })).toBeNull();
   });
 });
 

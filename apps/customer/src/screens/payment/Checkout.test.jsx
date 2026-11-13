@@ -50,7 +50,33 @@ it('서버 금액으로 결제 버튼을 실행한다', async () => {
   mount();
   expect(await screen.findByText('85,000원')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '결제하기' }));
-  expect(payments.openPayment).toHaveBeenCalledWith(checkout);
+  expect(payments.openPayment).toHaveBeenCalledWith(checkout, 'booking'); // 결제를 연 회차 — 시리즈 결제면 돌아올 곳
+});
+// 요금표 전환(2026-11-13): 주 N회 요금제 회차면 서버가 시리즈 한 달치 주문을 준다 (bookingId: null, seriesId)
+const series = { ...checkout, bookingId: null, seriesId: 'series-1', amount: 329000 };
+it('정기 요금제 회차는 한 달 결제 금액과 안내를 보이고, 금액권 칸은 그리지 않는다', async () => {
+  payments.prepareCheckout.mockResolvedValue(series);
+  payments.getPayment.mockResolvedValue(series);
+  gifts.getVouchers.mockResolvedValue({ vouchers: [usable] });
+  mount();
+  expect(await screen.findByText('329,000원')).toBeInTheDocument();
+  expect(screen.getByText('한 달 결제 금액')).toBeInTheDocument();
+  expect(screen.getByText(/한 달치를 한 번에 결제해요/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '금액권 쓰기' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '결제하기' }));
+  expect(payments.openPayment).toHaveBeenCalledWith(series, 'booking');
+});
+it('시리즈 결제창에서 돌아오면 ?series= 로 주문을 확인하고 승인한다', async () => {
+  payments.getPayment.mockResolvedValue({ ...series, status: 'paid' });
+  mount('/payments/checkout?booking=booking&series=series-1&orderId=order&paymentKey=key&amount=329000');
+  expect(await screen.findByText('결제가 완료되었어요.')).toBeInTheDocument();
+  expect(payments.confirmPayment).toHaveBeenCalledWith('order', 'key', 329000);
+});
+it('다른 시리즈의 주문이면 승인하지 않는다', async () => {
+  payments.getPayment.mockResolvedValue(series);
+  mount('/payments/checkout?booking=booking&series=other&orderId=order&paymentKey=key&amount=329000');
+  expect(await screen.findByText('결제 정보를 확인할 수 없어요. 내 예약에서 다시 열어주세요.')).toBeInTheDocument();
+  expect(payments.confirmPayment).not.toHaveBeenCalled();
 });
 it('성공 리다이렉트만으로 완료를 표시하지 않고 서버 상태를 읽는다', async () => {
   payments.getPayment.mockResolvedValue({ ...checkout, status: 'authorized' });

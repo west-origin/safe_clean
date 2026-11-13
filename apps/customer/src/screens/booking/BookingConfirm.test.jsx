@@ -57,13 +57,19 @@ describe('Booking/Confirm 검증', () => {
   // 정기청소 + 유료 옵션(pet)이 든 초안 → 요금·회차 날짜를 확인하고 "완료" 를 누른다.
   // 그 뒤 완료 화면으로 갔는지, 초안이 지워졌는지, 가짜 서버가 받은 요청(__fake.calls)의 키·본문을 본다.
   // 청소 예약은 수리 종류(repairType)를 보내지 않는다 — 수리는 따로 수리 예약 플로우(/repair/booking)가 만든다
-  it('정기청소면 요금 행에 1회 금액·회차 날짜·총액이 보이고, 완료는 서버에 초안과 멱등 키를 보내 완료 화면으로 간다', async () => {
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ frequency: 'recurring', date: '2026-11-02', time: '10:00', reuseAddress: 'no', roadAddress: '서울 강남구 테헤란로 1', detailAddress: '3층', paidOptions: ['pet'] }));
+  // 요금표 전환(2026-11-13): 가정 주 1회(월) = 4주 4회 329,000원 + 반려동물 배변 청소 3,000원 × 4회
+  it('가정 정기면 주 N회·요일·회차 날짜와 한 달 결제 금액이 보이고, 완료는 서버에 초안과 멱등 키를 보내 완료 화면으로 간다', async () => {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ frequency: 'recurring', visitsPerWeek: 1, weekdays: [0], date: '2026-11-02', time: '10:00', reuseAddress: 'no', roadAddress: '서울 강남구 테헤란로 1', detailAddress: '3층', paidOptions: ['pet'] }));
     renderConfirm();
-    expect(await screen.findByText('42,600원')).toBeInTheDocument();
-    expect(screen.getByText('총 결제금액')).toBeInTheDocument(); // 80,000 + 반려동물 배변 청소 3,000
+    expect(await screen.findByText('341,000원')).toBeInTheDocument();
+    expect(screen.getByText('총 결제금액')).toBeInTheDocument();
+    expect(screen.getByText('주 1회 · 4주 4회')).toBeInTheDocument();
+    expect(screen.getByText('↻ 매주 월 · 4주')).toBeInTheDocument();
+    expect(screen.getByText('한 달 4회를 한 번에 결제해요')).toBeInTheDocument();
+    expect(screen.getByText('+3,000원 × 4회')).toBeInTheDocument(); // 유료 옵션은 회차마다
     expect(screen.queryByText('수리 종류')).toBeNull();
-    expect(screen.getByText('2027년 1월 2일 (토)')).toBeInTheDocument(); // 주말도 선택일 유지
+    expect(screen.getByText('2026년 11월 23일 (월)')).toBeInTheDocument(); // 4회차
+    expect(screen.queryByText('2026년 11월 30일 (월)')).toBeNull();
     expect(screen.queryByText('결제는 청소 완료 후 진행돼요')).toBeNull();
     const done = screen.getByRole('button', { name: '예약 확정하기' });
     expect(done).toBeEnabled();
@@ -73,7 +79,7 @@ describe('Booking/Confirm 검증', () => {
     const { __fake } = await import('../../api/http.js');
     const create = __fake.calls.find((c) => c.method === 'POST' && c.path === '/customer/bookings');
     expect(create.idempotencyKey).toBe('key-1');
-    expect(create.body).toMatchObject({ category: 'home', frequency: 'recurring', roadAddress: '서울 강남구 테헤란로 1', paidOptions: ['pet'], saveAddress: true });
+    expect(create.body).toMatchObject({ category: 'home', frequency: 'recurring', homeType: 'house', visitsPerWeek: 1, weekdays: [0], roadAddress: '서울 강남구 테헤란로 1', paidOptions: ['pet'], saveAddress: true });
     expect(create.body).not.toHaveProperty('repairType');
   });
 
@@ -85,14 +91,14 @@ describe('Booking/Confirm 검증', () => {
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ frequency: 'oneTime', date: '2026-11-02', time: '10:00', reuseAddress: 'yes' }));
     renderConfirm();
     expect(await screen.findByText('주소를 입력해주세요')).toBeInTheDocument();
-    expect(await screen.findByText('41,600원')).toBeInTheDocument();
+    expect(await screen.findByText('50,000원')).toBeInTheDocument(); // 가정 첫 1회 체험
     expect(screen.queryByText(/회 총/)).toBeNull();
     expect(screen.getByRole('button', { name: '예약 확정하기' })).toBeDisabled();
   });
 
   // 선택 옵션 "수정하기" → 옵션 화면(?returnTo=확인 화면) → "다음" 을 누르면 요청사항 화면이 아니라 확인 화면으로 오는지 본다
   it('"수정하기" 로 한 단계만 고치면 뒤 단계를 지나지 않고 확인 화면으로 돌아온다', async () => {
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ frequency: 'recurring', date: '2026-11-02', time: '10:00', reuseAddress: 'yes' }));
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ frequency: 'recurring', weekdays: [0], date: '2026-11-02', time: '10:00', reuseAddress: 'yes' }));
     renderConfirm();
     fireEvent.click(await screen.findByRole('button', { name: '선택 옵션 수정하기' }));
     fireEvent.click(await screen.findByRole('button', { name: '다음' })); // 옵션 화면의 "다음"

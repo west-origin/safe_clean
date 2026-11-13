@@ -8,11 +8,16 @@ import CustomerPhoneProof from './CustomerPhoneProof.jsx';
 // 2026-10-31 사용자 첨부 시안으로 바꿨다: 단계 점 대신 뒤로가기만('청소 범위' 버튼은 사용자 요청으로 뺐다), '기본 청소' 제목·설명, 카드형 라디오(브랜드 색),
 //   하단 고정 '다음'. ('정기 서비스는?' 질문 카드는 2026-11-03 사용자 요청으로 뺐다.)
 //   시안에 없는 회차 안내(InfoNote)·날짜/시간 선택 섹션·프로모션 배너는 다른 화면에서 쓸 예정이라 지우지 않고 hidden 으로 숨겼다.
+// 요금표 전환(2026-11-13, 6-b — 코드에서 정함, PROGRESS.md 판단 항목):
+//   가정·원룸 정기는 아래에 '주 몇 회' 카드(주 1·2·3회 + 한 달 금액, 4회 이상은 상담 안내)를 더 고른다. '10%할인' 은 요금표와 맞지 않아 가정·원룸에서 뺐다.
+//   1회는 가정이면 첫 1회 체험(휴대폰 인증 규칙 그대로), 원룸이면 원룸 1회 청소(늘 고를 수 있다 — 체험 이력·인증과 무관).
+//   분해청소는 1회만이라 주기 대신 '후드 크기' 카드(600·900·1200mm)를 고른다. 크기를 고르기 전에는 '다음' 이 잠긴다.
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { ScreenLayout, NavBar, RadioOption, SelectField, InfoNote, Button, SectionDivider, PriceGuide, cx, useAsync, ScreenError, ScreenLoading } from '@ansimclean/ui';
 import { getBookingCategory, getFirstCleaningEligibility, getFrequencyOptions, getConfirmCopy, saveBookingStep } from '../../api/customer.js';
-import { RECURRING_TERM_NOTE, SERIES_TERM_MONTHS, FREQUENCY_SCREEN_COPY as COPY, PRICE_GUIDES } from '../../api/mock.js';
+import { RECURRING_TERM_NOTE, SERIES_TERM_MONTHS, FREQUENCY_SCREEN_COPY as COPY, PRICE_GUIDES, PRICE_PLANS, PLAN_COPY } from '../../api/mock.js';
 import { useBookingDraft, formatDateTime } from './bookingDraft.js';
+import { homeTypeOf, visitsPerWeekOf, won } from './bookingPrice.js';
 import common from './booking.module.css';
 import { useReturnTo } from './useReturnTo.js';
 import styles from './BookingFrequency.module.css';
@@ -49,18 +54,27 @@ export default function BookingFrequency() {
   if (info === null) return <Navigate to="/home" replace />; // 없는 카테고리(서버 404) — 스켈레톤이 영원히 남지 않게
   if (!info || optionsQ.loading || eligibilityQ.loading) return <ScreenLoading navBar={navBar} />;
 
-  const guide = PRICE_GUIDES[category === 'home' ? (draft.homeService ?? 'house') : category];
-  const trialCategory = category === 'home' || category === 'store';
+  const homeType = category === 'home' ? homeTypeOf(draft) : null; // 가정 house · 원룸 studio (홈에서 고른 값, 없으면 가정)
+  const guide = PRICE_GUIDES[homeType ?? category];
+  // 첫 1회 체험: 가정 청소·매장 청소의 1회. 원룸 1회는 체험이 아니라 늘 고를 수 있다 (요금표 전환)
+  const trialCategory = homeType === 'house' || category === 'store';
   const hideOneTime = trialCategory && eligibilityQ.data?.completedOneTime;
-  const trialBlocked = category === 'home' && !eligibilityQ.data?.eligible;
-  const frequency = hideOneTime && draft.frequency === 'oneTime' ? 'recurring' : (draft.frequency ?? 'recurring'); // Figma 기본 선택: 정기청소
+  const trialBlocked = homeType === 'house' && !eligibilityQ.data?.eligible;
+  const appliance = category === 'appliance'; // 분해청소: 1회만 + 후드 크기
+  const frequency = appliance ? 'oneTime' : hideOneTime && draft.frequency === 'oneTime' ? 'recurring' : (draft.frequency ?? 'recurring'); // Figma 기본 선택: 정기청소
+  const weekly = Boolean(homeType) && frequency === 'recurring'; // 가정·원룸 정기 = 주 N회 요금제
+  const visitsPerWeek = visitsPerWeekOf(draft);
+  const hoodSize = draft.hoodSize ?? null;
 
   // "다음": 라디오를 한 번도 누르지 않았어도 지금 보이는 주기(기본값 포함)를 초안에 적고 주소 선택으로 (returnTo 가 있으면 그리로).
   // 주소 선택 화면은 저장한 주소가 없으면 바로 주소 검색으로 넘긴다 (2026-10-31 사용자 요청)
   const next = async () => {
-    if (category === 'home' && frequency === 'oneTime' && trialBlocked) { setProofOpen(true); return; }
-    await saveBookingStep(category, 'frequency', { frequency });
-    update({ frequency });
+    if (homeType === 'house' && frequency === 'oneTime' && trialBlocked) { setProofOpen(true); return; }
+    if (appliance && !hoodSize) return; // 버튼이 잠겨 있다 (후드 크기를 먼저)
+    const plan = weekly ? { visitsPerWeek } : {};
+    await saveBookingStep(category, 'frequency', { frequency, ...plan });
+    // 주 N회를 바꾸면 전에 고른 요일 중 앞의 N개만 남긴다 — 날짜/시간 화면이 모자란 요일을 다시 고르게 한다
+    update({ frequency, ...plan, ...(weekly && draft.weekdays ? { weekdays: draft.weekdays.slice(0, visitsPerWeek) } : {}) });
     navigate(back.next(`/booking/${category}/address`));
   };
 
@@ -70,7 +84,7 @@ export default function BookingFrequency() {
       gap="none"
       navBar={navBar}
       stickyCta={
-        <Button variant="primary" chevron={false} className={common.ctaRounded} onClick={next}>
+        <Button variant="primary" chevron={false} className={common.ctaRounded} disabled={appliance && !hoodSize} onClick={next}>
           다음
         </Button>
       }
@@ -81,7 +95,21 @@ export default function BookingFrequency() {
           {COPY.description[category] && <p className={cx('text-body-default', styles.description)}>{COPY.description[category]}</p>}
         </header>
 
-        <section className={cx(styles.section, guide && styles.sectionBeforeGuide)}>
+        {appliance ? (
+          <section className={cx(styles.section, guide && styles.sectionBeforeGuide)}>
+            <h2 className={cx('text-heading-s', common.sectionTitle)}>{PLAN_COPY.hoodTitle}</h2>
+            <div className={styles.options} role="radiogroup" aria-label={PLAN_COPY.hoodTitle}>
+              {guide.sizes.map((s) => {
+                const key = String(parseInt(s.title, 10)); // '600mm' → '600' (서버 hoodSize)
+                return (
+                  <RadioOption key={key} variant="card" label={s.title} description={`${s.sub} · ${won(PRICE_PLANS.hood.sizes[key])}`}
+                    selected={hoodSize === key} onSelect={() => update({ hoodSize: key, frequency: 'oneTime' })} />
+                );
+              })}
+            </div>
+          </section>
+        ) : (
+        <section className={cx(styles.section, guide && !weekly && styles.sectionBeforeGuide)}>
           <h2 className={cx('text-heading-s', common.sectionTitle)}>서비스 주기</h2>
           <div className={styles.options} role="radiogroup" aria-label="서비스 주기">
             {options.filter(o => o.key !== 'oneTime' || !hideOneTime).map((o) => (
@@ -89,11 +117,11 @@ export default function BookingFrequency() {
                 key={o.key}
                 variant="card"
                 label={COPY.labels[o.key] ?? o.label}
-                description={o.key === 'recurring' ? COPY.recurringBenefit : undefined}
+                description={o.key === 'recurring' && !homeType ? COPY.recurringBenefit : undefined}
                 selected={frequency === o.key}
                 onSelect={() => {
                   update({ frequency: o.key });
-                  if (category === 'home' && o.key === 'oneTime') setProofOpen(true);
+                  if (homeType === 'house' && o.key === 'oneTime') setProofOpen(true);
                 }}
               />
             ))}
@@ -105,6 +133,26 @@ export default function BookingFrequency() {
             {options.map((o) => descriptions[o.key] && <p key={o.key}>{descriptions[o.key]}</p>)}
           </div>
         </section>
+        )}
+
+        {/* 가정·원룸 정기: 주 몇 회 (요금표 전환 6-b) */}
+        {weekly && (
+          <section className={cx(styles.section, guide && styles.sectionBeforeGuide)}>
+            <h2 className={cx('text-heading-s', common.sectionTitle)}>{PLAN_COPY.visitsTitle}</h2>
+            <div className={styles.options} role="radiogroup" aria-label={PLAN_COPY.visitsTitle}>
+              {[1, 2, 3].map((n) => {
+                const prices = PRICE_PLANS[homeType];
+                const first = prices.firstMonth?.[n];
+                const line = PLAN_COPY.visitsLine(n, PRICE_PLANS.weeks, won(prices.weekly[n]));
+                return (
+                  <RadioOption key={n} variant="card" label={PLAN_COPY.visitsLabel(n)} description={first ? `${line} · ${PLAN_COPY.firstMonth(won(first))}` : line}
+                    selected={visitsPerWeek === n} onSelect={() => update({ visitsPerWeek: n })} />
+                );
+              })}
+            </div>
+            <InfoNote glyph="ⓘ" layout="inline">{PLAN_COPY.consult}</InfoNote>
+          </section>
+        )}
 
         <CustomerPhoneProof open={proofOpen} onClose={() => setProofOpen(false)} onVerify={() => navigate(`/booking/${category}/phone-verify`)} />
         {/* 요금·견적 안내 (2026-11-08 사용자 첨부 시안): 서비스 주기 아래, 띠 다음. 문항 섹션(common.page + .question)과 같은 틀.

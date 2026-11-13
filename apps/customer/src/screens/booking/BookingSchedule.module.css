@@ -29,3 +29,16 @@
   margin: 0;
   color: var(--color-text-secondary);
 }
+
+/* 주 N회 요금제의 방문 요일 (요금표 전환 6-b, 코드에서 정함): 제목·안내 ↔ 요일 칩 12, 칩 사이 8 */
+.weekdays {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.weekdayChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}

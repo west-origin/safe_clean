@@ -2,6 +2,8 @@
 // 결제 성공 URL은 인증 결과일 뿐이다. 서버에서 승인한 결과를 조회해 표시한다.
 // 금액권(2026-11-13 친구·선물 5회차): 카드 승인 요청 전에 금액권을 쓰거나 뺄 수 있다(CheckoutVoucher). 바꾸면 서버가 결제 대기 주문을 닫으므로
 // 새 멱등 키로 결제를 다시 준비한다(줄어든 금액). 금액권이 전부 덮으면 결제 준비를 부르지 않고 '금액권으로 결제가 끝났어요'.
+// 요금표 전환(2026-11-13, 6-b): 주 N회 요금제 회차면 서버가 그 시리즈의 한 달치 주문을 준다(bookingId: null, seriesId). 어느 회차에서 열어도 같은 주문이다.
+//   결제창에서 돌아올 때 ?series= 로 시리즈를 확인한다. 정기 요금제에는 금액권을 아직 쓸 수 없어(서버 규칙) 금액권 칸을 그리지 않는다.
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import {
@@ -23,11 +25,14 @@ import { newIdempotencyKey } from '../../api/http.js';
 import { PAYMENT_COPY, GIFTS_COPY } from '../../api/mock.js';
 import CheckoutVoucher from './CheckoutVoucher.jsx';
 
-/** 일회/정기 모두 방문 회차 한 건의 결제. 자동결제·카드 저장은 하지 않는다. */
+/** 방문 회차 한 건의 결제(주 N회 요금제면 그 시리즈 한 달치). 자동결제·카드 저장은 하지 않는다. */
 export default function Checkout() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const bookingId = params.get('booking');
+  const seriesId = params.get('series'); // 시리즈 결제창에서 돌아왔을 때만 (openPayment 가 붙인다)
+  // 돌아온 주문이 이 예약(또는 이 예약의 시리즈) 것인지 — 서버도 소유자를 검사하지만, 다른 예약 화면에 다른 주문이 보이지 않게
+  const ours = (p) => (p.seriesId ? Boolean(seriesId) && p.seriesId === seriesId : p.bookingId === bookingId);
   const [key, setKey] = useState(newIdempotencyKey); // 금액권을 바꾸면 새 키 → 새 금액으로 다시 준비
   // 쓸 수 있는 내 금액권 (못 받아도 결제는 된다 — 금액권 칸만 안 보인다)
   const mine = useAsync(() => getVouchers().then((r) => r.vouchers.filter((v) => v.usable)).catch(() => []), []);
@@ -44,15 +49,15 @@ export default function Checkout() {
         const amount = Number(callback.amount);
         if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error(PAYMENT_COPY.invalid);
         const existing = await getPayment(callback.id);
-        if (existing.bookingId !== bookingId) throw new Error(PAYMENT_COPY.invalid);
+        if (!ours(existing)) throw new Error(PAYMENT_COPY.invalid);
         await confirmPayment(callback.id, callback.key, amount);
         // idempotency 캐시의 '승인 중' 응답 대신 최신 DB 상태를 읽는다.
         const result = await getPayment(callback.id);
-        if (result.bookingId !== bookingId) throw new Error(PAYMENT_COPY.invalid);
+        if (!ours(result)) throw new Error(PAYMENT_COPY.invalid);
         window.history.replaceState(
           window.history.state,
           '',
-          `/payments/checkout?booking=${encodeURIComponent(bookingId)}`
+          `/payments/checkout?booking=${encodeURIComponent(bookingId)}${seriesId ? `&series=${encodeURIComponent(seriesId)}` : ''}`
         );
         return { payment: result, voucher: await getBookingVoucher(bookingId).catch(() => null) };
       }
@@ -66,13 +71,14 @@ export default function Checkout() {
     { interval: 3000 }
   );
   const pay = useAction(async () => {
-    await openPayment(data.payment);
+    await openPayment(data.payment, bookingId);
   });
   const navBar = <NavBar title={PAYMENT_COPY.title} onBack={() => navigate('/reservations')} />;
   if (error) return <ScreenError error={error} onRetry={reload} navBar={navBar} />;
   if (!data) return <ScreenLoading navBar={navBar} />;
   const { payment, voucher } = data;
-  const voucherSection = (editable) => (
+  const series = Boolean(payment?.seriesId); // 주 N회 요금제 한 달치 결제
+  const voucherSection = (editable) => series ? null : (
     <CheckoutVoucher
       bookingId={bookingId}
       voucher={voucher}
@@ -102,7 +108,7 @@ export default function Checkout() {
       {voucherSection(pending)}
       <Card>
         <SummaryRow
-          label={PAYMENT_COPY.amount}
+          label={series ? PAYMENT_COPY.seriesAmount : PAYMENT_COPY.amount}
           value={`${payment.amount.toLocaleString('ko-KR')}원`}
         />
         <p className="text-body-default" role="status">
@@ -112,7 +118,7 @@ export default function Checkout() {
               ? PAYMENT_COPY.notPayable
               : (PAYMENT_COPY.status[payment.status] ?? PAYMENT_COPY.checking)}
         </p>
-        <p className="text-body-s">{PAYMENT_COPY.perVisit}</p>
+        <p className="text-body-s">{series ? PAYMENT_COPY.series : PAYMENT_COPY.perVisit}</p>
         {payment.refundedAmount > 0 && (
           <SummaryRow
             label={PAYMENT_COPY.refund}

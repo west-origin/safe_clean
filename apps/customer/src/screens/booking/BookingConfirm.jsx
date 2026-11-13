@@ -1,9 +1,12 @@
 // 예약 확인: 서비스 정보·방문 장소와 일정·옵션·주의사항·요금, 하단 예약 확정 버튼.
+// 요금표 전환(2026-11-13, 6-b): 가정·원룸 정기는 '서비스 주기' 에 주 N회·4주, 일정 아래 '매주 월·수 · 4주', 요금은 한 달 결제 금액(서버 totalLabel).
+//   분해청소는 '서비스 주기' 에 후드 크기. 요금 숫자는 모두 서버 견적이다.
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ScreenLayout, NavBar, Sheet, Chip, Button, fromDateKey, cx, useAsync, useAction, ScreenError, ScreenLoading, ActionError } from '@ansimclean/ui';
 import { getBookingCategory, getFrequencyOptions, getBookingOptions, getNoticeChips, getConfirmCopy, getSavedAddress, getBookingQuote, createBooking, newSubmitKey } from '../../api/customer.js';
-import { QUOTE_COPY, CONFIRM_EMPTY_COPY, CONFIRM_COPY } from '../../api/mock.js';
+import { QUOTE_COPY, CONFIRM_EMPTY_COPY, CONFIRM_COPY, PLAN_COPY, PRICE_PLANS } from '../../api/mock.js';
+import { draftPlan, visitsPerWeekOf } from './bookingPrice.js';
 import { useBookingDraft } from './bookingDraft.js';
 import common from './booking.module.css';
 import { useReturnTo } from './useReturnTo.js';
@@ -37,7 +40,8 @@ export default function BookingConfirm() {
   // 요금은 일정·옵션·주기가 정해진 뒤 서버 견적으로. 초안이 바뀌면 다시 받는다
   // (다시 받는 조건은 아래 deps 의 카테고리·주기·날짜·시간·옵션뿐이다. 옵션 배열은 문자열 하나로 합쳐 비교한다)
   const optionKeys = [...(draft.freeOptions ?? []), ...(draft.paidOptions ?? [])].join(',');
-  const quoteQ = useAsync(() => getBookingQuote(category, draft), [category, draft.frequency, draft.date, draft.time, optionKeys]);
+  const planKey = [draft.homeService, draft.visitsPerWeek, (draft.weekdays ?? []).join('.'), draft.hoodSize].join('|'); // 요금제 칸이 바뀌어도 다시 받는다
+  const quoteQ = useAsync(() => getBookingQuote(category, draft), [category, draft.frequency, draft.date, draft.time, optionKeys, planKey]);
   // 주소: "아니요" 면 새 주소만, "네" 면 기존 주소만. 둘 다 없으면 null → 완료 불가 (info 가 오기 전에는 null)
   const address = useNewAddress ? (draft.roadAddress ? { roadAddress: draft.roadAddress, detailAddress: draft.detailAddress } : null) : (info?.savedAddress ?? null);
   const hasSchedule = Boolean(draft.date && draft.time);
@@ -59,7 +63,12 @@ export default function BookingConfirm() {
   if (error) return <ScreenError error={error} onRetry={reload} navBar={<NavBar onBack={() => navigate(-1)} />} />;
   if (!info) return <ScreenLoading navBar={<NavBar onBack={() => navigate(-1)} />} />;
 
-  const frequency = draft.frequency ?? 'recurring'; // 주기가 없으면 정기청소 (customer.js bookingBody 도 같은 기본값)
+  const frequency = category === 'appliance' ? 'oneTime' : (draft.frequency ?? 'recurring'); // 주기가 없으면 정기청소, 분해청소는 1회만 (customer.js bookingBody 도 같은 값)
+  const plan = draftPlan(category, draft); // 요금표 요금제 (가정·원룸·분해청소) — 아니면 null
+  const weekdayNames = (draft.weekdays ?? []).slice().sort((a, b) => a - b).map((d) => PLAN_COPY.weekdays[d]).join('·');
+  const cycleLabel = plan?.weekly ? PLAN_COPY.monthLabel(visitsPerWeekOf(draft), PRICE_PLANS.weeks)
+    : category === 'appliance' && draft.hoodSize ? PLAN_COPY.hoodLabel(draft.hoodSize)
+    : null; // null 이면 서버 주기 설명 문구
   // 초안에는 key 만 있으므로, 서버 목록에서 고른 key 의 항목(라벨)을 찾아 칩으로 그린다
   const chosenOptions = [...info.options.free.filter((o) => (draft.freeOptions ?? []).includes(o.key)), ...info.options.paid.filter((o) => (draft.paidOptions ?? []).includes(o.key))];
   const chosenNotices = info.chips.filter((c) => (draft.notices ?? []).includes(c.key));
@@ -93,7 +102,7 @@ export default function BookingConfirm() {
           <dl className={styles.rows}>
             <ConfirmRow label="서비스 종류"><span className={styles.badge}>{serviceLabel}</span></ConfirmRow>
             <ConfirmRow label="청소 유형">{frequencyLabel}</ConfirmRow>
-            <ConfirmRow label="서비스 주기">{info.frequencyDescriptions[frequency] ?? frequencyLabel}</ConfirmRow>
+            <ConfirmRow label="서비스 주기">{cycleLabel ?? info.frequencyDescriptions[frequency] ?? frequencyLabel}</ConfirmRow>
           </dl>
         </ConfirmSection>
         <ConfirmSection title="방문 장소 및 일정" onEdit={() => setEditVisitOpen(true)}>
@@ -106,7 +115,7 @@ export default function BookingConfirm() {
             <ConfirmRow label={frequency === 'recurring' ? '첫 방문' : '방문 날짜'}>{visitDate}</ConfirmRow>
             <ConfirmRow label="방문 시간">{visitTime}</ConfirmRow>
           </dl>
-          {frequency === 'recurring' && <p className={cx('text-body-bold', styles.repeat)}>↻ {info.frequencyDescriptions[frequency] ?? frequencyLabel}</p>}
+          {frequency === 'recurring' && <p className={cx('text-body-bold', styles.repeat)}>↻ {plan?.weekly ? PLAN_COPY.repeat(weekdayNames, PRICE_PLANS.weeks) : (info.frequencyDescriptions[frequency] ?? frequencyLabel)}</p>}
         </ConfirmSection>
         <ConfirmSection title="선택 옵션" onEdit={() => go('options')}>
           {chosenOptions.length ? <div className={styles.chips}>{chosenOptions.map((o) => <Chip key={o.key}>{oneLine(o.label)}</Chip>)}</div> : <p className="text-body-default">{CONFIRM_EMPTY_COPY.options}</p>}
@@ -121,10 +130,13 @@ export default function BookingConfirm() {
           <ActionError error={quoteQ.error} fallback={QUOTE_COPY.failed} />
           {quote && <>
             <dl className={styles.priceRows}>
-              <div className={styles.priceRow}><dt>총 결제금액</dt><dd>{quote.perVisit.label}</dd></div>
-              {quote.perVisit.optionsLabel && <div className={styles.priceRow}><dt>{QUOTE_COPY.optionsLabel}</dt><dd>{quote.perVisit.optionsLabel}</dd></div>}
+              {/* 요금제는 결제 금액 전체(정기면 한 달치), 예전 계산은 회차 금액 */}
+              <div className={styles.priceRow}><dt>총 결제금액</dt><dd>{plan ? quote.totalLabel : quote.perVisit.label}</dd></div>
+              {/* 유료 옵션은 회차마다 더한다 — 정기 요금제면 '× 8회' 를 붙여 한 달 금액과 헷갈리지 않게 */}
+              {quote.perVisit.optionsLabel && <div className={styles.priceRow}><dt>{QUOTE_COPY.optionsLabel}</dt><dd>{plan?.weekly ? PLAN_COPY.perVisits(quote.perVisit.optionsLabel, quote.visitsPlanned) : quote.perVisit.optionsLabel}</dd></div>}
               {quote.savingNote && <div className={styles.priceRow}><dt>{QUOTE_COPY.savingLabel}</dt><dd className={styles.saving}>{quote.savingNote}</dd></div>}
             </dl>
+            {plan?.weekly && <p className={cx('text-body-s', styles.description)}>{PLAN_COPY.monthPayment(quote.visitsPlanned)}</p>}
             {frequency === 'recurring' && <div className={styles.chips}>{quote.visits.map((v) => <Chip key={v.date}>{v.label}</Chip>)}</div>}
           </>}
         </ConfirmSection>}

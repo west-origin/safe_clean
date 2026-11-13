@@ -14,7 +14,7 @@ import {
   TERMS, TERM_BODIES, HOME_SLIDES, REPAIR_HERO, RESERVATIONS, RESERVATIONS_HEADER, RESERVATION_TABS, SETTINGS_HEADER, PROFILE, SETTINGS_GROUPS,
   NOTIFICATION_SETTINGS, BOOKING_CATEGORIES, TIME_SLOTS, BOOKABLE_DAYS, CHANGE_DEADLINE_HOURS, SERIES_TERM_MONTHS, BOOKING_OPTIONS, FREE_OPTION_LIMIT, NOTICE_CHIPS, NOTES_COPY, FREQUENCY_DESCRIPTIONS,
   CONFIRM_COPY, SAVED_ADDRESS, CLEANER_PENDING, ADDRESS_RESULTS, PROFILE_FORM, ADDRESSES, LIVE_SESSION, LIVE_CHECKLIST, CLEANING_PHOTOS,
-  FAQ, NOTICES, SCHEDULE_PRICE,
+  FAQ, NOTICES, SCHEDULE_PRICE, PRICE_PLANS,
 } from '../api/mock.js';
 // 홈 혜택 배너 (GET /customer/banners) — 서버로 옮기기 전 앱에 있던 3장을 가짜 서버가 준다 (scripts/seed-home-banners.py 와 같은 문구)
 import couponBanner from '@ansimclean/ui/assets/home-banner-coupon.png';
@@ -96,7 +96,67 @@ const visitDates = (first) => {
 // 예약 금액 계산 (POST /customer/bookings/quote 응답, 예약 생성도 같은 값을 쓴다).
 // 회당 금액 = PRICES 기본가 + 고른 유료 옵션 가격, 총액 = 회당 금액 × 회차 수 (정기청소면 visitDates 개수, 1회면 1).
 // 모르는 카테고리는 home 가격, frequency 가 없으면 정기청소로 계산한다. 옵션 가격은 mock 문구('+3,000원')에서 숫자만 뽑는다.
+// 요금표 전환(2026-11-13, 서버 PricingService.plan · BookingService.planQuote 와 같은 규칙): 가정·원룸·분해청소는 요금제.
+// 요금제 하나 → { key, amount, weekly, visitsPerWeek, regular }. 요금표를 쓰지 않는 카테고리면 null. 입력이 틀리면 서버와 같은 VALIDATION 문구
+const bad = (message) => new ApiError(400, 'VALIDATION', message);
+const planOf = (b) => {
+  const recurring = (b.frequency ?? 'recurring') === 'recurring';
+  if (b.category === 'appliance') {
+    if (recurring) throw bad('분해청소는 1회만 예약할 수 있어요');
+    const amount = PRICE_PLANS.hood.sizes[b.hoodSize];
+    if (!amount) throw bad('후드 크기를 골라주세요');
+    return { key: `hood_${b.hoodSize}`, amount, weekly: false, regular: amount };
+  }
+  if (b.category !== 'home') return null;
+  if (!['house', 'studio'].includes(b.homeType)) throw bad('가정 청소와 원룸 청소 중 골라주세요');
+  const type = PRICE_PLANS[b.homeType];
+  if (!recurring) {
+    const amount = b.homeType === 'house' ? type.trial : type.once;
+    return { key: b.homeType === 'house' ? 'house_trial' : 'studio_once', amount, weekly: false, regular: amount };
+  }
+  const n = b.visitsPerWeek;
+  if (!type.weekly[n]) throw bad('주 1회·2회·3회 중에서 골라주세요. 주 4회 이상은 상담으로 안내해 드려요');
+  // 원룸 첫 달: 견적은 받을 수 있다고 보고, 생성 때 이미 원룸 정기를 만든 고객이면 정가 (state.studioPlanUsed — fakeHttpModule 안)
+  const first = b.__studioPlanUsed ? null : type.firstMonth?.[n];
+  return { key: `${b.homeType}_weekly_${n}`, amount: first ?? type.weekly[n], weekly: true, visitsPerWeek: n, regular: type.weekly[n] };
+};
+// 주 N회: 요일 N개(서로 다름, 0=월…6=일)이고 첫 방문일 요일이 들어 있어야 한다. 첫 방문일부터 4주 동안 고른 요일마다
+const weeklyDates = (first, weekdays, n) => {
+  const days = weekdays ?? [];
+  if (days.length !== n || new Set(days).size !== n || days.some((d) => !(d >= 0 && d <= 6))) throw bad(`방문 요일을 주 ${n}회에 맞게 ${n}개 골라주세요`);
+  const start = fromDateKey(first);
+  if (!days.includes((start.getDay() + 6) % 7)) throw bad('첫 방문일은 고른 요일 중 하나여야 해요');
+  const out = [];
+  for (let i = 0; i < 7 * PRICE_PLANS.weeks; i += 1) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    if (days.includes((d.getDay() + 6) % 7)) out.push(toKey(d));
+  }
+  return out;
+};
+// 요금제 견적: 한 달 금액을 회차 수로 나눠 원 단위 내림, 나머지는 첫 회차. 유료 옵션은 회차마다 더한다 (서버 planVisits)
+const planQuote = (b, plan, options) => {
+  const dates = plan.weekly ? weeklyDates(b.date, b.weekdays, plan.visitsPerWeek) : [b.date];
+  const share = Math.floor(plan.amount / dates.length);
+  const base = share + (plan.amount - share * dates.length); // 첫 회차
+  const total = base + options;
+  const sum = plan.amount + options * dates.length;
+  return {
+    perVisit: { base, options, total, label: won(total), baseLabel: won(base), optionsLabel: options ? `+${won(options)}` : null },
+    savingNote: plan.regular > plan.amount ? `첫 달 ${won(plan.regular - plan.amount)} 할인` : null,
+    visits: dates.map((date) => ({ date, label: dateLongWeekday(date) })),
+    visitsPlanned: dates.length,
+    totalAmount: sum,
+    totalLabel: won(sum),
+    paymentNote: '결제는 청소 완료 후 진행돼요',
+    __plan: plan, // 생성이 pricePlan 을 적는다 (응답에는 나가지 않는다 — 아래 quote 경로가 지운다)
+  };
+};
 const quoteOf = (b) => {
+  const planned = planOf(b);
+  if (planned) {
+    const paid = (BOOKING_OPTIONS[b.category]?.paid ?? []).filter((o) => (b.paidOptions ?? []).includes(o.key));
+    return planQuote(b, planned, paid.reduce((sum, o) => sum + Number(o.price.replace(/[^\d]/g, '')), 0));
+  }
   const category = BOOKING_CATEGORIES[b.category] ? b.category : 'home';
   const frequency = b.frequency ?? 'recurring';
   const paid = (BOOKING_OPTIONS[category]?.paid ?? []).filter((o) => (b.paidOptions ?? []).includes(o.key));
@@ -274,7 +334,10 @@ export function fakeHttpModule() {
       if (!state.hasDefaultAddress) throw notFound('default address');
       return SAVED_ADDRESS;
     },
-    'POST /customer/bookings/quote': (b) => quoteOf(b),
+    'POST /customer/bookings/quote': (b) => {
+      const { __plan, ...quote } = quoteOf(b);
+      return quote;
+    },
     // 예약 생성: 멱등 검사 → 무료 옵션 개수·카테고리 검사 → 금액 계산 → 예약 저장 → 회차마다 '내 예약' 카드 추가
     'POST /customer/bookings': (b, { idempotencyKey }) => {
       const saved = idempotencyKey && state.bookings[idempotencyKey];
@@ -288,16 +351,18 @@ export function fakeHttpModule() {
       // 서버 RepairPhotoService.attach: 붙이려는 사진이 정리로 이미 지워졌으면 예약을 만들지 않는다
       if (repair && (b.repair?.photos ?? []).some((p) => state.expiredPhotos.has(p))) throw new ApiError(400, 'VALIDATION', '첨부한 사진이 만료됐어요. 사진을 다시 올려주세요');
       if (!repair && !BOOKING_CATEGORIES[b.category]) throw notFound(b.category);
-      const q = repair ? { visits: [{ date: b.date, label: dateLongWeekday(b.date) }], perVisit: { label: '0원' }, totalAmount: 0, totalLabel: '0원' } : quoteOf(b);
+      // 원룸 첫 달 할인은 그 고객의 첫 원룸 정기 한 번만 (서버 BookingService — 생성 때 다시 판정)
+      const q = repair ? { visits: [{ date: b.date, label: dateLongWeekday(b.date) }], perVisit: { label: '0원' }, totalAmount: 0, totalLabel: '0원' } : quoteOf({ ...b, __studioPlanUsed: state.studioPlanUsed });
+      if (q.__plan?.weekly && b.homeType === 'studio') state.studioPlanUsed = true;
       // 예약 id 는 bookings 키 개수로 매긴다. 멱등 키가 있으면 한 예약이 키를 두 개 차지해 번호가 건너뛸 수 있다
       const id = `booking-${Object.keys(state.bookings).length + 1}`;
-      const seriesId = b.frequency === 'recurring' ? `${id}-series` : null; // 정기청소 회차들을 묶는 id — 전체 취소(wholeSeries)가 이것으로 찾는다
+      const seriesId = b.frequency === 'recurring' && b.category !== 'appliance' ? `${id}-series` : null; // 정기청소 회차들을 묶는 id — 전체 취소(wholeSeries)가 이것으로 찾는다
       const booking = {
         id, category: b.category, frequency: b.frequency, date: b.date, time: b.time, roadAddress: b.roadAddress, detailAddress: b.detailAddress,
         homeType: b.category === 'home' ? b.homeType ?? null : null,
         serviceLabel: repair ? '수리 서비스' : BOOKING_CATEGORIES[b.category].label, cleaner: CLEANER_PENDING, managerAssigned: false, matchingFailed: false, cancelled: false, seriesId, repair: b.repair ?? null, repairType: b.repairType ?? null,
         visits: q.visits.map((v, i) => ({ id: i === 0 ? id : `${id}-${i}`, ...v })),
-        perVisitLabel: q.perVisit.label, totalAmount: q.totalAmount, totalLabel: q.totalLabel,
+        perVisitLabel: q.perVisit.label, totalAmount: q.totalAmount, totalLabel: q.totalLabel, pricePlan: q.__plan?.key ?? null,
         // 테스트가 들여다보는 원본 요청
         __request: b,
       };
@@ -308,7 +373,8 @@ export function fakeHttpModule() {
       const homeType = b.category === 'home' ? b.homeType ?? null : null;
       const title = homeType ? `${homeType === 'house' ? '가정' : '원룸'} 청소` : booking.serviceLabel;
       const [h, m] = b.time.split(':').map(Number);
-      const endTime = `${String(h + (b.durationHours ?? 2)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      const hours = q.__plan ? (b.category === 'appliance' ? PRICE_PLANS.hood.hours : PRICE_PLANS[b.homeType].hours) : (b.durationHours ?? 2); // 요금제면 요금제 시간
+      const endTime = `${String(h + hours).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
       const cards = booking.visits.map((v) => ({
         id: v.id, tab: 'upcoming', category: b.category, homeType, title, status: 'assigning', date: v.date, time: b.time, endTime, series: Boolean(seriesId), seriesId, recordingReady: false, changeable: true,
         rows: [{ label: '일정', value: `${dateLongWeekday(v.date)} ${timeKo(b.time)}` }, { label: '주소', value: b.roadAddress }, { label: '매니저', value: CLEANER_PENDING }],

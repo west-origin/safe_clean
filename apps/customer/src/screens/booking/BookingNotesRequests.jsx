@@ -18,7 +18,7 @@ import { getNoticeChips, saveBookingStep } from '../../api/customer.js';
 import { INPUT_LIMITS, NOTES_SCREEN_COPY as COPY, SCHEDULE_PRICE } from '../../api/mock.js';
 import BookingPriceFooter from './BookingPriceFooter.jsx';
 import { useBookingDraft } from './bookingDraft.js';
-import { schedulePrice } from './bookingPrice.js';
+import { displayPrice } from './bookingPrice.js';
 import common from './booking.module.css';
 import styles from './BookingNotesRequests.module.css';
 
@@ -56,8 +56,7 @@ export default function BookingNotesRequests() {
   if (!doorCodes.frontCode?.trim()) missingCodes.push(COPY.frontDoor.title);
   const blocked = missing.length > 0 || missingCodes.length > 0;
   const hours = draft.durationHours ?? SCHEDULE_PRICE.standardHours;
-  const basePrice = schedulePrice(hours, draft.frequency ?? 'recurring');
-  const paidTotal = draft.paidOptionsTotal ?? 0;
+  const paidTotal = draft.paidOptionsTotal ?? 0; // 옵션 화면이 남긴 유료 옵션 1회분 합
 
   // "다음": 답을 서버 칩 key(notices)와 한 줄 요약(noticeSummary)으로 바꿔 초안에 두고 확인 화면으로
   const next = async () => {
@@ -79,7 +78,7 @@ export default function BookingNotesRequests() {
       gap="none"
       navBar={navBar}
       stickyCta={
-        <BookingPriceFooter price={basePrice + paidTotal} disabled={blocked} onNext={next}>
+        <BookingPriceFooter price={displayPrice(category, draft, hours, paidTotal)} disabled={blocked} onNext={next}>
           {blocked && (
             <p className={cx('text-body-xs', styles.missing)} role="status">
               {missing.length > 0 ? COPY.missing(missing.map((q) => q.short ?? q.title)) : COPY.missing(missingCodes, '입력해')}

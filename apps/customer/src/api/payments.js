@@ -43,15 +43,21 @@ export function loadPaymentSdk() {
   return sdkPromise;
 }
 
-/** 토스 결제창을 연다. 돌아오는 곳: 예약 결제면 /payments/checkout?booking=…, 금액권 선물 결제(giftId)면 /gifts/{giftId}/payment */
-export async function openPayment(checkout) {
+/**
+ * 토스 결제창을 연다. 돌아오는 곳: 예약 결제면 /payments/checkout?booking=…, 금액권 선물 결제(giftId)면 /gifts/{giftId}/payment.
+ * 주 N회 요금제의 시리즈 결제(seriesId, bookingId 는 null)면 결제를 연 회차(fromBookingId)로 돌아오고 ?series= 를 붙인다 (요금표 전환 6-b)
+ * @param {object} checkout 서버 결제 응답
+ * @param {string} [fromBookingId] 결제 화면을 연 예약 회차 id
+ */
+export async function openPayment(checkout, fromBookingId) {
   const TossPayments = await loadPaymentSdk();
   let returnUrl;
   if (checkout.giftId) {
     returnUrl = new URL(`/gifts/${encodeURIComponent(checkout.giftId)}/payment`, window.location.origin);
   } else {
     returnUrl = new URL('/payments/checkout', window.location.origin);
-    returnUrl.searchParams.set('booking', checkout.bookingId);
+    returnUrl.searchParams.set('booking', checkout.bookingId ?? fromBookingId);
+    if (checkout.seriesId) returnUrl.searchParams.set('series', checkout.seriesId);
   }
   return TossPayments(checkout.clientKey)
     .payment({ customerKey: 'ANONYMOUS' })

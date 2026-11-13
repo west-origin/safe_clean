@@ -160,10 +160,11 @@ describe('Reservations 흐름', () => {
   // 보낸 본문의 wholeSeries 와 6회차가 모두 취소 탭으로 갔는지 확인한다
   it('정기청소 회차는 "이번 회차만 / 정기청소 전체" 를 고를 수 있고 전체를 고르면 남은 회차가 모두 취소된다', async () => {
     const { __fake, http } = await import('../../api/http.js');
-    await http.post('/customer/bookings', { category: 'home', frequency: 'recurring', date: '2026-11-02', time: '10:00', roadAddress: '부산광역시 중앙대로 1' }, { idempotencyKey: 'k' });
+    // 매장 정기청소(매월 6회차) — 가정·원룸은 요금표 전환(2026-11-13)으로 주 N회 요금제라 예전 매월 규칙은 매장으로 본다
+    await http.post('/customer/bookings', { category: 'store', frequency: 'recurring', date: '2026-11-02', time: '10:00', roadAddress: '부산광역시 중앙대로 1' }, { idempotencyKey: 'k' });
     renderScreen();
     expect(await screen.findByRole('tab', { name: '예정 8' })).toBeInTheDocument(); // Figma 예시 2 + 정기 6회차
-    const cards = screen.getAllByRole('article', { name: '가정/원룸' }); // homeType 을 보내지 않은 예약
+    const cards = screen.getAllByRole('article', { name: '매장' });
     // 예정 탭은 가까운 순: 진행 중(9/19) → r1(11/1) → 정기 1회차(11/2) …
     const seriesCard = cards.find((c) => within(c).queryByText('2026년 11월 2일 (월) 오전 10시'));
     fireEvent.click(within(seriesCard).getByRole('button', { name: '예약 취소' }));

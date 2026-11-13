@@ -179,3 +179,18 @@ ServiceLivePortrait 가 완료 전에는 10초마다 묻고, `ready` 를 받으�
 
 푸시 `gift`(+giftId) → `/gifts/{giftId}`, `voucher` → `/gifts?tab=vouchers`.
 가짜 서버: `test/fakeGifts.js` — 받은 선물 g-1(f-1, 받기 전), 보낸 선물 g-2(f-2 가 받음), 금액권 v-1(선물·사용·카드 환불 가능)·v-2(사용함·30일 안 만료·환불 불가). 예약 금액은 `BOOKING_TOTAL`(85,000원). 결제(토스) 경로는 없어 결제 화면 테스트는 `payments.js` 를 mock 한다.
+
+## 요금표 전환 — 예약 요청·견적·결제 (2026-11-13 6-b, 계약 `backend/docs/api.md` '요금표 전환')
+가정·원룸(`home`)·분해청소(`appliance`)는 시간 요금 대신 요금표 요금제. 매장·사무실·입주는 예전 시간 요금 그대로. 요금제 판단은 `api/pricePlans.js`(`draftPlan`) 하나 — 요청 본문과 화면 하단 표시 금액이 같이 쓴다. 숫자는 `mock.js PRICE_PLANS`(서버 V074 와 같은 값, 표시용), 실제 금액은 서버 견적.
+
+| 초안 칸 (`bookingDraft`) | 요청 본문 (`getBookingQuote`·`createBooking`) | 비고 |
+|---|---|---|
+| `homeService` 'house'\|'studio' (홈의 가정·원룸 버튼) | `homeType` — home 이면 늘 보낸다(없으면 house) | 서버는 home 에 homeType 필수 |
+| `frequency` + `visitsPerWeek` 1~3 (주기 화면) | `frequency`, 정기면 `visitsPerWeek` | 가정 1회 = 첫 1회 체험, 원룸 1회 = 69,000원(늘 가능) |
+| `weekdays` [0=월…6=일] N개 (날짜/시간 화면) | 정기면 `weekdays` | 첫 방문일 요일이 들어 있어야 한다 |
+| `hoodSize` '600'\|'900'\|'1200' (분해청소 주기 화면) | `hoodSize`, `frequency` 는 늘 `oneTime` | 추가 요금은 유료 옵션 `panel`·`noExtinguisher` |
+| — | `durationHours` = 요금제 시간(가정 3·원룸 2·분해청소 2) | 서버는 요금제면 이 값을 무시한다 |
+
+견적 응답 모양은 그대로(`perVisit` = 첫 회차, `totalAmount`·`totalLabel` = 결제 금액 — 정기면 한 달). 확인 화면은 요금제면 `totalLabel` 을 '총 결제금액' 으로 쓴다. 예약 응답 `+ pricePlan`.
+결제: `prepareCheckout(bookingId)` 가 주 N회 요금제 회차면 시리즈 한 달치 주문(`bookingId: null`, `seriesId`)을 준다. `openPayment(checkout, fromBookingId)` 는 결제를 연 회차로 돌아오고 `?series=` 를 붙인다. 결제 화면은 시리즈 결제면 금액권 칸을 그리지 않는다(서버가 막는다).
+가짜 서버(`test/fakeHttp.js` `planOf`·`planQuote`)가 같은 규칙·검증 문구를 흉내 낸다. 원룸 첫 달 할인은 가짜 서버에서도 첫 원룸 정기 생성 한 번만.
