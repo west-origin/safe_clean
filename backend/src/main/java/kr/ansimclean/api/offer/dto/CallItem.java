@@ -12,4 +12,5 @@ import java.util.UUID;
  * id = 콜(offer) id — 상세·수락·거절 주소의 {id} 에 쓴다. pay = 매니저 수령액 "85,000원".
  * OfferService.toItem 이 만들고, 콜 목록(CallsResponse.calls)과 상세(CallDetailResponse.of)가 쓴다
  */
-public record CallItem(UUID id, String expiry, String expiresAt, String title, String location, String pay, String eta, String note, List<String> details) {}
+// reassign = 재배정 건(어드민이 승인한 매니저 방문 취소 뒤 다시 나온 콜, 2026-11-13) — 앱이 카드에 '재배정' 표시를 붙인다
+public record CallItem(UUID id, String expiry, String expiresAt, String title, String location, String pay, String eta, String note, List<String> details, boolean reassign) {}

@@ -11,4 +11,10 @@ import java.util.UUID;
 // 처리: push.PushHandler — managerIds 중 push·call 설정이 켜진 매니저에게 푸시. 한 명이 실패해도 나머지에게 먼저 보내고,
 // 실패가 있으면 재시도한다.
 /** 매니저들에게 콜(오퍼)을 보냈다 → 매니저 푸시 "새 콜이 도착했어요" (우선 콜은 단골 고객 문구) (§6.2-2). preferred = 우선 오퍼 1명 */
-public record OffersDispatched(UUID bookingId, List<UUID> managerIds, boolean preferred) {}
+// reassign = 재배정 콜(어드민이 승인한 매니저 방문 취소 뒤, V068) → 푸시 '재배정 콜이 도착했어요'. 필드가 없는 예전 행은 null = 아니다
+public record OffersDispatched(UUID bookingId, List<UUID> managerIds, boolean preferred, Boolean reassign) {
+    /** 일반·우선 콜 (재배정 아님) */
+    public OffersDispatched(UUID bookingId, List<UUID> managerIds, boolean preferred) {
+        this(bookingId, managerIds, preferred, null);
+    }
+}

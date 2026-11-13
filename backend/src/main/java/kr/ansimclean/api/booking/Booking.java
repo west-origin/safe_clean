@@ -224,6 +224,23 @@ public class Booking {
     @Column(name = "dispatch_held_rescheduled", nullable = false)
     private boolean dispatchHeldRescheduled;
 
+    // ── 매니저 방문 취소 승인 뒤 재배정 (V068, docs/domain.md '매니저 방문 취소 승인·재배정'). 상태값은 assigning 그대로다 ──
+    /** 재배정을 시작한 승인 요청(manager_cancel_requests.id) — 추적용이라 배정·일정 변경 뒤에도 남긴다 */
+    @Column(name = "reassign_request_id", columnDefinition = "uuid")
+    private UUID reassignRequestId;
+
+    /** 재배정 콜 마감 = 승인 시각 + reassign_window_hours. null 이면 재배정 중이 아니다 */
+    @Column(name = "reassign_until")
+    private Instant reassignUntil;
+
+    /** 관리자 배정 대기를 시작한 시각 — 재배정 콜을 아무도 맡지 않았거나, 방문이 가깝거나, 후보가 없었다. null 이면 대기 아님 */
+    @Column(name = "admin_assign_pending_at")
+    private Instant adminAssignPendingAt;
+
+    /** 관리자 배정 대기 사유: no_accept(모두 거절·만료) · imminent(방문까지 24시간 미만) · no_candidates(후보 없음) */
+    @Column(name = "admin_assign_reason", columnDefinition = "text")
+    private String adminAssignReason;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -369,6 +386,14 @@ public class Booking {
     public boolean isDispatchHeldRescheduled() { return dispatchHeldRescheduled; }
     /** 밤이라 새 콜을 아침으로 미뤄 둔 예약인가 */
     public boolean isDispatchHeld() { return dispatchHeldAt != null; }
+    public UUID getReassignRequestId() { return reassignRequestId; }
+    public Instant getReassignUntil() { return reassignUntil; }
+    public Instant getAdminAssignPendingAt() { return adminAssignPendingAt; }
+    public String getAdminAssignReason() { return adminAssignReason; }
+    /** 재배정 콜을 돌리는 중인가 — 이 동안 콜이 모두 닫히면 다음 회차가 아니라 관리자 배정 대기로 간다 (OfferService.afterClosed) */
+    public boolean isReassigning() { return reassignUntil != null && adminAssignPendingAt == null; }
+    /** 재배정 중이거나 관리자 배정 대기 중인가 — 배정될 때 상태 이력에 'reassigned' 를 남기는 기준 */
+    public boolean isInReassign() { return reassignUntil != null || adminAssignPendingAt != null; }
     public Instant getCreatedAt() { return createdAt; }
 
     /** 정기청소 회차인가 (frequency = "recurring") */
@@ -406,15 +431,48 @@ public class Booking {
         this.managerId = managerId;
         this.assignedAt = now;
         this.matchingFailedAt = null; // 매칭 실패 표시를 지운다 — 고객 카드의 매니저 칸이 실패 안내에서 매니저 이름으로 바뀐다
+        clearReassign(); // 재배정·관리자 배정 대기도 끝났다 (재배정을 시작한 요청 id 는 추적용으로 남는다)
         status = BookingStatus.SCHEDULED;
     }
 
     /**
-     * scheduled → assigning (매니저가 방문을 취소). 예약은 살아 있고 다시 매칭한다 (docs/manager-policy.md).
+     * 승인된 방문 취소 뒤 재배정 콜을 시작한다 (OfferService.startReassign). requestId = 승인한 취소 요청, until = 콜 마감.
+     * 매칭 중(assigning)일 때만 — releaseByManager 다음에 불린다
+     */
+    public void startReassign(UUID requestId, Instant until) {
+        require(BookingStatus.ASSIGNING);
+        reassignRequestId = requestId;
+        reassignUntil = until;
+        adminAssignPendingAt = null;
+        adminAssignReason = null;
+    }
+
+    /**
+     * 관리자 배정 대기로 표시한다 (OfferService.awaitAdmin). 처음 한 번만 true — 어드민 알림을 두 번 보내지 않게.
+     * requestId 는 재배정을 시작한 요청(콜 없이 바로 대기로 올 때 여기서 적는다, 이미 있으면 그대로)
+     */
+    public boolean awaitAdminAssign(UUID requestId, Instant now, String reason) {
+        require(BookingStatus.ASSIGNING);
+        if (requestId != null) reassignRequestId = requestId;
+        if (adminAssignPendingAt != null) return false;
+        adminAssignPendingAt = now;
+        adminAssignReason = reason;
+        return true;
+    }
+
+    /** 재배정·관리자 배정 대기 표시를 지운다 — 배정·일정 변경·운영자 재매칭 때 (요청 id 는 추적용으로 남긴다) */
+    public void clearReassign() {
+        reassignUntil = null;
+        adminAssignPendingAt = null;
+        adminAssignReason = null;
+    }
+
+    /**
+     * scheduled → assigning (어드민이 매니저의 방문 취소 요청을 승인). 예약은 살아 있고 다시 매칭한다 (docs/domain.md '매니저 방문 취소 승인·재배정').
      * 이미 시작한 작업은 이 길로 돌릴 수 없다(require 가 막는다).
      */
     public void releaseByManager() {
-        // 부르는 곳: JobService.doCancelByManager. 회차 올리기·새 콜은 이어서 OfferService.onReleased → restartAfterRelease 가 한다
+        // 부르는 곳: ReassignService.approve. 회차 올리기·새 콜은 이어서 OfferService.startReassign → restartAfterRelease 가 한다
         require(BookingStatus.SCHEDULED);
         this.managerId = null;
         this.assignedAt = null;
@@ -444,6 +502,7 @@ public class Booking {
         // matchingFromRound 는 바꾸지 않는다 — 재매칭(redispatch)·자동 재매칭이 이 구간에서 이미 콜을 받은 매니저를 계속 '받은 적' 으로 센다
         require(BookingStatus.ASSIGNING);
         matchingFailedAt = null;
+        clearReassign(); // 운영자 재매칭은 일반 매칭으로 돌아간다 — 관리자 배정 대기 목록에서 빠진다
         dispatchRound++;
     }
 
@@ -522,6 +581,7 @@ public class Booking {
             dispatchRound++;
             matchingFromRound = dispatchRound; // 새 일정 — 옛 일정의 콜은 '받은 적' 으로 세지 않는다
             matchingFailedAt = null; // 새 일정으로 매칭을 다시 시작한다 — 남겨 두면 다시 실패해도 고객 알림이 안 나가고 운영자 조회에 섞였다 (자체 점검 #19)
+            clearReassign(); // 재배정 중·관리자 배정 대기였어도 새 일정은 일반 매칭으로 (docs/domain.md '매니저 방문 취소 승인·재배정')
         }
         return previous;
     }

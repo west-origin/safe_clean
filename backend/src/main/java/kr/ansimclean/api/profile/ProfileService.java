@@ -324,6 +324,21 @@ public class ProfileService {
         if (!exists) addAddress(customerId, new NewAddressRequest(null, roadAddress, detailAddress));
     }
 
+    /** 탈퇴하지 않은 어드민 전원의 id — 어드민 푸시(방문 취소 요청·관리자 배정 필요) 받는 사람 (docs/domain.md '매니저 방문 취소 승인·재배정') */
+    @Transactional(readOnly = true)
+    public List<UUID> adminIds() {
+        return profiles.findLiveIdsByRole(kr.ansimclean.api.common.security.Roles.ADMIN);
+    }
+
+    /** 여러 사용자의 가입 휴대폰 번호 (어드민 화면 — 관리자 배정 대기 목록·배정할 매니저 고르기). 없는 id 는 결과에서 빠진다 */
+    @Transactional(readOnly = true)
+    public Map<UUID, String> phonesOf(Collection<UUID> ids) {
+        Map<UUID, String> out = new LinkedHashMap<>();
+        if (ids.isEmpty()) return out;
+        for (Profile p : profiles.findAllById(ids)) out.put(p.getId(), p.getPhone());
+        return out;
+    }
+
     /** 여러 사용자의 표시 이름 (예약 목록의 매니저 이름). 탈퇴한 사용자는 익명화된 이름이 그대로 온다 */
     @Transactional(readOnly = true)
     public Map<UUID, String> namesOf(Collection<UUID> ids) {

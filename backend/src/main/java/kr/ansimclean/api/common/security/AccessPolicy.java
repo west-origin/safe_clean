@@ -24,6 +24,8 @@ public class AccessPolicy {
         INQUIRY_ANSWER,      // 문의 답변 (POST /admin/inquiries/{id}/answer) — §10 (권역 문의의 지역 매니저 처리는 R15)
         NOTICE_MANAGE,       // 공지 목록·등록·수정·삭제 (/admin/notices/**) — §10 "공지 등록·수정·삭제는 어드민만" (권역 지정은 R16)
         BANNER_MANAGE,       // 고객 앱 홈 배너 목록·등록·수정·순서·삭제 (/admin/banners/**) — §15-22
+        BOOKING_CANCEL_DECIDE, // 매니저 방문 취소 요청 목록·승인·거절 (/admin/cancel-requests/**) — docs/domain.md '매니저 방문 취소 승인·재배정'
+        BOOKING_ASSIGN,      // 관리자 배정 대기 목록·배정할 매니저·직접 배정 (/admin/reassignments, /admin/bookings/{id}/assign…) — §6.3 재배정(어드민)
     }
 
     /** 작업 대상. type = 대상 종류("booking"·"penalty" 등), id = 그 행 id(없으면 null). 권역 규칙(R5 이후)이 여기에 권역을 더한다 */
@@ -46,6 +48,7 @@ public class AccessPolicy {
             case JOB_FORCE_COMPLETE, DEVICE_REGISTER, BOOKING_REDISPATCH, PENALTY_WAIVE, INQUIRY_ANSWER -> isAdminWithMfa(actor);
             case NOTICE_MANAGE -> isAdminWithMfa(actor); // rbac.md §10
             case BANNER_MANAGE -> isAdminWithMfa(actor); // rbac.md §15-22
+            case BOOKING_CANCEL_DECIDE, BOOKING_ASSIGN -> isAdminWithMfa(actor); // 2026-11-13 — 지역 매니저 권한(담당 권역)은 R10 에서
         };
     }
 

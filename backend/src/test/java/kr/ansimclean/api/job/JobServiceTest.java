@@ -79,14 +79,14 @@ class JobServiceTest {
     Booking booking;
 
     kr.ansimclean.api.profile.ManagerPenaltyService penalties = mock(kr.ansimclean.api.profile.ManagerPenaltyService.class);
-    kr.ansimclean.api.booking.BookingDispatcher dispatcher = mock(kr.ansimclean.api.booking.BookingDispatcher.class);
+    JobCancelRequestRepository cancelRequests = mock(JobCancelRequestRepository.class);
 
     // 테스트마다: 오늘 10:00 에 배정된(scheduled) 예약 하나를 만들고, 그 예약을 읽기·잠금 조회 모두 이 객체로 돌려주게 꾸민다.
     // 기본값: 진행 중 작업 없음, 모든 중단 사유는 목록에 있음, 중단 구간 없음
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        service = new JobService(checklist, checklistEvents, pauses, bookings, profiles, catalog, live, settlements, settings, outbox, idempotent, CLOCK, storage, penalties, dispatcher, segments, media);
+        service = new JobService(checklist, checklistEvents, pauses, bookings, profiles, catalog, live, settlements, settings, outbox, idempotent, CLOCK, storage, penalties, cancelRequests, segments, media);
         booking = TestBookings.scheduled(CUSTOMER, MANAGER, TODAY, LocalTime.of(10, 0));
         booking.confirmBeforePhotos(NOW.minusSeconds(100));
         when(checklistEvents.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -447,31 +447,38 @@ class JobServiceTest {
         assertThat(JobService.offsetSeconds(NOW.minusSeconds(1), NOW, 630)).isNull();
     }
 
-    // 1) 알려진 사유("sick")로 취소: 멱등 키가 run 에 넘어가고, 예약은 assigning(매니저 비움)으로 돌아가 다시 콜을 보내며,
-    //    패널티 한 줄과 아웃박스 이벤트 두 개(고객 안내·바디캠 정리)가 남는다
+    // 방문 취소는 이제 '요청' 이다 (docs/domain.md '매니저 방문 취소 승인·재배정', 2026-11-13):
+    // 1) 알려진 사유로 요청 → 멱등 키가 run 에 넘어가고, 예약은 그 매니저에게 배정된 그대로(scheduled), 대기 요청 1건 저장 + 어드민 알림.
+    //    패널티·재매칭·고객 푸시는 어드민 승인 때 (여기서는 없다)
     // 2) 사유 목록에 없는 key 는 거부 3) 컷오프 안(cancelCategory 가 null)이면 패널티 서비스가 준 오류 문구로 거부
     @Test
-    void 매니저_방문_취소는_예약을_다시_매칭하고_패널티를_남긴다_컷오프_안이면_거부() {
-        // 사유 목록·구간은 패널티 서비스가 판단한다 (docs/manager-policy.md)
+    void 매니저_방문_취소는_승인_대기_요청을_만들고_예약은_그대로_둔다_컷오프_안이면_거부() {
         when(penalties.reasons()).thenReturn(tools.jackson.databind.json.JsonMapper.builder().build().readTree("[{\"key\":\"sick\"}]"));
         when(penalties.cancelCategory(any(), any())).thenReturn(kr.ansimclean.api.profile.ManagerPenalty.CANCEL_LATE);
+        when(cancelRequests.findFirstByBookingIdAndStatus(booking.getId(), JobCancelRequest.PENDING)).thenReturn(Optional.empty());
+        when(cancelRequests.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        service.cancelByManager(MANAGER, booking.getId(), "sick", "몸이 아파요", "k");
-        verify(idempotent).run(eq("k"), eq(MANAGER), any(), eq(kr.ansimclean.api.booking.dto.ReservationResponse.class), any()); // 재시도는 저장된 응답 (자체 점검 #44)
+        var res = service.cancelByManager(MANAGER, booking.getId(), "sick", "몸이 아파요", "k");
+        verify(idempotent).run(eq("k"), eq(MANAGER), any(), eq(kr.ansimclean.api.job.dto.CancelRequestResponse.class), any()); // 재시도는 저장된 응답 (자체 점검 #44)
 
-        assertThat(booking.getStatus()).isEqualTo(BookingStatus.ASSIGNING); // 취소가 아니라 재매칭
-        assertThat(booking.getManagerId()).isNull();
-        verify(penalties).record(MANAGER, booking.getId(), booking.getSeriesId(), kr.ansimclean.api.profile.ManagerPenalty.CANCEL_LATE, "sick", "몸이 아파요");
-        verify(dispatcher).onReleased(booking, MANAGER); // 새 회차로 다시 콜, 취소한 매니저만 뺀다 (전체 재점검 O1)
-        verify(outbox).publish(new kr.ansimclean.api.common.events.ManagerReleased(booking.getId(), CUSTOMER));
-        verify(outbox).publish(new kr.ansimclean.api.common.events.CameraReleased(booking.getId(), MANAGER)); // 바디캠을 대기 방으로 (전체 재점검 J1)
+        assertThat(res.status()).isEqualTo("pending");
+        assertThat(booking.getStatus()).isEqualTo(BookingStatus.SCHEDULED); // 승인 전까지 배정 그대로
+        assertThat(booking.getManagerId()).isEqualTo(MANAGER);
+        org.mockito.ArgumentCaptor<JobCancelRequest> saved = org.mockito.ArgumentCaptor.forClass(JobCancelRequest.class);
+        verify(cancelRequests).save(saved.capture());
+        assertThat(saved.getValue().getReason()).isEqualTo("sick");
+        assertThat(saved.getValue().getDetail()).isEqualTo("몸이 아파요");
+        assertThat(saved.getValue().getManagerId()).isEqualTo(MANAGER);
+        verify(outbox).publish(new kr.ansimclean.api.common.events.CancelRequested(saved.getValue().getId(), booking.getId())); // 어드민 알림
+        verify(penalties, never()).record(any(), any(), any(), any(), any(), any()); // 점수·원장은 승인 때
+        verify(outbox, never()).publish(any(kr.ansimclean.api.common.events.ManagerReleased.class));
 
         // 모르는 사유는 막는다
         Booking other = TestBookings.scheduled(CUSTOMER, MANAGER, TODAY, LocalTime.of(10, 0));
         when(bookings.lockManagerBooking(MANAGER, other.getId())).thenReturn(other);
         assertThatThrownBy(() -> service.cancelByManager(MANAGER, other.getId(), "unknown", null, null)).isInstanceOf(ApiException.class);
 
-        // 컷오프(4시간) 안이면 앱에서 취소 불가
+        // 컷오프(4시간) 안이면 앱에서 요청 불가 — 고객센터 안내
         Booking soon = TestBookings.scheduled(CUSTOMER, MANAGER, TODAY, LocalTime.of(10, 0));
         when(bookings.lockManagerBooking(MANAGER, soon.getId())).thenReturn(soon);
         when(penalties.cancelCategory(any(), any())).thenReturn(null);
@@ -480,33 +487,45 @@ class JobServiceTest {
                 .isInstanceOf(ApiException.class).hasMessage("고객센터로 전화해주세요");
     }
 
-    // 방문 취소 뒤 다시 매칭할 후보가 한 명도 없어 디스패처가 곧바로 매칭 실패로 표시했다 → 고객에게는 실패 안내(MatchingFailed, 디스패처가 적는다) 하나만.
-    // '다른 매니저를 찾고 있어요'(ManagerReleased)는 적지 않는다. 바디캠 정리(CameraReleased)는 그대로
+    // 같은 방문을 두 번 요청해도(멱등 키가 달라도) 대기 요청은 하나 — 처음 요청을 그대로 돌려주고 어드민 알림도 다시 보내지 않는다
     @Test
-    void 방문_취소_뒤_재매칭이_바로_실패하면_찾고_있어요_알림은_보내지_않는다() { // 문제 목록 5번
+    void 대기_중인_취소_요청이_있으면_새로_만들지_않고_그_요청을_돌려준다() {
         when(penalties.reasons()).thenReturn(tools.jackson.databind.json.JsonMapper.builder().build().readTree("[{\"key\":\"sick\"}]"));
         when(penalties.cancelCategory(any(), any())).thenReturn(kr.ansimclean.api.profile.ManagerPenalty.CANCEL_EARLY);
-        org.mockito.Mockito.doAnswer(inv -> ((Booking) inv.getArgument(0)).markMatchingFailed(NOW)).when(dispatcher).onReleased(any(), any());
+        JobCancelRequest open = JobCancelRequest.pending(booking.getId(), MANAGER, "sick", null, NOW.minusSeconds(60));
+        when(cancelRequests.findFirstByBookingIdAndStatus(booking.getId(), JobCancelRequest.PENDING)).thenReturn(Optional.of(open));
 
-        service.cancelByManager(MANAGER, booking.getId(), "sick", null, null);
+        var res = service.cancelByManager(MANAGER, booking.getId(), "sick", null, "k2");
 
-        verify(outbox, never()).publish(any(kr.ansimclean.api.common.events.ManagerReleased.class));
-        verify(outbox).publish(new kr.ansimclean.api.common.events.CameraReleased(booking.getId(), MANAGER));
+        assertThat(res.id()).isEqualTo(open.getId());
+        verify(cancelRequests, never()).save(any());
+        verify(outbox, never()).publish(any(kr.ansimclean.api.common.events.CancelRequested.class));
     }
 
-    // 밤이라 디스패처가 새 콜을 아침으로 미뤘으면(보류 — 실패 표시 없음) 다시 찾는 중이므로 '다른 매니저를 찾고 있어요' 가 맞다 (문제 목록 2번과 함께)
+    // 취소를 요청했지만 그대로 방문해 청소를 시작했다 → 대기 요청은 job_started 로 닫힌다 (어드민 목록에서 빠진다)
     @Test
-    void 방문_취소_뒤_재매칭을_아침으로_미뤘으면_찾고_있어요_알림을_보낸다() {
-        when(penalties.reasons()).thenReturn(tools.jackson.databind.json.JsonMapper.builder().build().readTree("[{\"key\":\"sick\"}]"));
-        when(penalties.cancelCategory(any(), any())).thenReturn(kr.ansimclean.api.profile.ManagerPenalty.CANCEL_EARLY);
-        org.mockito.Mockito.doAnswer(inv -> {
-            ((Booking) inv.getArgument(0)).holdDispatch(NOW, null, false);
-            return null;
-        }).when(dispatcher).onReleased(any(), any());
+    void 취소_요청_뒤_청소를_시작하면_대기_요청이_닫힌다() {
+        JobCancelRequest open = JobCancelRequest.pending(booking.getId(), MANAGER, "sick", null, NOW.minusSeconds(60));
+        when(cancelRequests.findFirstByBookingIdAndStatus(booking.getId(), JobCancelRequest.PENDING)).thenReturn(Optional.of(open));
+        when(penalties.tardyMinutes()).thenReturn(600); // 지각 기록은 이 테스트와 상관없다
 
-        service.cancelByManager(MANAGER, booking.getId(), "sick", null, null);
+        service.start(MANAGER, booking.getId(), null);
 
-        verify(outbox).publish(new kr.ansimclean.api.common.events.ManagerReleased(booking.getId(), CUSTOMER));
+        assertThat(open.getStatus()).isEqualTo(JobCancelRequest.CLOSED);
+        assertThat(open.getDecisionNote()).isEqualTo(JobCancelRequest.CLOSED_JOB_STARTED);
+    }
+
+    // 작업 상세: 대기 중인 요청이 있으면 cancelRequest { status, requestedAt } — 앱이 '취소 요청 중' 을 보인다. 없으면 null
+    @Test
+    void 작업_상세에_대기_중인_취소_요청이_보인다() {
+        when(profiles.namesOf(any())).thenReturn(java.util.Map.of(CUSTOMER, "김고객"));
+        assertThat(service.job(MANAGER, booking.getId()).cancelRequest()).isNull();
+
+        JobCancelRequest open = JobCancelRequest.pending(booking.getId(), MANAGER, "sick", null, NOW.minusSeconds(60));
+        when(cancelRequests.findFirstByBookingIdAndStatus(booking.getId(), JobCancelRequest.PENDING)).thenReturn(Optional.of(open));
+        var state = service.job(MANAGER, booking.getId()).cancelRequest();
+        assertThat(state.status()).isEqualTo("pending");
+        assertThat(state.requestedAt()).isEqualTo(NOW.minusSeconds(60).toString());
     }
 
     // 지각 기준 30분으로 두고 10:00 예약을 14:00(NOW)에 시작 → TARDY 패널티가 이 매니저·예약으로 한 줄 기록되는지 본다

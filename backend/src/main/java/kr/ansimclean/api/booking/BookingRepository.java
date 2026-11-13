@@ -82,6 +82,10 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
     @Query("select b.id from Booking b where b.status = kr.ansimclean.api.booking.BookingStatus.ASSIGNING and b.dispatchHeldAt is not null order by b.id")
     List<UUID> findDispatchHeldIds();
 
+    /** 관리자 배정 대기 예약 — 방문 가까운 순 (어드민 대기 목록, V068) */
+    @Query("select b from Booking b where b.status = kr.ansimclean.api.booking.BookingStatus.ASSIGNING and b.adminAssignPendingAt is not null order by b.startsAt, b.id")
+    List<Booking> findAdminAssignPending();
+
     // ── 탈퇴 + 5년 파기 (BookingAccountPurge, BACKEND_PLAN §13-22). 행은 남기고 개인정보 칸만 비운다 ──
     // 돌려주는 int 는 바뀐 행 수. 아래 SQL 의 '{}' 는 Postgres 의 빈 배열이다.
 

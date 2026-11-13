@@ -37,9 +37,4 @@ public class NoopBookingDispatcher implements BookingDispatcher {
         log.info("일정 변경 → 오퍼 정리(B4 전) 예약={} 이전 매니저={}", booking.getId(), previousManagerId);
         return false;
     }
-
-    @Override
-    public void onReleased(Booking booking, UUID releasedManagerId) {
-        log.info("매칭 대기(B4 전): 매니저 취소 뒤 재매칭 예약={}", booking.getId());
-    }
 }

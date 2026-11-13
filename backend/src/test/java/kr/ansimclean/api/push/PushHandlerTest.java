@@ -20,6 +20,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -67,6 +68,39 @@ class PushHandlerTest {
         handler.handle("BookingCompleted", json.writeValueAsString(new BookingCompleted(BOOKING, CUSTOMER, MANAGER)));
         verify(push).send(eq(CUSTOMER), eq("청소가 완료됐어요"), any(), any(), any());
         verify(push).send(eq(MANAGER), eq("정산이 등록됐어요"), any(), any(), any());
+    }
+
+    // 매니저 방문 취소 승인·재배정 (2026-11-13): 재배정 콜은 '재배정' 문구, 어드민 알림은 어드민 전원에게(토글 무관, 개인정보 없음),
+    // 승인·거절·직접 배정은 그 매니저에게 토글과 무관하게. 예전 OffersDispatched(reassign 필드 없음)는 일반 콜 문구
+    @Test
+    @SuppressWarnings("unchecked")
+    void 재배정_콜과_어드민_알림과_취소_결정_알림() {
+        handler.handle("OffersDispatched", json.writeValueAsString(new OffersDispatched(BOOKING, List.of(MANAGER), false, true)));
+        verify(push).send(eq(MANAGER), eq("재배정 콜이 도착했어요"), any(), any(), any());
+        handler.handle("OffersDispatched", "{\"bookingId\":\"" + BOOKING + "\",\"managerIds\":[\"" + MANAGER + "\"],\"preferred\":false}"); // 예전 행
+        verify(push).send(eq(MANAGER), eq("새 콜이 도착했어요"), any(), any(), any());
+
+        UUID admin1 = UUID.randomUUID();
+        UUID admin2 = UUID.randomUUID();
+        when(profiles.adminIds()).thenReturn(List.of(admin1, admin2));
+        doReturn(Map.of("push", false)).when(profiles).notifications(any(), any()); // 토글을 꺼도 운영 알림은 간다
+        handler.handle("CancelRequested", json.writeValueAsString(new kr.ansimclean.api.common.events.CancelRequested(UUID.randomUUID(), BOOKING)));
+        ArgumentCaptor<Map<String, String>> data = ArgumentCaptor.forClass(Map.class);
+        verify(push).send(eq(admin1), eq("방문 취소 요청이 들어왔어요"), any(), data.capture(), any());
+        verify(push).send(eq(admin2), eq("방문 취소 요청이 들어왔어요"), any(), any(), any());
+        assertThat(data.getValue()).containsEntry("type", "admin-cancel-request").containsOnlyKeys("type", "bookingId");
+
+        handler.handle("AdminAssignNeeded", json.writeValueAsString(new kr.ansimclean.api.common.events.AdminAssignNeeded(BOOKING, "no_accept")));
+        verify(push).send(eq(admin1), eq("재배정이 필요한 예약이 있어요"), eq("재배정 콜을 수락한 매니저가 없어요. 관리자 화면에서 배정해주세요"), any(), any());
+        handler.handle("AdminAssignNeeded", json.writeValueAsString(new kr.ansimclean.api.common.events.AdminAssignNeeded(BOOKING, "imminent")));
+        verify(push).send(eq(admin2), eq("재배정이 필요한 예약이 있어요"), eq("방문까지 시간이 얼마 남지 않아 바로 배정이 필요해요"), any(), any());
+
+        handler.handle("CancelRequestDecided", json.writeValueAsString(new kr.ansimclean.api.common.events.CancelRequestDecided(UUID.randomUUID(), BOOKING, MANAGER, true)));
+        verify(push).send(eq(MANAGER), eq("방문 취소가 승인됐어요"), any(), any(), any());
+        handler.handle("CancelRequestDecided", json.writeValueAsString(new kr.ansimclean.api.common.events.CancelRequestDecided(UUID.randomUUID(), BOOKING, MANAGER, false)));
+        verify(push).send(eq(MANAGER), eq("방문 취소 요청이 거절됐어요"), any(), any(), any());
+        handler.handle("AdminAssigned", json.writeValueAsString(new kr.ansimclean.api.common.events.AdminAssigned(BOOKING, MANAGER)));
+        verify(push).send(eq(MANAGER), eq("관리자가 청소를 배정했어요"), any(), any(), any());
     }
 
     // 매칭 실패 이벤트의 retryable(나중에 다시 찾을 수 있나)·changeable(일정을 바꿀 수 있나) 조합 네 가지와

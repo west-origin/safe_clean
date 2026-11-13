@@ -3,10 +3,17 @@
 ## 매니저 방문 취소 승인·재배정 (2026-11-13 사용자 요청 — 규칙 `backend/docs/domain.md` 같은 이름의 절, 계약 `api.md`)
 매니저 '방문 취소' → 취소 요청 → 어드민 승인 → 24시간 재배정 콜(근처 매니저 전원, 선착순 1명) → 아무도 없으면 어드민 직접 배정. 3회차로 나눈다.
 - [x] 결정 기록 (2026-11-13 질의응답): 전부 승인제(앱 직접 취소 없음) · 승인 취소는 점수 0점(기록만) · 승인 뒤 콜 1번을 24시간 열어 둠(`reassign_window_hours`) · 방문까지 24시간 미만이면 콜 없이 바로 어드민 · 알림은 어드민 앱 푸시 + 관리자 목록 화면 · 어드민 직접 배정 API 이번에 · 상태는 `assigning` + 표시 컬럼(새 상태값 없음)
-- [ ] 1회차: 서버 — V068, 취소 요청·승인·거절, 재배정 콜·관리자 배정 대기·어드민 푸시, 어드민 대기 목록·직접 배정 API
+- [x] 1회차: 서버 — V068, 취소 요청·승인·거절, 재배정 콜·관리자 배정 대기·어드민 푸시, 어드민 대기 목록·직접 배정 API
+  - V068: `manager_cancel_requests`(예약당 대기 1건 부분 유니크), `bookings.reassign_request_id·reassign_until·admin_assign_pending_at·admin_assign_reason`, `offers.reassign`, 패널티 종류 `cancel_approved`, 설정 `reassign_window_hours=24`
+  - 매니저 `POST /manager/jobs/{id}/cancel` = 요청 생성(응답 `{ id, bookingId, status, requestedAt }`), `GET /manager/jobs/{id}` 에 `cancelRequest`, 콜 카드에 `reassign`. 작업 시작·고객 취소·일정 변경이면 대기 요청 자동 종료
+  - 어드민 `/admin/cancel-requests`(목록·approve·reject), `/admin/reassignments`, `/admin/bookings/{id}/assignable-managers`, `/admin/bookings/{id}/assign` — `offer/ReassignService`·`AdminReassignController`, `AccessPolicy` `BOOKING_CANCEL_DECIDE`·`BOOKING_ASSIGN`, 활동 이력 3종
+  - 재배정: 승인 → 콜 1번(마감 24시간, 후보 전원, 취소 매니저 제외) → 모두 거절·만료면 관리자 배정 대기(다음 회차·자동 재매칭 없음). 방문 24시간 미만·후보 0명이면 바로 대기. 수락은 기존 `doAccept`(잠금 + DB 제약) 그대로
+  - 푸시 6종(`PushCopy`): 재배정 콜, 어드민 '취소 요청'·'재배정 필요'(개인정보 없음), 매니저 '승인됨'·'거절됨'·'관리자 배정'
+  - 테스트: `ReassignServiceTest` 9 · `AdminReassignControllerTest` 3 · `OfferServiceTest` 재배정 8 · `JobServiceTest` 요청 4 · `JobControllerTest` 1 · `PushHandlerTest` 1 · `MatchingIT` 재배정 7(동시 수락 1명·24시간 타임아웃 → 대기 → 직접 배정·임박·고객 취소·동시 승인) — **IT 미실행(이 컴퓨터에 Docker 없음)**. 백엔드 762 테스트 통과(IT 제외), 앱 601 통과, 토큰·빌드 통과. lint 는 이번 변경과 무관한 기존 2,425건(`build/ios` 산출물 + 관리자 화면 2건)으로 실패 — 변경 전과 같은 수
+  - 주의: 앱의 방문 취소 시트 문구('고객에게 바로 알리고…')는 2회차 전까지 옛 문구라, **서버만 먼저 배포하지 말 것**(2회차와 함께)
 - [ ] 2회차: 매니저 앱 — '방문 취소' 시트를 취소 요청으로(문구·요청 중 표시), 콜 카드 '재배정' 표시
 - [ ] 3회차: 매니저 앱 관리자 화면 — 취소 요청 목록·승인·거절, 배정 대기 목록·매니저 고르기·배정, 어드민 푸시 탭 이동
-- 판단 항목(코드에서 정함 — Figma 없음): 푸시 문구 6개(`PushCopy` 재배정 콜·취소 요청·승인·거절·어드민 배정 필요·관리자 배정), 오류 문구, 승인은 밤에도 바로 콜을 보낸다(운영자 재매칭과 같은 기준), 대기 중 고객에게 매칭 실패 푸시를 보내지 않는다, 어드민 배정은 근무시간 밖이어도 허용(`available` 로 표시만), 방문 4시간 전부터는 요청도 막는다(기존 고객센터 안내 유지)
+- 판단 항목(코드에서 정함 — Figma 없음): 푸시 문구 6개(`PushCopy` 재배정 콜·취소 요청·승인·거절·어드민 배정 필요·관리자 배정), 오류 문구, 승인은 밤에도 바로 콜을 보낸다(운영자 재매칭과 같은 기준), 대기 중 고객에게 매칭 실패 푸시를 보내지 않는다, 어드민 배정은 근무시간 밖이어도 허용(`available` 로 표시만), 방문 4시간 전부터는 요청도 막는다(기존 고객센터 안내 유지), 승인 취소 0점 행도 '무사고 3개월 회복' 기간을 다시 시작한다(기존 0점 무료 취소와 같은 규칙), 승인 시 고객에게는 '매니저 배정이 취소됐어요 · 다른 매니저를 찾고 있어요' 를 늘 보낸다(바로 관리자 대기여도 — 어드민이 찾는다), 탈퇴 매니저의 요청 상세는 5년 파기 때 비운다(`CancelRequestAccountPurge`)
 - 범위 밖: `rbac.md` §6.2(72시간 반납·R9)는 이번에 반영하지 않았다 — R9 때 이 흐름 위에서 기한만 바꾼다
 
 ## 배너·공지 관리 (2026-11-12 사용자 요청 — 결정 `rbac.md` §15-20~24)

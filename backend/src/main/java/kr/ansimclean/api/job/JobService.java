@@ -15,6 +15,7 @@ import kr.ansimclean.api.common.supabase.SupabaseStorageClient;
 import kr.ansimclean.api.common.time.AppClock;
 import kr.ansimclean.api.common.web.Idempotent;
 import kr.ansimclean.api.job.dto.ActiveJobResponse;
+import kr.ansimclean.api.job.dto.CancelRequestResponse;
 import kr.ansimclean.api.job.dto.ChecklistResponse;
 import kr.ansimclean.api.job.dto.CompletedJobResponse;
 import kr.ansimclean.api.job.dto.CustomerChecklistResponse;
@@ -90,22 +91,21 @@ public class JobService {
     private final AppClock clock;
     private final SupabaseStorageClient storage;
     private final kr.ansimclean.api.profile.ManagerPenaltyService penalties;
-    private final kr.ansimclean.api.booking.BookingDispatcher dispatcher;
+    private final JobCancelRequestRepository cancelRequests; // 매니저 방문 취소 요청 (V068) — 승인·거절은 offer/ReassignService 가 아래 메서드로
 
     static final String REPAIR_PHOTO_BUCKET = "repair-photos"; // booking/RepairPhotoService.BUCKET 과 같다
     static final int PHOTO_URL_SECONDS = 60 * 60; // 수리 사진 서명 URL 유효 시간(1시간). 작업 상세를 열 때마다 새로 만든다
 
-    // dispatcher 만 @Lazy(처음 쓸 때 연결): 구현체 OfferService 가 이 JobService 를 받아 쓰므로, 바로 받으면 서로를 먼저 만들어야 해 생성이 꼬인다
     public JobService(JobChecklistItemRepository checklist, JobChecklistEventRepository checklistEvents, JobPauseRepository pauses, BookingService bookings, ProfileService profiles, CatalogService catalog,
                       LiveSessionService live, SettlementService settlements, AppSettingsService settings, OutboxService outbox, Idempotent idempotent, AppClock clock,
                       SupabaseStorageClient storage, kr.ansimclean.api.profile.ManagerPenaltyService penalties,
-                      @org.springframework.context.annotation.Lazy kr.ansimclean.api.booking.BookingDispatcher dispatcher,
+                      JobCancelRequestRepository cancelRequests,
                       RecordingSegmentRepository segments, kr.ansimclean.api.booking.JobMediaService media) {
         this.segments = segments;
         this.media = media;
         this.storage = storage;
         this.penalties = penalties;
-        this.dispatcher = dispatcher;
+        this.cancelRequests = cancelRequests;
         this.checklist = checklist;
         this.checklistEvents = checklistEvents;
         this.pauses = pauses;
@@ -155,6 +155,7 @@ public class JobService {
         BookingStatus from = b.getStatus();
         b.start(clock.now(), clock.today()); // scheduled 이고 오늘일 때만
         bookings.recordTransition(b, from, managerId, null); // 상태 이력 한 줄 (바꾸기 전 → 지금 상태, 누가)
+        closeCancelRequests(id, JobCancelRequest.CLOSED_JOB_STARTED); // 취소를 요청했지만 그대로 방문했다 — 어드민 목록에서 뺀다
         recordTardy(b, managerId); // 약속 시간보다 많이 늦었으면 패널티 (docs/manager-policy.md)
         return new StartResponse(id, b.getStartedAt().toString());
     }
@@ -173,43 +174,68 @@ public class JobService {
     }
 
     /**
-     * 매니저가 방문을 취소한다 (docs/manager-policy.md). 예약은 취소하지 않고 **다시 매칭**한다 —
-     * 방문 cancelCutoffHours(기본 4) 시간 전부터는 앱에서 할 수 없다(고객센터 전화). 시작한 작업도 막는다.
+     * 매니저가 방문 취소를 **요청**한다 (docs/domain.md '매니저 방문 취소 승인·재배정', 2026-11-13 — 그 전에는 여기서 바로 배정을 풀었다).
+     * 예약은 어드민이 승인할 때까지 이 매니저에게 배정된 그대로다. 방문 cancelCutoffHours(기본 4) 시간 전부터는 앱에서 할 수 없다(고객센터 전화).
+     * Idempotency-Key 가 있으면 재요청은 저장된 응답 — 응답이 늦어 다시 눌러도 같은 결과 (자체 점검 #44)
      */
-    /** Idempotency-Key 가 있으면 재요청은 저장된 응답 — 응답이 늦어 다시 눌러도 '찾을 수 없어요' 가 아니라 같은 결과 (자체 점검 #44) */
-    public kr.ansimclean.api.booking.dto.ReservationResponse cancelByManager(UUID managerId, UUID id, String reason, String detail, String idempotencyKey) {
+    public CancelRequestResponse cancelByManager(UUID managerId, UUID id, String reason, String detail, String idempotencyKey) {
         // 요청 해시에 사유·상세까지 넣는다 — 같은 키로 다른 사유를 보내면 다른 요청으로 보고 IDEMPOTENCY_MISMATCH 가 된다 (Idempotent.run)
-        return idempotent.run(idempotencyKey, managerId, java.util.Arrays.asList("cancel", id, reason, detail), kr.ansimclean.api.booking.dto.ReservationResponse.class,
-                () -> doCancelByManager(managerId, id, reason, detail));
+        return idempotent.run(idempotencyKey, managerId, java.util.Arrays.asList("cancel", id, reason, detail), CancelRequestResponse.class,
+                () -> doRequestCancel(managerId, id, reason, detail));
     }
 
     /**
-     * 실제 취소 순서: 예약 행 잠금 → scheduled 인지 → 컷오프·사유 검사 → 배정 풀기(scheduled → assigning) → 이력·체크리스트·패널티
-     * → 다시 콜 → 고객 푸시·바디캠 정리는 아웃박스로. 응답은 이 예약의 고객 예약 카드 모양이다
+     * 순서: 예약 행 잠금(남의 작업이면 NOT_FOUND) → scheduled 인지 → 컷오프·사유 검사 → 대기 요청이 있으면 그대로 돌려준다 →
+     * 새 대기 요청 저장 → 어드민 푸시는 아웃박스로. 같은 예약의 대기 요청은 DB 부분 유니크 인덱스가 최종으로 하나만 허용한다
      */
-    private kr.ansimclean.api.booking.dto.ReservationResponse doCancelByManager(UUID managerId, UUID id, String reason, String detail) {
+    private CancelRequestResponse doRequestCancel(UUID managerId, UUID id, String reason, String detail) {
         Booking b = bookings.lockManagerBooking(managerId, id);
         if (b.getStatus() != BookingStatus.SCHEDULED) throw new ApiException(ErrorCode.INVALID_STATE, "지금은 취소할 수 없는 작업이에요");
-        // 방문까지 남은 시간으로 패널티 구간(일찍 취소·늦게 취소)을 고른다. null = 컷오프 안이라 앱에서 취소할 수 없다(고객센터 안내 문구로 409)
-        String category = penalties.cancelCategory(b.getStartsAt(), clock.now());
-        if (category == null) throw penalties.cutoffException();
+        // 컷오프만 본다(패널티 구간은 쓰지 않는다 — 승인 취소는 0점). null = 컷오프 안이라 앱에서 요청할 수 없다(고객센터 안내 문구로 409)
+        if (penalties.cancelCategory(b.getStartsAt(), clock.now()) == null) throw penalties.cutoffException();
         // 보낸 사유 key 가 app_settings.manager_cancel_reasons 목록(JSON 배열)의 key 중 하나인가. known |= … = 하나라도 맞으면 true 로 남는다
         boolean known = false;
         for (tools.jackson.databind.JsonNode r : penalties.reasons()) known |= r.path("key").asString().equals(reason);
         if (!known) throw ApiException.validation("알 수 없는 취소 사유예요");
-        BookingStatus from = b.getStatus();
-        UUID seriesId = b.getSeriesId();
-        b.releaseByManager(); // 매니저 칸을 비우고 assigning 으로 (Booking.releaseByManager)
-        bookings.recordTransition(b, from, managerId, category); // 이력 reason = 패널티 구간
-        clearChecklist(b.getId()); // 다음 매니저가 처음부터 시작하게 (일정 변경 때와 같다)
-        penalties.record(managerId, b.getId(), seriesId, category, reason, detail); // 패널티 원장 한 줄 — 일찍 취소가 이번 달 무료 한도 안이면 0점, 기준을 넘으면 정지까지 여기서
-        dispatcher.onReleased(b, managerId); // 새 회차로 다시 콜 — 취소한 매니저만 뺀다 (전체 재점검 O1)
-        // 고객 푸시 "매니저 배정이 취소됐어요 · 다른 매니저를 찾고 있어요" (push.PushHandler, 알림 설정과 무관).
-        // 다시 매칭할 후보가 없어 곧바로 매칭 실패로 표시됐으면 보내지 않는다 — 고객에게는 디스패처가 적은 실패 안내(MatchingFailed) 하나만 간다.
-        // 예전에는 '못 찾았어요' 와 '찾고 있어요' 가 함께 가 서로 어긋났다 (문제 목록 5번). 밤이라 매칭을 아침으로 미뤘으면 실패 표시가 없어 '찾고 있어요' 가 간다
-        if (b.getMatchingFailedAt() == null) outbox.publish(new kr.ansimclean.api.common.events.ManagerReleased(b.getId(), b.getCustomerId()));
-        outbox.publish(new kr.ansimclean.api.common.events.CameraReleased(b.getId(), managerId)); // 바디캠이 이 고객 방에 묶여 있으면 대기 방으로 (전체 재점검 J1)
-        return bookings.reservation(b.getCustomerId(), b.getId());
+        // 이미 대기 중인 요청이 있으면 새로 만들지 않는다 — 두 번 눌러도(키가 달라도) 승인 흐름은 한 번
+        java.util.Optional<JobCancelRequest> open = cancelRequests.findFirstByBookingIdAndStatus(id, JobCancelRequest.PENDING);
+        if (open.isPresent()) return CancelRequestResponse.of(open.get());
+        JobCancelRequest r = cancelRequests.save(JobCancelRequest.pending(id, managerId, reason, detail, clock.now()));
+        outbox.publish(new kr.ansimclean.api.common.events.CancelRequested(r.getId(), id)); // 어드민 푸시 '방문 취소 요청이 들어왔어요' (개인정보 없음)
+        log.info("방문 취소 요청: 예약={} 요청={}", id, r.getId());
+        return CancelRequestResponse.of(r);
+    }
+
+    // ── 방문 취소 요청 — offer/ReassignService(어드민 승인·거절)와 OfferService(고객 취소·일정 변경)가 같은 트랜잭션에서 부른다 ──
+
+    /** 잠그기 전에 요청의 예약 id 만 (잠금 순서 예약 → 요청을 지키려고). 없으면 NOT_FOUND */
+    @Transactional(readOnly = true)
+    public UUID cancelRequestBookingId(UUID requestId) {
+        return cancelRequests.findBookingIdById(requestId).orElseThrow(ApiException::notFound); // id 만 — 엔티티는 잠글 때 처음 읽는다
+    }
+
+    /** 요청 행을 잠근다 (예약 행을 먼저 잠근 뒤에 부른다). 없으면 NOT_FOUND */
+    public JobCancelRequest lockCancelRequest(UUID requestId) {
+        return cancelRequests.findForUpdate(requestId).orElseThrow(ApiException::notFound);
+    }
+
+    /** 어드민 '취소 요청' 목록 — 대기 중만, 오래된 순 */
+    @Transactional(readOnly = true)
+    public List<JobCancelRequest> pendingCancelRequests() {
+        return cancelRequests.findByStatusOrderByRequestedAt(JobCancelRequest.PENDING);
+    }
+
+    /** 이 예약의 가장 최근 요청 (어드민 배정 대기 목록의 '취소한 매니저·요청 시각') */
+    @Transactional(readOnly = true)
+    public Optional<JobCancelRequest> latestCancelRequest(UUID bookingId) {
+        return cancelRequests.findFirstByBookingIdOrderByRequestedAtDesc(bookingId);
+    }
+
+    /** 이 예약의 대기 요청을 닫는다 — 결정 전에 쓸모가 없어졌다(why = JobCancelRequest.CLOSED_*). 예약 행을 잠근 뒤 부른다 */
+    public void closeCancelRequests(UUID bookingId, String why) {
+        cancelRequests.findFirstByBookingIdAndStatus(bookingId, JobCancelRequest.PENDING).ifPresent(r -> {
+            if (r.close(why, clock.now())) log.info("방문 취소 요청 자동 종료: 예약={} 요청={} 사유={}", bookingId, r.getId(), why);
+        });
     }
 
     /** 촬영 일시정지 ②단계 (§8.2.1): 영상이 나가는 중이면 INVALID_STATE. 이미 paused 면 그대로(멱등) */
@@ -370,9 +396,12 @@ public class JobService {
         boolean today = b.getServiceDate().equals(clock.today());
         String start = (today ? "" : KoreanFormat.dateLabel(b.getServiceDate()) + " ") + KoreanFormat.hhmm(b.getServiceTime()) + " 시작";
         // pay = managerPay(결제 총액 − 플랫폼 수수료, 예약 때 고정한 값). 요청사항의 사진 장수는 실제로 URL 을 만든 장 수로 센다
+        // 방문 취소를 요청해 어드민 결정을 기다리는 중이면 그 요청 (앱이 '취소 요청 중' 을 보이고 버튼을 막는다), 아니면 null
+        JobResponse.CancelRequestState cancel = cancelRequests.findFirstByBookingIdAndStatus(b.getId(), JobCancelRequest.PENDING)
+                .map(r -> new JobResponse.CancelRequestState(r.getStatus(), r.getRequestedAt().toString())).orElse(null);
         return new JobResponse(b.getId(), badge(b.getStatus()), start, today, address,
                 infoRows(b, customer, category),
-                KoreanFormat.won(b.managerPay()), scope, requests(b, photos.size()), photos);
+                KoreanFormat.won(b.managerPay()), scope, requests(b, photos.size()), photos, cancel);
     }
 
     /** 고객·유형·예상 소요 (+ 가입 때 받은 거주 정보가 있으면 한 줄 — 매니저가 현장을 미리 그릴 수 있게, 검증 검토) */

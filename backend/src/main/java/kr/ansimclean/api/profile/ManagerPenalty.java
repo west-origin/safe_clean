@@ -28,6 +28,7 @@ public class ManagerPenalty {
     // cancel_early 는 무료 한도 안이어도 0점 행으로 남는다 — 이번 달 몇 번 썼는지 세려면 필요하다 (ManagerPenaltyService.record)
     public static final String CANCEL_EARLY = "cancel_early";   // 방문 24시간 전까지 (점수는 무료 한도 초과분만 — 한도 안은 0점 행)
     public static final String CANCEL_LATE = "cancel_late";     // 24~4시간 전
+    public static final String CANCEL_APPROVED = "cancel_approved"; // 어드민이 승인한 방문 취소 요청 — 늘 0점, 기록만 (V068, 2026-11-13 사용자 결정)
     public static final String NO_SHOW = "no_show";             // 4시간 이내·미방문
     public static final String TARDY = "tardy";                 // 30분 초과 지각
     public static final String RECOVERY = "recovery";           // 무사고 3개월 회복 (음수)

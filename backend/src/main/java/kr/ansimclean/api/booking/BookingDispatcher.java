@@ -21,7 +21,7 @@ public interface BookingDispatcher {
     // 부르는 곳: BookingService.startAssigning — 정기청소 회차에 직전 회차 매니저가 있을 때. 10분은 app_settings.preferred_offer_ttl_minutes 의 시드 값
     void dispatchPreferred(Booking booking, UUID managerId);
 
-    /** 고객 취소: pending 오퍼를 cancelled 로 */
+    /** 고객 취소: pending 오퍼를 cancelled 로, 대기 중인 매니저 방문 취소 요청도 닫는다 */
     // 부르는 곳: BookingService.cancelOne(고객 취소)과 StaleBookingCleaner(방문일이 지나 시스템 취소)
     void onCancelled(Booking booking);
 
@@ -29,11 +29,4 @@ public interface BookingDispatcher {
     // 부르는 곳: BookingService.reschedule — Booking.reschedule 로 날짜를 바꾼 뒤, 바꾸기 전 상태가 requested 가 아니었을 때.
     // 밤이라 미뤘으면 false 이고 booking.isDispatchHeld() 가 true — 이전 매니저 안내(BookingRescheduled)는 부른 쪽이 적지 않고 구현체가 아침에 우선 콜과 함께 적는다
     boolean onRescheduled(Booking booking, UUID previousManagerId);
-
-    /**
-     * 매니저가 방문을 취소했다(Booking.releaseByManager 뒤): accepted → superseded(다음 수락이 offers_one_accepted 에 막히지 않게),
-     * 새 회차로 올려 처음 콜을 받았던 매니저에게도 다시 보내고, 취소한 매니저만 뺀다 (전체 재점검 O1)
-     */
-    // 부르는 곳: JobService.doCancelByManager (매니저 앱의 방문 취소)
-    void onReleased(Booking booking, UUID releasedManagerId);
 }

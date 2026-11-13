@@ -542,6 +542,12 @@ public class BookingService implements ManagerWorkLookup {
         return bookings.findDispatchHeldIds();
     }
 
+    /** 관리자 배정 대기 예약, 방문 가까운 순 (offer/ReassignService 의 어드민 목록, docs/domain.md '매니저 방문 취소 승인·재배정') */
+    @Transactional(readOnly = true)
+    public List<Booking> adminAssignPending() {
+        return bookings.findAdminAssignPending();
+    }
+
     // 없는 id 면 NOT_FOUND. 잠금 순서(CODE_GUIDE.md 3-4): 시리즈도 잠그면 시리즈를 먼저(lockWithSeries·cancel),
     // 여러 예약을 잠그면 id 오름차순(예: cancelWhole·OfferExpirer). 예약만 잠그는 곳(예: 콜 거절)은 바로 부른다
     /** select … for update (§6.2-3). 매니저 행도 잠그는 콜 수락(OfferService.doAccept)은 매니저 행을 먼저 잠근 뒤 부른다 */

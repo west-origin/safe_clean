@@ -20,6 +20,20 @@ final class PushCopy {
     // ← OffersDispatched (preferred = 우선 오퍼 1명). 정기청소 다음 회차를 직전 매니저에게 먼저 줄 때(OfferService.dispatchPreferred)만 온다 —
     // 일정 변경으로 원래 매니저에게 가는 우선 오퍼는 이 이벤트를 적지 않고 아래 BOOKING_RESCHEDULED 가 안내한다 (문제 목록 15번)
     static final Text PREFERRED_CALL = new Text("단골 고객의 정기청소 콜이 도착했어요", "이전에 맡았던 고객이에요. 먼저 확인해보세요");
+
+    // ── 매니저 방문 취소 승인·재배정 (2026-11-13, docs/domain.md 같은 이름의 절 — Figma 에 없어 코드에서 정함, PROGRESS 판단 항목) ──
+    // ← OffersDispatched(reassign) — 다른 매니저가 취소해 다시 나온 콜. 근처 매니저 전원에게
+    static final Text REASSIGN_CALL = new Text("재배정 콜이 도착했어요", "매니저 사정으로 다시 배정하는 청소예요. 먼저 수락한 한 분께 배정돼요");
+    // ← CancelRequestDecided — 요청한 매니저에게 (거래성)
+    static final Text CANCEL_APPROVED = new Text("방문 취소가 승인됐어요", "이 방문은 다른 매니저에게 넘어가요. 일정에서 빠졌어요");
+    static final Text CANCEL_REJECTED = new Text("방문 취소 요청이 거절됐어요", "예정대로 방문해주세요. 어려우면 고객센터로 연락해주세요");
+    // ← AdminAssigned — 어드민이 직접 배정한 매니저에게 (거래성)
+    static final Text ADMIN_ASSIGNED = new Text("관리자가 청소를 배정했어요", "일정에서 방문 정보를 확인해주세요");
+    // ← CancelRequested / AdminAssignNeeded — 어드민 전원에게 (잠금화면에 보일 수 있어 고객·주소는 싣지 않는다)
+    static final Text ADMIN_CANCEL_REQUESTED = new Text("방문 취소 요청이 들어왔어요", "관리자 화면에서 승인하거나 거절해주세요");
+    static final Text ADMIN_ASSIGN_NO_ACCEPT = new Text("재배정이 필요한 예약이 있어요", "재배정 콜을 수락한 매니저가 없어요. 관리자 화면에서 배정해주세요");
+    static final Text ADMIN_ASSIGN_IMMINENT = new Text("재배정이 필요한 예약이 있어요", "방문까지 시간이 얼마 남지 않아 바로 배정이 필요해요");
+    static final Text ADMIN_ASSIGN_NO_CANDIDATES = new Text("재배정이 필요한 예약이 있어요", "콜을 받을 수 있는 매니저가 없어요. 관리자 화면에서 배정해주세요");
     // ← BookingCancelled (고객 취소·정기청소 해지 — 배정된 매니저, 또는 밤에 일정을 바꿔 안내를 미뤄 둔 원래 매니저에게)
     static final Text BOOKING_CANCELLED = new Text("예약이 취소됐어요", "고객이 예약을 취소했어요. 일정을 확인해주세요");
     // ← BookingCancelled 의 reason = not_started (StaleBookingCleaner 가 미방문으로 취소)

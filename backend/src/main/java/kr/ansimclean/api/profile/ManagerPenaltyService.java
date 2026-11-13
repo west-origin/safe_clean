@@ -132,6 +132,7 @@ public class ManagerPenaltyService {
 
     /** 무료 취소(월 freeCancelsPerMonth 회)는 0점. 그 밖에는 설정표의 점수 */
     private BigDecimal pointsFor(UUID managerId, String category, JsonNode rule, Instant now) {
+        if (ManagerPenalty.CANCEL_APPROVED.equals(category)) return BigDecimal.ZERO; // 승인된 방문 취소는 점수 없음 — 이 예약·정기 우선 콜에서 빠지는 기준으로만 남긴다
         BigDecimal base = rule.path("points").path(category).decimalValue();
         if (!ManagerPenalty.CANCEL_EARLY.equals(category)) return base; // 늦은 취소·미방문·지각은 무료 한도가 없다
         // 이번 달(서울 달력의 같은 해·같은 달)에 이미 적힌 일찍 취소 횟수. 면제된 행은 빼고, 0점으로 적힌 무료 취소도 센다
@@ -242,10 +243,11 @@ public class ManagerPenaltyService {
     public Set<UUID> bookingDroppers(UUID bookingId) {
         // 부르는 곳: OfferService (콜 후보에서 빼기, 수락 막기). 저장소 쿼리가 상태를 보지 않아 면제·만료된 취소도 센다
         // 방문 취소(일찍·늦게)만 센다 — 미방문·지각은 넣지 않는다
-        return new HashSet<>(penalties.managersByBookingAndCategory(bookingId, List.of(ManagerPenalty.CANCEL_EARLY, ManagerPenalty.CANCEL_LATE)));
+        // 어드민이 승인한 방문 취소(cancel_approved, 0점)도 같다 — 승인으로 배정이 풀린 매니저는 재배정 콜·수락·직접 배정에서 빠진다
+        return new HashSet<>(penalties.managersByBookingAndCategory(bookingId, List.of(ManagerPenalty.CANCEL_EARLY, ManagerPenalty.CANCEL_LATE, ManagerPenalty.CANCEL_APPROVED)));
     }
 
-    private static final List<String> DROPS = List.of(ManagerPenalty.CANCEL_EARLY, ManagerPenalty.CANCEL_LATE, ManagerPenalty.NO_SHOW); // droppedSeries 가 보는 종류 — 지각·회복은 빠진다
+    private static final List<String> DROPS = List.of(ManagerPenalty.CANCEL_EARLY, ManagerPenalty.CANCEL_LATE, ManagerPenalty.CANCEL_APPROVED, ManagerPenalty.NO_SHOW); // droppedSeries 가 보는 종류 — 지각·회복은 빠진다
 
     /** MY › 패널티 내역 화면 */
     @Transactional(readOnly = true)
@@ -294,6 +296,7 @@ public class ManagerPenaltyService {
         return switch (category) {
             case ManagerPenalty.CANCEL_EARLY -> "방문 취소 (24시간 전)";
             case ManagerPenalty.CANCEL_LATE -> "방문 취소 (24시간 이내)";
+            case ManagerPenalty.CANCEL_APPROVED -> "방문 취소 (승인)";
             case ManagerPenalty.NO_SHOW -> "미방문";
             case ManagerPenalty.TARDY -> "지각";
             case ManagerPenalty.RECOVERY -> "무사고 회복";

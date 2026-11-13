@@ -69,7 +69,7 @@ class OfferControllerTest {
         // CallItem 인자 순서: id, expiry, expiresAt, title, location, pay, eta(null), note, details.
         // CallsResponse(tabBadge 1, 카드들, 수신 상태 카드, approved true)
         when(service.calls(id)).thenReturn(new CallsResponse(1, List.of(new CallItem(offerId, "4:32 후 만료", "2026-09-15T05:04:32Z", "9월 18일 목요일 오후 2:00",
-                "서울특별시 강남구 테헤란로 · 가정/원룸 청소", "85,000원", null, "특이사항: 반려동물이 있어요", List.of("예상 소요 3시간", "아파트·빌라 · 25평"))), new AvailabilityStatus("콜 수신 중", "오늘 09:00 - 18:00 근무 설정됨"), true));
+                "서울특별시 강남구 테헤란로 · 가정/원룸 청소", "85,000원", null, "특이사항: 반려동물이 있어요", List.of("예상 소요 3시간", "아파트·빌라 · 25평"), true)), new AvailabilityStatus("콜 수신 중", "오늘 09:00 - 18:00 근무 설정됨"), true));
         mvc.perform(get("/api/v1/manager/offers").header("Authorization", "Bearer m"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tabBadge").value(1))
@@ -78,6 +78,7 @@ class OfferControllerTest {
                 .andExpect(jsonPath("$.calls[0].note").value("특이사항: 반려동물이 있어요"))
                 .andExpect(jsonPath("$.calls[0].details[0]").value("예상 소요 3시간")) // 수락 전에 보이는 정보 (사용성 검토)
                 .andExpect(jsonPath("$.calls[0].eta").doesNotExist()) // doesNotExist 는 키가 없거나 값이 null 이면 통과한다
+                .andExpect(jsonPath("$.calls[0].reassign").value(true)) // 재배정 건 표시 (2026-11-13)
                 .andExpect(jsonPath("$.availability.status").value("콜 수신 중"));
     }
 

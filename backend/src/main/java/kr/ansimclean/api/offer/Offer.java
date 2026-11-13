@@ -60,6 +60,9 @@ public class Offer {
     @Column(nullable = false)
     private boolean preferred; // 우선 콜 — 직전 매니저 한 명에게 먼저 보내는 짧은 콜 (preferred_offer_ttl_minutes)
 
+    @Column(nullable = false)
+    private boolean reassign; // 재배정 콜 — 어드민이 승인한 매니저 방문 취소 뒤 다시 나온 콜 (V068, 콜 카드·푸시에 '재배정' 표시)
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -68,7 +71,13 @@ public class Offer {
 
     /** 새 대기 콜을 만든다 (아직 저장 전 — OfferService.send 가 save 한다). id 는 여기서 새로 뽑는다 */
     public static Offer pending(UUID bookingId, UUID managerId, int round, long payAmount, Instant expiresAt, boolean preferred, Instant now) {
+        return pending(bookingId, managerId, round, payAmount, expiresAt, preferred, false, now);
+    }
+
+    /** 위와 같고 reassign = 재배정 콜인가 (OfferService.startReassign 이 true 로 만든다) */
+    public static Offer pending(UUID bookingId, UUID managerId, int round, long payAmount, Instant expiresAt, boolean preferred, boolean reassign, Instant now) {
         Offer o = new Offer();
+        o.reassign = reassign;
         o.id = UUID.randomUUID();
         o.bookingId = bookingId;
         o.managerId = managerId;
@@ -78,6 +87,17 @@ public class Offer {
         o.expiresAt = expiresAt;
         o.preferred = preferred;
         o.createdAt = now;
+        return o;
+    }
+
+    /**
+     * 어드민 직접 배정 (ReassignService.assign): 콜을 보내지 않고 처음부터 수락된 콜 한 건을 만든다 —
+     * 작업 금액(pay_amount)·수락 이력이 콜 수락과 같은 모양이 되게. round 는 새 회차여야 한다(unique(booking_id, manager_id, round))
+     */
+    public static Offer assignedByAdmin(UUID bookingId, UUID managerId, int round, long payAmount, boolean reassign, Instant now) {
+        Offer o = pending(bookingId, managerId, round, payAmount, now, false, reassign, now);
+        o.status = ACCEPTED;
+        o.respondedAt = now;
         return o;
     }
 
@@ -92,6 +112,7 @@ public class Offer {
     public Instant getRespondedAt() { return respondedAt; }
     public String getRejectReason() { return rejectReason; }
     public boolean isPreferred() { return preferred; }
+    public boolean isReassign() { return reassign; }
     public Instant getCreatedAt() { return createdAt; }
 
     public boolean isPending() {

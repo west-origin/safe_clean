@@ -1,6 +1,10 @@
 package kr.ansimclean.api.push;
 
+import kr.ansimclean.api.common.events.AdminAssigned;
+import kr.ansimclean.api.common.events.AdminAssignNeeded;
 import kr.ansimclean.api.common.events.BookingAssigned;
+import kr.ansimclean.api.common.events.CancelRequestDecided;
+import kr.ansimclean.api.common.events.CancelRequested;
 import kr.ansimclean.api.common.events.BookingCancelled;
 import kr.ansimclean.api.common.events.BookingCompleted;
 import kr.ansimclean.api.common.events.BookingRescheduled;
@@ -45,7 +49,7 @@ public class PushHandler implements OutboxHandler {
     // 아래 handle 의 case 와 같아야 한다 — 여기 없으면 '핸들러 없음' 으로 실패 처리되고, case 가 없으면 default 에서 던진다
     static final Set<String> TYPES = Set.of("BookingCancelled", "BookingRescheduled", "BookingUnassigned", "SeriesEnding", "ManagerPenalized", "ManagerReleased",
             "OffersDispatched", "BookingAssigned", "BookingCompleted", "CameraOnline", "CameraOffline", "RecordingReady", "RecordingFailed", "MatchingFailed", "InquiryAnswered",
-            "ManagerLate");
+            "ManagerLate", "CancelRequested", "CancelRequestDecided", "AdminAssignNeeded", "AdminAssigned");
 
     /** booking/StaleBookingCleaner.REASON_NOT_STARTED 와 같다 (push 는 booking 을 보지 않는다 — 문자열만 맞춘다) */
     static final String NOT_STARTED = "not_started";
@@ -77,7 +81,8 @@ public class PushHandler implements OutboxHandler {
             case "OffersDispatched" -> {
                 // 새 콜 → 후보 매니저들. push 와 call(새 콜 알림) 토글이 모두 켜진 매니저에게만. 탭하면 매니저 앱 콜 목록(/call)
                 OffersDispatched e = json.readValue(payloadJson, OffersDispatched.class);
-                PushCopy.Text text = e.preferred() ? PushCopy.PREFERRED_CALL : PushCopy.NEW_CALL;
+                // 재배정 콜(매니저 방문 취소 승인 뒤)은 '재배정' 문구 — 필드가 없는 예전 이벤트(null)는 일반 콜
+                PushCopy.Text text = Boolean.TRUE.equals(e.reassign()) ? PushCopy.REASSIGN_CALL : e.preferred() ? PushCopy.PREFERRED_CALL : PushCopy.NEW_CALL;
                 // 한 명이 실패해도 나머지에게 먼저 보낸다 — 앞 순서에서 던지면 뒤 후보는 시도 한도(OutboxEvent.MAX_ATTEMPTS)를 다 쓰도록 콜 푸시를 못 받는다 (검수 3차). 재시도의 중복은 collapseKey·tag 로 기기에서 합쳐진다
                 int failed = 0;
                 for (UUID managerId : e.managerIds()) failed += toManagerCount(managerId, "call", text, Map.of("type", "call", "bookingId", e.bookingId().toString()), collapse);
@@ -190,6 +195,31 @@ public class PushHandler implements OutboxHandler {
                 RecordingFailed e = json.readValue(payloadJson, RecordingFailed.class);
                 toCustomerAlways(e.customerId(), PushCopy.RECORDING_FAILED, booking(e.bookingId(), "reservation"), collapse);
             }
+            case "CancelRequested" -> {
+                // 매니저 방문 취소 요청 → 어드민 전원 (알림 설정과 무관). data type admin-cancel-request = 매니저 앱 관리자 '취소 요청' 화면
+                CancelRequested e = json.readValue(payloadJson, CancelRequested.class);
+                toAdmins(PushCopy.ADMIN_CANCEL_REQUESTED, Map.of("type", "admin-cancel-request", "bookingId", e.bookingId().toString()), collapse);
+            }
+            case "AdminAssignNeeded" -> {
+                // 관리자 배정 대기 → 어드민 전원 (알림 설정과 무관). 사유별 문구. data type admin-reassign = 관리자 '배정 대기' 화면
+                AdminAssignNeeded e = json.readValue(payloadJson, AdminAssignNeeded.class);
+                PushCopy.Text text = switch (String.valueOf(e.reason())) {
+                    case "imminent" -> PushCopy.ADMIN_ASSIGN_IMMINENT;
+                    case "no_candidates" -> PushCopy.ADMIN_ASSIGN_NO_CANDIDATES;
+                    default -> PushCopy.ADMIN_ASSIGN_NO_ACCEPT;
+                };
+                toAdmins(text, Map.of("type", "admin-reassign", "bookingId", e.bookingId().toString()), collapse);
+            }
+            case "CancelRequestDecided" -> {
+                // 어드민 결정 → 요청한 매니저 (거래성 — 승인이면 일정에서 빠지고, 거절이면 그대로 가야 한다). 탭하면 매니저 앱 일정
+                CancelRequestDecided e = json.readValue(payloadJson, CancelRequestDecided.class);
+                toManagerAlways(e.managerId(), e.approved() ? PushCopy.CANCEL_APPROVED : PushCopy.CANCEL_REJECTED, booking(e.bookingId(), e.approved() ? "schedule" : "job"), collapse);
+            }
+            case "AdminAssigned" -> {
+                // 어드민 직접 배정 → 그 매니저 (거래성 — 콜을 수락하지 않았는데 일정이 생겼다). 탭하면 작업 상세
+                AdminAssigned e = json.readValue(payloadJson, AdminAssigned.class);
+                toManagerAlways(e.managerId(), PushCopy.ADMIN_ASSIGNED, booking(e.bookingId(), "job"), collapse);
+            }
             // TYPES 에 넣고 case 를 빠뜨렸을 때 — 던지면 아웃박스가 실패로 남긴다
             default -> throw new IllegalArgumentException("모르는 푸시 이벤트: " + type);
         }
@@ -225,6 +255,16 @@ public class PushHandler implements OutboxHandler {
     /** 예외는 PushService(@Transactional) 밖인 여기서 — 안에서 던지면 이 이벤트의 아웃박스 트랜잭션이 rollback-only 가 된다 (예전에는 배치 전체) */
     private static void failIfAny(int failed) {
         if (failed > 0) throw new IllegalStateException("푸시 " + failed + "기기 발송 실패 — 재시도");
+    }
+
+    /**
+     * 어드민 전원에게 — 운영 알림이라 설정 토글을 보지 않는다. 한 명이 실패해도 나머지에게 먼저 보내고, 실패가 있으면 던져 재시도한다
+     * (재시도의 중복은 collapseKey 로 기기에서 합쳐진다). 어드민이 없으면 아무것도 하지 않는다 — 운영자는 로그 WARN 으로도 본다
+     */
+    private void toAdmins(PushCopy.Text text, Map<String, String> data, String collapseKey) {
+        int failed = 0;
+        for (UUID adminId : profiles.adminIds()) failed += push.send(adminId, text.title(), text.body(), data, collapseKey);
+        failIfAny(failed);
     }
 
     /** 매니저 계정 상태 안내(패널티 경고·콜 배정 정지) — 설정 토글을 보지 않는다. 실패한 기기가 있으면 던진다 */

@@ -90,10 +90,10 @@ public class JobController {
         return service.resume(user.id(), id);
     }
 
-    /** 매니저 방문 취소 → 예약은 살아 있고 다시 매칭된다 (docs/manager-policy.md) */
-    // 본문 { reason, detail }. 응답은 고객 예약 카드 모양(ReservationResponse)이다 — 서비스가 bookings.reservation 을 그대로 돌려준다
+    /** 매니저 방문 취소 **요청** → 어드민이 승인하면 배정이 풀리고 재배정 콜이 나간다 (docs/domain.md '매니저 방문 취소 승인·재배정') */
+    // 본문 { reason, detail }. 응답은 요청 한 건 { id, bookingId, status: "pending", requestedAt }
     @PostMapping("/{id}/cancel")
-    public kr.ansimclean.api.booking.dto.ReservationResponse cancel(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id,
+    public kr.ansimclean.api.job.dto.CancelRequestResponse cancel(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id,
                                                                     @Valid @RequestBody kr.ansimclean.api.job.dto.ManagerCancelRequest req,
                                                                     @RequestHeader(value = "Idempotency-Key", required = false) String key) {
         return service.cancelByManager(user.id(), id, req.reason(), req.detail(), key);

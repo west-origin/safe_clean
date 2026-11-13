@@ -9,7 +9,12 @@ import java.util.UUID;
 // 매니저 앱 작업 상세(Job/Detail) 값. 만드는 곳: JobService.job.
 // address = 도로명 주소(+상세 주소) 줄, info = 고객(가린 이름)·청소 유형·예상 소요(+주거 정보) 행, pay = 매니저 몫 "85,000원",
 // scope = 무료·유료 옵션 라벨, requests = 주의사항·수리 정보·고객 요청 줄
-public record JobResponse(UUID id, String status, String startLabel, boolean today, List<String> address, List<Row> info, String pay, List<String> scope, List<String> requests, List<String> photos) {
+// cancelRequest = 어드민 결정을 기다리는 방문 취소 요청 { status: "pending", requestedAt(ISO) }, 없으면 null (2026-11-13, docs/api.md)
+public record JobResponse(UUID id, String status, String startLabel, boolean today, List<String> address, List<Row> info, String pay, List<String> scope, List<String> requests, List<String> photos,
+                          CancelRequestState cancelRequest) {
     /** 정보 한 행 — 왼쪽 라벨(예: "고객")과 오른쪽 값 */
     public record Row(String label, String value) {}
+
+    /** 대기 중인 방문 취소 요청 */
+    public record CancelRequestState(String status, String requestedAt) {}
 }

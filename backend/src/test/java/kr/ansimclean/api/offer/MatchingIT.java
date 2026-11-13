@@ -48,7 +48,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 통합 (Docker 필요, B4 완료 기준 MatchingIT): 예약 → 후보 2명 오퍼 → A 수락 성공 · B 수락 OFFER_TAKEN → 같은 매니저의 겹치는 두 예약 동시 수락은 하나만 ·
- * 만료 스케줄러 → expired → 재매칭(새 후보) · 일정 변경 → accepted 가 superseded · 우선 오퍼 → 재수락 → live_sessions 1행 유지.
+ * 만료 스케줄러 → expired → 재매칭(새 후보) · 일정 변경 → accepted 가 superseded · 우선 오퍼 → 재수락 → live_sessions 1행 유지 ·
+ * 매니저 방문 취소 요청 → 어드민 승인 → 재배정 콜(동시 수락은 1명) → 24시간 무응답이면 관리자 배정 대기 → 어드민 직접 배정 (2026-11-13).
  * 시계는 2026-09-15(화) 14:00 서울에서 시작한다.
  */
 // 통합 테스트(CODE_GUIDE.md 3-12). HTTP 포트는 열지 않고 MockMvc(AutoConfigureMockMvc)로 컨트롤러부터 DB 까지 실제 코드를 탄다.
@@ -217,18 +218,20 @@ class MatchingIT {
         assertThat(offerService.releaseHeldDispatches()).isZero(); // 두 번 보내지 않는다
     }
 
-    // a 가 수락한 뒤 b 가 정지돼(SQL) 다른 후보가 없다 → a 가 방문을 취소하면 재매칭이 곧바로 실패한다.
-    // 고객 알림은 매칭 실패(MatchingFailed) 하나만 적히고 '다른 매니저를 찾고 있어요'(ManagerReleased)는 적히지 않는다 (문제 목록 5번)
+    // a 가 수락한 뒤 b 가 정지돼(SQL) 다른 후보가 없다 → a 의 방문 취소 요청을 어드민이 승인하면 재배정 콜 없이 곧바로 관리자 배정 대기(no_candidates).
+    // 고객에게는 매칭 실패 안내(MatchingFailed)가 아니라 '다른 매니저를 찾고 있어요'(ManagerReleased) 하나, 어드민에게는 AdminAssignNeeded
     @Test
-    void 방문_취소_뒤_대신할_매니저가_없으면_실패_알림_하나만_간다() throws Exception {
+    void 방문_취소_승인_뒤_대신할_매니저가_없으면_바로_관리자_배정_대기() throws Exception {
         UUID x = createBooking("2026-09-18", "10:00");
         assertThat(accept(a, offerFor(a, x))).isEqualTo(200);
         jdbc.update("update manager_profiles set suspended_until = ? where manager_id = ?", java.sql.Date.valueOf("2026-09-22"), b.id());
-        mvc.perform(post("/api/v1/manager/jobs/" + x + "/cancel").header("Authorization", a.bearer()).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"reason\":\"sick\"}")).andExpect(status().isOk());
-        assertThat(jdbc.queryForObject("select matching_failed_at is not null from bookings where id = ?", Boolean.class, x)).isTrue();
-        assertThat(jdbc.queryForObject("select count(*) from outbox_events where type = 'MatchingFailed' and payload::text like ?", Integer.class, "%" + x + "%")).isEqualTo(1);
-        assertThat(jdbc.queryForObject("select count(*) from outbox_events where type = 'ManagerReleased' and payload::text like ?", Integer.class, "%" + x + "%")).isZero();
+        approve(requestCancel(a, x)).andExpect(status().isOk()).andExpect(jsonPath("$.next").value("awaitingAdmin"));
+        assertThat(bookingStatus(x)).isEqualTo("assigning");
+        assertThat(jdbc.queryForObject("select admin_assign_reason from bookings where id = ?", String.class, x)).isEqualTo("no_candidates");
+        assertThat(jdbc.queryForObject("select matching_failed_at is null from bookings where id = ?", Boolean.class, x)).isTrue();
+        assertThat(outboxCount("MatchingFailed", x)).isZero();
+        assertThat(outboxCount("ManagerReleased", x)).isEqualTo(1);
+        assertThat(outboxCount("AdminAssignNeeded", x)).isEqualTo(1);
     }
 
     // a·b 가 콜을 받은 뒤 a 가 7일 정지된다(SQL) → a 의 콜 탭은 곧바로 카드 없이 '콜 배정 정지 중' 안내(배지 0).
@@ -308,18 +311,179 @@ class MatchingIT {
         return jdbc.queryForObject("select status from bookings where id = ?", String.class, bookingId);
     }
 
-    // a 가 수락한 뒤 방문을 취소(POST /manager/jobs/{id}/cancel) → 새 회차로 다시 매칭된다. a 는 빠지고 b 가 다시 받아 수락한다
+    // a 가 수락한 뒤 방문 취소를 요청(POST /manager/jobs/{id}/cancel) → 승인 전에는 a 에게 배정된 그대로 →
+    // 어드민 승인 → 새 회차로 재배정 콜. a 는 빠지고 b 가 '재배정' 콜을 받아 수락한다
     @Test
-    void 매니저가_방문을_취소하면_처음_콜을_받았던_다른_매니저가_다시_받아_수락할_수_있다() throws Exception { // 전체 재점검 O1 (offers_one_accepted)
+    void 매니저가_방문_취소를_요청하고_어드민이_승인하면_처음_콜을_받았던_다른_매니저가_재배정_콜을_받아_수락할_수_있다() throws Exception { // 전체 재점검 O1 (offers_one_accepted)
         UUID x = createBooking("2026-09-18", "10:00");
         assertThat(accept(a, offerFor(a, x))).isEqualTo(200);
-        mvc.perform(post("/api/v1/manager/jobs/" + x + "/cancel").header("Authorization", a.bearer()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"reason\":\"sick\"}"))
-                .andExpect(status().isOk());
+        UUID request = requestCancel(a, x);
+        assertThat(bookingStatus(x)).isEqualTo("scheduled"); // 승인 전까지 그대로
+        mvc.perform(get("/api/v1/manager/jobs/" + x).header("Authorization", a.bearer()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.cancelRequest.status").value("pending"));
+        assertThat(requestCancel(a, x)).isEqualTo(request); // 다시 눌러도 대기 요청은 하나
+        assertThat(outboxCount("CancelRequested", x)).isEqualTo(1);
+
+        approve(request).andExpect(status().isOk()).andExpect(jsonPath("$.next").value("calling"));
         assertThat(calls(a)).isEmpty();          // 취소한 매니저에게는 다시 가지 않는다
         assertThat(calls(b)).hasSize(1);          // 처음 콜을 받았던 매니저에게 새 회차로
+        assertThat(calls(b).get(0).get("reassign").asBoolean()).isTrue(); // '재배정' 표시
         assertThat(accept(b, offerFor(b, x))).isEqualTo(200); // 예전에는 a 의 accepted 가 남아 409
         mvc.perform(get("/api/v1/manager/jobs/" + x).header("Authorization", b.bearer())).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select reason from booking_status_history where booking_id = ? order by id desc limit 1", String.class, x))
+                .isEqualTo(OfferService.HISTORY_REASSIGNED);
+        assertThat(jdbc.queryForObject("select points from manager_penalties where booking_id = ? and category = 'cancel_approved'", java.math.BigDecimal.class, x))
+                .isZero(); // 점수 없음
+    }
+
+    // ── 매니저 방문 취소 승인·재배정 (docs/domain.md 같은 이름의 절, 2026-11-13) ──
+
+    /** 매니저가 방문 취소를 요청한다. 결과 = 요청 id */
+    UUID requestCancel(ItSupport.User manager, UUID bookingId) throws Exception {
+        String res = mvc.perform(post("/api/v1/manager/jobs/" + bookingId + "/cancel").header("Authorization", manager.bearer())
+                        .header("Idempotency-Key", UUID.randomUUID().toString()).contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"sick\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("pending"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        return UUID.fromString(json.readTree(res).get("id").asString());
+    }
+
+    /** 어드민(MFA)이 요청을 승인한다 */
+    org.springframework.test.web.servlet.ResultActions approve(UUID requestId) throws Exception {
+        return approve(requestId, admin().bearer());
+    }
+
+    /** 위와 같고 어드민 토큰을 받는다 — 여러 스레드에서 부를 때는 토큰을 먼저 만들어 둔다(가짜 JwtDecoder 꾸미기는 한 스레드에서) */
+    org.springframework.test.web.servlet.ResultActions approve(UUID requestId, String adminBearer) throws Exception {
+        return mvc.perform(post("/api/v1/admin/cancel-requests/" + requestId + "/approve").header("Authorization", adminBearer));
+    }
+
+    /** 이 예약 id 가 들어간 아웃박스 행 수 */
+    int outboxCount(String type, UUID bookingId) {
+        return jdbc.queryForObject("select count(*) from outbox_events where type = ? and payload::text like ?", Integer.class, type, "%" + bookingId + "%");
+    }
+
+    // 재배정 콜을 받은 b·c 가 거의 동시에 수락 → 한 명만 200, 다른 한 명은 409 OFFER_TAKEN('다른 매니저가 먼저 수락했어요').
+    // DB 잠금(매니저 → 예약 → 오퍼)과 offers_one_accepted 가 1명 배정을 보장하고, 남은 콜은 모두 닫힌다
+    @Test
+    void 재배정_콜을_두_매니저가_동시에_수락하면_한_명에게만_배정된다() throws Exception {
+        ItSupport.User c = ItSupport.approvedManager(profiles, availability, jwtDecoder, "이수현", "서울특별시 강남구", "서울특별시");
+        UUID x = createBooking("2026-09-18", "10:00");
+        assertThat(accept(a, offerFor(a, x))).isEqualTo(200);
+        approve(requestCancel(a, x)).andExpect(status().isOk());
+        UUID offerB = offerFor(b, x);
+        UUID offerC = offerFor(c, x);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        java.util.concurrent.CountDownLatch go = new java.util.concurrent.CountDownLatch(1); // 두 스레드를 같은 순간에 출발시킨다
+        List<Future<Integer>> results = new ArrayList<>();
+        results.add(pool.submit(() -> { go.await(); return accept(b, offerB); }));
+        results.add(pool.submit(() -> { go.await(); return accept(c, offerC); }));
+        go.countDown();
+        List<Integer> statuses = new ArrayList<>();
+        for (Future<Integer> f : results) statuses.add(f.get());
+        pool.shutdown();
+        assertThat(statuses).containsExactlyInAnyOrder(200, 409);
+        UUID winner = statuses.get(0) == 200 ? b.id() : c.id();
+        assertThat(bookingStatus(x)).isEqualTo("scheduled");
+        assertThat(jdbc.queryForObject("select manager_id from bookings where id = ?", UUID.class, x)).isEqualTo(winner);
+        assertThat(offers.findByBookingId(x).stream().filter(o -> Offer.ACCEPTED.equals(o.getStatus())).count()).isEqualTo(1);
+        assertThat(offers.findByBookingId(x).stream().filter(Offer::isPending)).isEmpty(); // 나머지 콜은 닫혔다
+        assertThat(jdbc.queryForObject("select reassign_until is null and admin_assign_pending_at is null from bookings where id = ?", Boolean.class, x)).isTrue();
+    }
+
+    // 승인 뒤 24시간(reassign_window_hours) 동안 아무도 수락하지 않음 → 만료 스케줄러가 콜을 닫으면 다음 회차로 다시 보내지 않고 관리자 배정 대기 + 어드민 알림.
+    // 이어서 어드민이 대기 목록(예약·고객·방문 일시·주소·취소한 매니저·시각)을 보고, 고를 수 있는 매니저 중 b 에게 직접 배정한다
+    @Test
+    void 재배정_콜이_24시간_동안_수락되지_않으면_관리자_배정_대기가_되고_어드민이_직접_배정한다() throws Exception {
+        UUID x = createBooking("2026-09-18", "10:00");
+        assertThat(accept(a, offerFor(a, x))).isEqualTo(200);
+        approve(requestCancel(a, x)).andExpect(status().isOk()).andExpect(jsonPath("$.reassignUntil").value("2026-09-16T05:00:00Z"));
+        int round = jdbc.queryForObject("select dispatch_round from bookings where id = ?", Integer.class, x);
+
+        CLOCK.set(CLOCK.instant().plus(Duration.ofHours(23)));
+        assertThat(offerService.expireDue()).isZero(); // 아직 마감 전
+        CLOCK.set(Instant.parse("2026-09-16T05:00:01Z"));
+        assertThat(offerService.expireDue()).isEqualTo(1); // b 의 재배정 콜 만료
+        assertThat(jdbc.queryForObject("select admin_assign_reason from bookings where id = ?", String.class, x)).isEqualTo("no_accept");
+        assertThat(jdbc.queryForObject("select dispatch_round from bookings where id = ?", Integer.class, x)).isEqualTo(round); // 다음 회차 없음
+        assertThat(offers.findByBookingId(x).stream().filter(Offer::isPending)).isEmpty();
+        assertThat(outboxCount("AdminAssignNeeded", x)).isEqualTo(1);
+        assertThat(outboxCount("MatchingFailed", x)).isZero();
+        assertThat(offerService.retryFailedMatches()).isZero(); // 매시 자동 재매칭도 집지 않는다
+
+        String admin = admin().bearer();
+        mvc.perform(get("/api/v1/admin/reassignments").header("Authorization", admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].bookingId").value(x.toString()))
+                .andExpect(jsonPath("$[0].reason").value("no_accept"))
+                .andExpect(jsonPath("$[0].customer.name").value("김하늘"))
+                .andExpect(jsonPath("$[0].visitAt").value("2026-09-18T01:00:00Z"))
+                .andExpect(jsonPath("$[0].cancelledManager.name").value("김미영"))
+                .andExpect(jsonPath("$[0].requestedAt").exists())
+                .andExpect(jsonPath("$[0].approvedAt").exists());
+        mvc.perform(get("/api/v1/admin/bookings/" + x + "/assignable-managers").header("Authorization", admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].id").value(b.id().toString())); // a 는 빠진다
+        mvc.perform(post("/api/v1/admin/bookings/" + x + "/assign").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"managerId\":\"" + a.id() + "\"}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error.message").value(ReassignService.MANAGER_DROPPED));
+        mvc.perform(post("/api/v1/admin/bookings/" + x + "/assign").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"managerId\":\"" + b.id() + "\"}"))
+                .andExpect(status().isOk());
+        assertThat(bookingStatus(x)).isEqualTo("scheduled");
+        mvc.perform(get("/api/v1/manager/jobs/" + x).header("Authorization", b.bearer())).andExpect(status().isOk()).andExpect(jsonPath("$.pay").value("90,000원"));
+        mvc.perform(get("/api/v1/admin/reassignments").header("Authorization", admin)).andExpect(jsonPath("$.length()").value(0));
+        assertThat(jdbc.queryForObject("select count(*) from activity_logs where action = 'booking.assign' and target_id = ?", Integer.class, x.toString())).isEqualTo(1);
+    }
+
+    // 방문까지 24시간이 안 남은 예약(9/16 10:00 — 지금 9/15 14:00)의 취소를 승인 → 콜 없이 바로 관리자 배정 대기(imminent)
+    @Test
+    void 방문이_24시간_안이면_승인_즉시_관리자_배정_대기() throws Exception {
+        UUID x = createBooking("2026-09-16", "10:00");
+        assertThat(accept(a, offerFor(a, x))).isEqualTo(200);
+        approve(requestCancel(a, x)).andExpect(status().isOk()).andExpect(jsonPath("$.next").value("awaitingAdmin"));
+        assertThat(jdbc.queryForObject("select admin_assign_reason from bookings where id = ?", String.class, x)).isEqualTo("imminent");
+        assertThat(offers.findByBookingId(x).stream().filter(Offer::isPending)).isEmpty();
+        assertThat(calls(b)).isEmpty();
+    }
+
+    // 재배정 중 고객이 예약을 취소 → 재배정 콜이 모두 닫힌다(b 의 콜 탭이 빈다). 승인 전 요청은 고객 취소로 닫힌다
+    @Test
+    void 재배정_중_고객이_취소하면_콜이_무효가_되고_승인_전_요청은_닫힌다() throws Exception {
+        UUID x = createBooking("2026-09-18", "10:00");
+        assertThat(accept(a, offerFor(a, x))).isEqualTo(200);
+        approve(requestCancel(a, x)).andExpect(status().isOk());
+        assertThat(calls(b)).hasSize(1);
+        mvc.perform(post("/api/v1/customer/reservations/" + x + "/cancel").header("Authorization", customer.bearer())).andExpect(status().isOk());
+        assertThat(calls(b)).isEmpty();
+        assertThat(offers.findByBookingId(x).stream().filter(Offer::isPending)).isEmpty();
+
+        UUID y = createBooking("2026-09-19", "10:00");
+        assertThat(accept(a, offerFor(a, y))).isEqualTo(200);
+        UUID request = requestCancel(a, y);
+        mvc.perform(post("/api/v1/customer/reservations/" + y + "/cancel").header("Authorization", customer.bearer())).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select status || ':' || decision_note from manager_cancel_requests where id = ?", String.class, request))
+                .isEqualTo("closed:booking_cancelled");
+        approve(request).andExpect(status().isConflict()); // 닫힌 요청은 승인할 수 없다
+    }
+
+    // 두 어드민이 같은 요청을 동시에 승인 → 예약 → 요청 잠금으로 한 번만 처리된다(둘 다 200, 같은 응답). 재배정 콜·알림도 한 벌
+    @Test
+    void 같은_요청을_두_어드민이_동시에_승인해도_재배정은_한_번() throws Exception {
+        UUID x = createBooking("2026-09-18", "10:00");
+        assertThat(accept(a, offerFor(a, x))).isEqualTo(200);
+        UUID request = requestCancel(a, x);
+        List<String> admins = List.of(admin().bearer(), admin().bearer()); // 서로 다른 두 어드민
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        java.util.concurrent.CountDownLatch go = new java.util.concurrent.CountDownLatch(1);
+        List<Future<Integer>> results = new ArrayList<>();
+        for (String bearer : admins) results.add(pool.submit(() -> { go.await(); return approve(request, bearer).andReturn().getResponse().getStatus(); }));
+        go.countDown();
+        List<Integer> statuses = new ArrayList<>();
+        for (Future<Integer> f : results) statuses.add(f.get());
+        pool.shutdown();
+        assertThat(statuses).containsExactly(200, 200);
+        assertThat(offers.findByBookingId(x).stream().filter(Offer::isPending).count()).isEqualTo(1); // b 에게 한 번
+        assertThat(outboxCount("ManagerReleased", x)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from manager_penalties where booking_id = ? and category = 'cancel_approved'", Integer.class, x)).isEqualTo(1);
     }
 
     // a·b 에게 콜이 간 뒤 새 매니저 c 가 승인된다 → 콜 유효 시간(설정 30분)을 넘기도록 시계를 31분 옮기고 만료 처리를 직접 부른다 →

@@ -9,6 +9,7 @@ import kr.ansimclean.api.catalog.AppSettingsService;
 import kr.ansimclean.api.catalog.CatalogService;
 import kr.ansimclean.api.common.error.ApiException;
 import kr.ansimclean.api.common.error.ErrorCode;
+import kr.ansimclean.api.common.events.AdminAssignNeeded;
 import kr.ansimclean.api.common.events.BookingAssigned;
 import kr.ansimclean.api.common.events.BookingRescheduled;
 import kr.ansimclean.api.common.events.MatchingFailed;
@@ -74,6 +75,13 @@ public class OfferService implements BookingDispatcher {
     public static final String SETTING_PREFERRED_TTL = "preferred_offer_ttl_minutes"; // 우선 콜 유효 시간(분)
     public static final String SETTING_MAX_ROUNDS = "max_dispatch_rounds"; // 재매칭 최대 회차 — 이 회차의 콜까지 모두 닫히면 매칭 실패 (회차는 예약 전체에서 센다)
     public static final String SETTING_ETA = "eta_placeholder"; // 콜 카드의 이동 시간 칸 값
+    public static final String SETTING_REASSIGN_WINDOW = "reassign_window_hours"; // 재배정 콜을 열어 두는 시간(시간, V068 기본 24) — 방문까지 이보다 적으면 콜 없이 관리자 배정 대기
+    // 관리자 배정 대기 사유 (bookings.admin_assign_reason 의 DB check 값과 같다)
+    public static final String AWAIT_NO_ACCEPT = "no_accept";         // 재배정 콜이 모두 거절·만료·정지로 닫혔다
+    public static final String AWAIT_IMMINENT = "imminent";           // 승인 때 방문까지 reassign_window_hours 미만
+    public static final String AWAIT_NO_CANDIDATES = "no_candidates"; // 보낼 후보가 없었다
+    // 상태 이력(booking_status_history.reason) 값 — 재배정 흐름을 추적한다 (docs/domain.md '매니저 방문 취소 승인·재배정')
+    public static final String HISTORY_REASSIGNED = "reassigned";
     static final String NOTE_PREFIX = "특이사항: "; // 콜 카드 note 앞에 붙는 말
     private static final Logger log = LoggerFactory.getLogger(OfferService.class);
 
@@ -237,8 +245,9 @@ public class OfferService implements BookingDispatcher {
      */
     @Override
     public void onCancelled(Booking booking) {
-        for (Offer o : offers.findByBookingIdAndStatus(booking.getId(), Offer.PENDING)) o.cancel();
+        for (Offer o : offers.findByBookingIdAndStatus(booking.getId(), Offer.PENDING)) o.cancel(); // 재배정 콜도 여기서 닫힌다
         booking.clearDispatchHold();
+        jobs.closeCancelRequests(booking.getId(), kr.ansimclean.api.job.JobCancelRequest.CLOSED_BOOKING_CANCELLED); // 승인 전 방문 취소 요청은 쓸모가 없어졌다
     }
 
     /**
@@ -251,6 +260,7 @@ public class OfferService implements BookingDispatcher {
      */
     @Override
     public boolean onRescheduled(Booking booking, UUID previousManagerId) {
+        jobs.closeCancelRequests(booking.getId(), kr.ansimclean.api.job.JobCancelRequest.CLOSED_RESCHEDULED); // 새 일정으로 매칭을 다시 시작한다 — 옛 일정의 취소 요청은 닫는다
         for (Offer o : offers.findByBookingId(booking.getId())) {
             // 둘 중 하나만 효과가 있다: 수락했던 콜 → superseded, 대기 콜 → cancelled. 이미 닫힌 콜은 그대로
             o.supersede();
@@ -272,17 +282,52 @@ public class OfferService implements BookingDispatcher {
         return false;
     }
 
-    /** 매니저가 맡았던 방문을 취소했을 때 (JobService): 옛 콜을 정리하고 새 회차·새 매칭 구간으로 다시 매칭한다. 취소한 매니저만 뺀다 */
-    // 후보가 한 명도 없으면 dispatch 가 바로 매칭 실패 표시·알림(MatchingFailed)을 적는다 — JobService 는 그 표시를 보고
-    // '다른 매니저를 찾고 있어요'(ManagerReleased)를 적지 않는다 (문제 목록 5번). 밤이면 dispatch 가 아침으로 미룬다
-    @Override
-    public void onReleased(Booking booking, UUID releasedManagerId) {
+    // ── 매니저 방문 취소 승인 뒤 재배정 (docs/domain.md '매니저 방문 취소 승인·재배정', 2026-11-13) ──
+
+    /**
+     * 어드민이 방문 취소를 승인한 직후(ReassignService.approve, 같은 트랜잭션 — Booking.releaseByManager 다음) 재배정을 시작한다.
+     * 옛 콜 정리 → 새 회차·새 매칭 구간 → 방문까지 reassign_window_hours(24) 미만이면 콜 없이 관리자 배정 대기(imminent) →
+     * 아니면 후보 전원에게 재배정 콜 1번(마감 = 지금 + 24시간), 후보가 없으면 관리자 배정 대기(no_candidates).
+     * 어드민 작업이라 밤에도 지금 보낸다(운영자 재매칭과 같다). 결과: 콜을 보냈으면 true, 곧바로 관리자 배정 대기면 false
+     */
+    public boolean startReassign(Booking booking, UUID releasedManagerId, UUID requestId) {
         for (Offer o : offers.findByBookingId(booking.getId())) {
             o.supersede(); // 취소한 매니저의 accepted — 그대로 두면 다음 매니저의 수락이 offers_one_accepted 에 걸려 OFFER_TAKEN 이 된다
             o.cancel();
         }
-        booking.restartAfterRelease(); // 새 회차(+ 새 매칭 구간) — 같은 회차면 처음 콜을 받았던(수락 때 cancelled 된) 매니저 전원이 다시 빠진다
-        dispatch(booking, Set.of(releasedManagerId));
+        booking.clearDispatchHold();
+        booking.restartAfterRelease(); // 새 회차(+ 새 매칭 구간)
+        Instant now = clock.now();
+        int windowHours = settings.integer(SETTING_REASSIGN_WINDOW);
+        Instant until = now.plus(Duration.ofHours(windowHours));
+        if (booking.getStartsAt().isBefore(until)) { // 방문까지 24시간이 안 남았다 — 콜을 돌릴 시간이 없어 바로 어드민에게 (사용자 결정 2026-11-13)
+            awaitAdmin(booking, requestId, AWAIT_IMMINENT);
+            return false;
+        }
+        Set<UUID> skip = new HashSet<>(penalties.bookingDroppers(booking.getId())); // 이 예약을 취소한 매니저(승인된 0점 행 포함)는 늘 뺀다
+        skip.add(releasedManagerId); // 원장 행이 먼저 적히지만, 순서가 바뀌어도 빠지게 한 번 더
+        List<UUID> candidates = findCandidates(booking, skip); // 신규 예약과 같은 후보 선정 — 활동 지역·근무시간·근무 불가·겹치는 작업, 정지·미승인 제외
+        if (candidates.isEmpty()) {
+            awaitAdmin(booking, requestId, AWAIT_NO_CANDIDATES);
+            return false;
+        }
+        booking.startReassign(requestId, until);
+        for (UUID m : candidates) {
+            offers.save(Offer.pending(booking.getId(), m, booking.getDispatchRound(), booking.managerPay(), until, false, true, now));
+        }
+        outbox.publish(new OffersDispatched(booking.getId(), candidates, false, true)); // 푸시 '재배정 콜이 도착했어요'
+        log.info("재배정 콜: 예약={} 회차={} 후보={}명 마감={}", booking.getId(), booking.getDispatchRound(), candidates.size(), until);
+        return true;
+    }
+
+    /**
+     * 관리자 배정 대기로 표시하고(처음 한 번만) 어드민에게 알린다. 다음 회차·자동 재매칭으로 다시 보내지 않는다 — 어드민이 직접 배정한다.
+     * 고객에게 매칭 실패 안내는 보내지 않는다(카드는 '배정 후 알려드려요' 그대로). requestId = 재배정을 시작한 요청(이미 적혀 있으면 null 이어도 된다)
+     */
+    void awaitAdmin(Booking booking, UUID requestId, String reason) {
+        if (!booking.awaitAdminAssign(requestId, clock.now(), reason)) return; // 이미 대기 중 — 어드민에게 두 번 알리지 않는다
+        log.warn("관리자 배정 대기: 예약={} 사유={}", booking.getId(), reason); // 개인정보 없이 id 만 (CLAUDE.md §11-11)
+        outbox.publish(new AdminAssignNeeded(booking.getId(), reason));
     }
 
     /** §6.2-1 후보: approved ∧ 활동 지역 ∧ 요일 근무시간·근무불가 ∧ 겹치는 작업 없음 */
@@ -310,7 +355,7 @@ public class OfferService implements BookingDispatcher {
      * 이 매니저가 그 방문 시간에 근무하는가 (요일 근무시간·휴무·근무 불가, AvailabilityService.isAvailable).
      * 후보 판정(eligible)과 수락(doAccept)이 같은 기준을 쓰게 한 곳에 둔다 — 콜을 받은 뒤 근무 불가를 넣었는데 수락되던 문제 (문제 목록 7번)
      */
-    private boolean worksThen(UUID managerId, Booking booking) {
+    boolean worksThen(UUID managerId, Booking booking) {
         LocalTime start = booking.getServiceTime();
         LocalTime end = start.plusMinutes(booking.getDurationMinutes());
         if (!end.isAfter(start)) end = LocalTime.MAX; // 자정을 넘는 작업은 그날 끝까지로 본다
@@ -386,6 +431,7 @@ public class OfferService implements BookingDispatcher {
         if (!worksThen(managerId, booking)) throw new ApiException(ErrorCode.INVALID_STATE, OUTSIDE_AVAILABILITY);
         if (bookings.hasOverlappingWork(managerId, booking.getStartsAt(), booking.getEndsAt())) throw new ApiException(ErrorCode.OFFER_TAKEN);
         BookingStatus from = booking.getStatus(); // 상태 이력에 '어디서 → 어디로' 를 남기려고 바꾸기 전 상태를 기억한다
+        String historyReason = booking.isInReassign() ? HISTORY_REASSIGNED : null; // 재배정 콜을 수락했다 — assign 이 표시를 지우기 전에 기억한다
         // DB 제약 위반(bookings_manager_no_overlap = 한 매니저에게 시간이 겹치는 작업, offers_one_accepted = 한 예약에 수락 둘)은
         // DataIntegrityViolationException 으로 온다. 위 잠금·검사를 비켜 간 경우의 최종 방어라 OFFER_TAKEN('이미 마감된 요청') 으로 바꿔 돌려준다.
         // 이 예외로 배정·콜 닫기·알림 행까지 이 트랜잭션 전체가 되돌려진다
@@ -394,7 +440,7 @@ public class OfferService implements BookingDispatcher {
             for (Offer other : offers.findByBookingIdAndStatus(bookingId, Offer.PENDING)) other.cancel();
             jobs.createChecklist(booking);
             live.ensureCreated(bookingId);
-            bookings.recordTransition(booking, from, managerId, null);
+            bookings.recordTransition(booking, from, managerId, historyReason);
             outbox.publish(new BookingAssigned(bookingId, booking.getCustomerId(), managerId));
             offers.flush(); // bookings_manager_no_overlap 위반을 여기서 받는다
         } catch (DataIntegrityViolationException e) {
@@ -470,6 +516,11 @@ public class OfferService implements BookingDispatcher {
     /** 거절·만료·정지 매니저 콜 닫기 뒤: 우선 오퍼였으면 그 매니저를 빼고 일반 매칭(같은 회차), 일반 오퍼가 모두 닫혔으면 다음 회차 재매칭 */
     void afterClosed(Booking booking, Offer offer) {
         if (booking.getStatus() != BookingStatus.ASSIGNING) return; // 이미 배정됐거나 취소된 예약이면 더 할 일이 없다
+        if (booking.isReassigning()) {
+            // 재배정 콜(어드민이 승인한 방문 취소 뒤)은 한 번만 — 남은 대기 콜이 없으면 다음 회차가 아니라 관리자 배정 대기로 (자동 재발송 없음, 사용자 결정 2026-11-13)
+            if (offers.countByBookingIdAndRoundAndStatus(booking.getId(), booking.getDispatchRound(), Offer.PENDING) == 0) awaitAdmin(booking, null, AWAIT_NO_ACCEPT);
+            return;
+        }
         if (offer.isPreferred()) {
             dispatch(booking, Set.of(offer.getManagerId()));
             return;
@@ -634,7 +685,7 @@ public class OfferService implements BookingDispatcher {
         String note = b.getNotices().isEmpty() ? null : NOTE_PREFIX + catalog.noticeLabels(b.getCategoryKey(), b.getNotices()).get(0);
         return new CallItem(o.getId(), KoreanFormat.untilExpiry(o.getExpiresAt(), now), o.getExpiresAt().toString(),
                 KoreanFormat.dateTimeCall(b.getServiceDate(), b.getServiceTime()), KoreanFormat.addressHead(b.getRoadAddress(), 3) + " · " + label,
-                KoreanFormat.won(o.getPayAmount()), eta, note, details(b));
+                KoreanFormat.won(o.getPayAmount()), eta, note, details(b), o.isReassign());
     }
 
     /** 수락 전에 알아야 할 것 — 소요 시간·주거 정보·청소 범위 (사용성 검토 2026-09-22: 예전에는 날짜·주소·금액뿐이었다) */

@@ -56,6 +56,23 @@ class JobControllerTest {
     @MockitoBean
     CurrentUserResolver resolver;
 
+    // 방문 취소는 '요청' 이다 (2026-11-13): 본문·Idempotency-Key 가 서비스로 그대로 가고, 응답은 { id, bookingId, status: "pending", requestedAt }
+    @Test
+    void 방문_취소_요청은_키와_본문을_넘기고_대기_요청을_돌려준다() throws Exception {
+        UUID id = ManagerMvc.manager(jwtDecoder, resolver, "m");
+        UUID jobId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+        when(service.cancelByManager(id, jobId, "sick", "몸이 아파요", "k-1"))
+                .thenReturn(new kr.ansimclean.api.job.dto.CancelRequestResponse(requestId, jobId, "pending", "2026-09-15T05:00:00Z"));
+        mvc.perform(post("/api/v1/manager/jobs/" + jobId + "/cancel").header("Authorization", "Bearer m").header("Idempotency-Key", "k-1")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{\"reason\":\"sick\",\"detail\":\"몸이 아파요\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(requestId.toString()))
+                .andExpect(jsonPath("$.bookingId").value(jobId.toString()))
+                .andExpect(jsonPath("$.status").value("pending"))
+                .andExpect(jsonPath("$.requestedAt").value("2026-09-15T05:00:00Z"));
+    }
+
     // "/active" 는 "/{id}" 에도 맞을 수 있는 경로다. 고정 경로가 먼저 맞아 activeJob 이 불리는지 본다
     // (가짜 서비스의 activeJob 에 꾸며 둔 결과가 응답에 나오면 그 메서드로 간 것이다).
     // 1) 진행 중 작업이 없으면(서비스가 NOT_FOUND) 404 JSON → 2) 있으면 체크리스트 묶음·장비 행의 JSON 칸 이름

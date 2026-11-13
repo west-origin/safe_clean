@@ -26,6 +26,9 @@ public class ActivityLogService {
     public static final String BANNER_IMAGE = "banner.image";         // 이미지 교체
     public static final String BANNER_REORDER = "banner.reorder";
     public static final String BANNER_DELETE = "banner.delete";
+    public static final String CANCEL_REQUEST_APPROVE = "booking.cancel_request.approve"; // 매니저 방문 취소 요청 승인 (배정 풀림 → 재배정)
+    public static final String CANCEL_REQUEST_REJECT = "booking.cancel_request.reject";   // 매니저 방문 취소 요청 거절
+    public static final String BOOKING_ASSIGN = "booking.assign";                         // 어드민 직접 배정
 
     private final ActivityLogRepository logs;
     private final AppClock clock;

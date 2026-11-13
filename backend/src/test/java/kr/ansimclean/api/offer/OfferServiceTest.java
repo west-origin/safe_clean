@@ -142,10 +142,12 @@ class OfferServiceTest {
         verify(bookings, never()).lockForUpdate(any());
     }
 
-    @Test
-    void 매니저가_방문을_취소하면_그_수락을_무효로_하고_새_회차로_처음_콜_받았던_매니저에게도_다시_보낸다() { // 전체 재점검 O1
-        // A 가 수락, B 의 같은 회차 오퍼는 수락 때 cancelled — 예전에는 A 의 accepted 가 남아 누구도 다시 수락하지 못했고(offers_one_accepted),
-        // 같은 회차라 B 도 후보에서 빠져 '매칭 후보 없음' 이 됐다
+    // ── 매니저 방문 취소 승인 뒤 재배정 (docs/domain.md '매니저 방문 취소 승인·재배정', 2026-11-13) ──
+
+    /** 재배정 테스트 준비: A 가 수락했다가 어드민 승인으로 배정이 풀린 예약 (9/17 10:00 — NOW 에서 44시간 뒤). A 는 이 예약의 취소 매니저(원장) */
+    private Offer releasedByA() {
+        when(settings.integer(OfferService.SETTING_REASSIGN_WINDOW)).thenReturn(24);
+        when(penalties.bookingDroppers(booking.getId())).thenReturn(java.util.Set.of(A));
         Offer accepted = Offer.pending(booking.getId(), A, 1, 76500, NOW.plusSeconds(600), false, NOW);
         accepted.accept(NOW);
         Offer cancelled = Offer.pending(booking.getId(), B, 1, 76500, NOW.plusSeconds(600), false, NOW);
@@ -153,16 +155,147 @@ class OfferServiceTest {
         when(offers.findByBookingId(booking.getId())).thenReturn(List.of(accepted, cancelled));
         booking.assign(A, NOW);
         booking.releaseByManager();
+        return accepted;
+    }
 
-        service.onReleased(booking, A);
+    @Test
+    void 승인된_방문_취소는_새_회차로_근처_매니저_전원에게_24시간_재배정_콜을_한_번_보낸다_취소한_매니저는_빠진다() {
+        Offer accepted = releasedByA();
+        UUID request = UUID.randomUUID();
 
-        assertThat(accepted.getStatus()).isEqualTo(Offer.SUPERSEDED);
+        assertThat(service.startReassign(booking, A, request)).isTrue();
+
+        assertThat(accepted.getStatus()).isEqualTo(Offer.SUPERSEDED); // 다음 매니저의 수락이 offers_one_accepted 에 막히지 않게
         assertThat(booking.getDispatchRound()).isEqualTo(2);
-        // ArgumentCaptor = 가짜 메서드에 넘어간 인자를 붙잡아 두었다가 getValue()·getAllValues() 로 꺼내 본다
+        assertThat(booking.isReassigning()).isTrue();
+        assertThat(booking.getReassignUntil()).isEqualTo(NOW.plus(java.time.Duration.ofHours(24)));
+        assertThat(booking.getReassignRequestId()).isEqualTo(request);
         ArgumentCaptor<Offer> sent = ArgumentCaptor.forClass(Offer.class);
-        verify(offers).save(sent.capture());
-        assertThat(sent.getValue().getManagerId()).isEqualTo(B); // A(취소한 매니저)만 빠진다
-        assertThat(sent.getValue().getRound()).isEqualTo(2);
+        verify(offers).save(sent.capture()); // B 한 명 (A 는 취소한 매니저)
+        assertThat(sent.getValue().getManagerId()).isEqualTo(B);
+        assertThat(sent.getValue().isReassign()).isTrue();
+        assertThat(sent.getValue().getExpiresAt()).isEqualTo(NOW.plus(java.time.Duration.ofHours(24))); // 콜 1번을 24시간 열어 둔다
+        verify(outbox).publish(new OffersDispatched(booking.getId(), List.of(B), false, true)); // 푸시 '재배정 콜이 도착했어요'
+        verify(outbox, never()).publish(any(kr.ansimclean.api.common.events.AdminAssignNeeded.class));
+    }
+
+    @Test
+    void 방문까지_24시간이_안_남았으면_콜_없이_바로_관리자_배정_대기() {
+        booking = TestBookings.assigning(CUSTOMER, LocalDate.of(2026, 9, 16), LocalTime.of(10, 0)); // NOW(9/15 14:00)에서 20시간 뒤
+        releasedByA();
+
+        assertThat(service.startReassign(booking, A, UUID.randomUUID())).isFalse();
+
+        verify(offers, never()).save(any());
+        assertThat(booking.getAdminAssignPendingAt()).isEqualTo(NOW);
+        assertThat(booking.getAdminAssignReason()).isEqualTo(OfferService.AWAIT_IMMINENT);
+        assertThat(booking.getStatus()).isEqualTo(BookingStatus.ASSIGNING); // 상태값은 그대로 — 표시 컬럼으로 구분
+        verify(outbox).publish(new kr.ansimclean.api.common.events.AdminAssignNeeded(booking.getId(), OfferService.AWAIT_IMMINENT));
+    }
+
+    @Test
+    void 재배정_후보가_없으면_바로_관리자_배정_대기() {
+        releasedByA();
+        when(profiles.approvedManagers()).thenReturn(List.of(manager(A, "서울특별시 강남구", "서울특별시"))); // 취소한 A 뿐
+
+        assertThat(service.startReassign(booking, A, UUID.randomUUID())).isFalse();
+
+        verify(offers, never()).save(any());
+        assertThat(booking.getAdminAssignReason()).isEqualTo(OfferService.AWAIT_NO_CANDIDATES);
+        verify(outbox).publish(new kr.ansimclean.api.common.events.AdminAssignNeeded(booking.getId(), OfferService.AWAIT_NO_CANDIDATES));
+    }
+
+    // 타임아웃: 재배정 콜 마감(reassign_until)이 지나 만료 스케줄러가 마지막 콜을 닫았다 → 다음 회차로 다시 보내지 않고 관리자 배정 대기 + 어드민 알림.
+    // 고객에게 매칭 실패 안내는 가지 않는다
+    @Test
+    void 재배정_콜이_마감까지_아무도_수락하지_않으면_재발송_없이_관리자_배정_대기와_어드민_알림() {
+        releasedByA();
+        booking.restartAfterRelease();
+        booking.startReassign(UUID.randomUUID(), NOW.minusSeconds(1));
+        Offer stale = Offer.pending(booking.getId(), B, 2, 76500, NOW.minusSeconds(1), false, true, NOW.minusSeconds(86400));
+        when(offers.findExpiredPendingIds(NOW)).thenReturn(List.of(stale.getId()));
+        when(offers.findBookingIdById(stale.getId())).thenReturn(Optional.of(booking.getId()));
+        when(bookings.lockForUpdate(booking.getId())).thenReturn(booking);
+        when(offers.findForUpdate(stale.getId())).thenReturn(Optional.of(stale));
+        when(offers.countByBookingIdAndRoundAndStatus(booking.getId(), 2, Offer.PENDING)).thenReturn(0L);
+
+        assertThat(service.expireDue()).isEqualTo(1);
+
+        assertThat(stale.getStatus()).isEqualTo(Offer.EXPIRED);
+        assertThat(booking.getDispatchRound()).isEqualTo(2); // 다음 회차로 올리지 않았다 (자동 재발송 없음)
+        verify(offers, never()).save(any());
+        assertThat(booking.getAdminAssignPendingAt()).isEqualTo(NOW);
+        assertThat(booking.getAdminAssignReason()).isEqualTo(OfferService.AWAIT_NO_ACCEPT);
+        assertThat(booking.isReassigning()).isFalse();
+        verify(outbox).publish(new kr.ansimclean.api.common.events.AdminAssignNeeded(booking.getId(), OfferService.AWAIT_NO_ACCEPT));
+        verify(outbox, never()).publish(any(kr.ansimclean.api.common.events.MatchingFailed.class));
+
+        // 같은 예약의 다른 콜이 뒤늦게 닫혀도 어드민에게 두 번 알리지 않는다
+        service.afterClosed(booking, stale);
+        verify(outbox).publish(any(kr.ansimclean.api.common.events.AdminAssignNeeded.class));
+    }
+
+    @Test
+    void 재배정_콜이_하나라도_남아_있으면_거절이_와도_기다린다_마지막_거절이면_관리자_배정_대기() {
+        releasedByA();
+        booking.restartAfterRelease();
+        booking.startReassign(UUID.randomUUID(), NOW.plusSeconds(3600));
+        Offer fromB = Offer.pending(booking.getId(), B, 2, 76500, NOW.plusSeconds(3600), false, true, NOW);
+        when(offers.findBookingId(fromB.getId(), B)).thenReturn(Optional.of(booking.getId()));
+        when(bookings.lockForUpdate(booking.getId())).thenReturn(booking);
+        when(offers.findForUpdate(fromB.getId())).thenReturn(Optional.of(fromB));
+        when(offers.countByBookingIdAndRoundAndStatus(booking.getId(), 2, Offer.PENDING)).thenReturn(1L, 0L);
+
+        service.reject(B, fromB.getId(), "busy"); // 아직 다른 매니저의 콜이 열려 있다
+        assertThat(booking.isReassigning()).isTrue();
+        verify(outbox, never()).publish(any(kr.ansimclean.api.common.events.AdminAssignNeeded.class));
+
+        service.afterClosed(booking, fromB); // 마지막 콜까지 닫혔다
+        assertThat(booking.getAdminAssignReason()).isEqualTo(OfferService.AWAIT_NO_ACCEPT);
+        verify(offers, never()).save(any()); // 다음 회차 재매칭 없음
+    }
+
+    @Test
+    void 재배정_콜을_수락하면_배정되고_재배정_표시를_지우며_상태_이력에_reassigned() {
+        releasedByA();
+        booking.restartAfterRelease();
+        booking.startReassign(UUID.randomUUID(), NOW.plusSeconds(3600));
+        Offer fromB = Offer.pending(booking.getId(), B, 2, 76500, NOW.plusSeconds(3600), false, true, NOW);
+        when(offers.findBookingId(fromB.getId(), B)).thenReturn(Optional.of(booking.getId()));
+        when(bookings.lockForUpdate(booking.getId())).thenReturn(booking);
+        when(offers.findForUpdate(fromB.getId())).thenReturn(Optional.of(fromB));
+
+        service.accept(B, fromB.getId(), null);
+
+        assertThat(booking.getStatus()).isEqualTo(BookingStatus.SCHEDULED);
+        assertThat(booking.getManagerId()).isEqualTo(B);
+        assertThat(booking.isInReassign()).isFalse();
+        verify(bookings).recordTransition(booking, BookingStatus.ASSIGNING, B, OfferService.HISTORY_REASSIGNED);
+    }
+
+    @Test
+    void 재배정_중_취소한_매니저의_옛_콜로는_수락할_수_없다() {
+        releasedByA();
+        booking.restartAfterRelease();
+        booking.startReassign(UUID.randomUUID(), NOW.plusSeconds(3600));
+        Offer old = Offer.pending(booking.getId(), A, 2, 76500, NOW.plusSeconds(3600), false, true, NOW);
+        when(offers.findBookingId(old.getId(), A)).thenReturn(Optional.of(booking.getId()));
+        when(bookings.lockForUpdate(booking.getId())).thenReturn(booking);
+        when(offers.findForUpdate(old.getId())).thenReturn(Optional.of(old));
+
+        assertThatThrownBy(() -> service.accept(A, old.getId(), null))
+                .isInstanceOf(kr.ansimclean.api.common.error.ApiException.class).extracting("code").isEqualTo(kr.ansimclean.api.common.error.ErrorCode.OFFER_TAKEN);
+    }
+
+    @Test
+    void 고객이_취소하면_대기_콜을_닫고_승인_전_방문_취소_요청도_닫는다() {
+        Offer pending = Offer.pending(booking.getId(), B, 1, 76500, NOW.plusSeconds(3600), false, true, NOW);
+        when(offers.findByBookingIdAndStatus(booking.getId(), Offer.PENDING)).thenReturn(List.of(pending));
+
+        service.onCancelled(booking);
+
+        assertThat(pending.getStatus()).isEqualTo(Offer.CANCELLED);
+        verify(jobs).closeCancelRequests(booking.getId(), kr.ansimclean.api.job.JobCancelRequest.CLOSED_BOOKING_CANCELLED);
     }
 
     // 네 매니저 중 지역·근무 가능·겹치는 작업 없음을 모두 통과하는 A 만 남는다.

@@ -12,6 +12,10 @@ import java.util.UUID;
 // profiles 테이블 저장소. 서버 코드에서 쓰는 곳: ProfileService (다른 기능은 ProfileService 를 거쳐 쓴다).
 // 'Live' = 탈퇴하지 않은(deleted_at 이 비어 있는) 계정.
 public interface ProfileRepository extends JpaRepository<Profile, UUID> {
+    /** 이 역할의 탈퇴하지 않은 사용자 id (어드민 알림 받는 사람 — push.PushHandler) */
+    @Query("select p.id from Profile p where p.role = :role and p.deletedAt is null order by p.id")
+    java.util.List<UUID> findLiveIdsByRole(String role);
+
     @org.springframework.data.jpa.repository.Modifying
     @Query(value = """
         insert into public.profiles(id, role, name, phone, social_account)
