@@ -1,4 +1,4 @@
-// 매니저 업무 상세(JobDetail) › '방문 취소' 시트와 방문일 전 안내를 검증한다.
+// 매니저 업무 상세(JobDetail) › '방문 취소' 시트(2026-11-13 부터 취소 **요청** — 관리자 승인제)와 방문일 전 안내를 검증한다.
 // 서버 대신 test/fakeHttp.js 의 가짜 서버를 쓴다. 'job-1' 은 오늘 작업이고, UNSTARTABLE_JOB_ID('job-tomorrow')는
 // 방문일 전 작업이라 가짜 서버가 today: false·빈 청소 범위를 주고, 취소·시작은 409 로 거부하며 연락처는 404 로 답한다.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -11,7 +11,7 @@ import { session } from '../../api/session.js';
 vi.mock('../../api/http.js', async () => (await import('../../test/fakeHttp.js')).fakeHttpModule());
 
 // /job/:id 로 업무 상세를 연다. MemoryRouter 는 주소창 없이 메모리 안에서 경로를 흉내 내는 테스트용 라우터다.
-// 취소가 성공하면 화면이 '/' 로 가므로, 그 자리에 '홈 화면' 문구만 두어 이동을 확인한다.
+// 요청이 성공해도 홈으로 가지 않아야 한다 — '/' 자리에 '홈 화면' 문구를 두어 이동하지 않았는지 확인한다.
 function renderDetail(id = 'job-1') {
   return render(
     <MemoryRouter initialEntries={[`/job/${id}`]}>
@@ -25,32 +25,50 @@ function renderDetail(id = 'job-1') {
 
 /** 매니저 방문 취소 (docs/manager-policy.md — 사용자 승인 2026-09-22) */
 describe('Manager/Job/Detail 방문 취소', () => {
-  beforeEach(() => {
-    // 앞 테스트가 남긴 저장소를 비우고, 로그인한 매니저 세션(가입 완료)을 넣어 둔다
+  beforeEach(async () => {
+    // 앞 테스트가 남긴 저장소·가짜 서버의 취소 요청을 비우고, 로그인한 매니저 세션(가입 완료)을 넣어 둔다
+    const { __fake } = await import('../../api/http.js');
+    __fake.jobDetail = {};
+    __fake.cancelledJobs.length = 0;
     sessionStorage.clear();
     localStorage.clear();
     session.set({ accessToken: 'a', refreshToken: 'r', expiresIn: 3600, user: { id: 'm', role: 'manager', profileComplete: true } });
   });
 
-  it('사유를 고르면 취소되고 홈으로 간다 — 사유 없이는 보낼 수 없다', async () => {
+  it('사유를 고르면 취소 요청이 가고, 화면에 머물러 취소 요청 중으로 바뀐다 — 사유 없이는 보낼 수 없다', async () => {
     // 준비: 가짜 서버의 기록(__fake)을 꺼내고, '방문 취소' 를 눌러 시트(role=dialog)를 연다. within(sheet) 는 시트 안에서만 찾는다
     const { __fake } = await import('../../api/http.js');
     renderDetail();
     fireEvent.click(await screen.findByRole('button', { name: '방문 취소' }));
 
     const sheet = screen.getByRole('dialog');
-    const confirm = within(sheet).getByRole('button', { name: '방문 취소하기' });
+    expect(within(sheet).getByText('관리자가 확인하고 승인하면 다른 매니저에게 넘어가요. 승인 전까지는 예정대로 방문해주세요.')).toBeInTheDocument();
+    const confirm = within(sheet).getByRole('button', { name: '취소 요청하기' });
     expect(confirm).toBeDisabled(); // 사유를 고르기 전
 
     fireEvent.click(await within(sheet).findByRole('radio', { name: '질병·부상' }));
     expect(confirm).toBeEnabled();
     fireEvent.click(confirm);
 
-    // 확인: 홈으로 이동했고, 가짜 서버에 취소 요청 1건이 사유 키('sick' = 가짜 서버의 '질병·부상')로 남았다
-    expect(await screen.findByText('홈 화면')).toBeInTheDocument();
+    // 확인: 홈으로 가지 않고(승인 전까지 내 일정), 버튼 자리에 '취소 요청 중'(비활성)과 안내가 보인다.
+    // 가짜 서버에 요청 1건이 사유 키('sick' = 가짜 서버의 '질병·부상')와 멱등 키로 남았다
+    expect(await screen.findByRole('button', { name: '취소 요청 중' })).toBeDisabled();
+    expect(screen.getByText('방문 취소를 요청했어요. 관리자가 승인하면 알려드려요. 그 전까지는 예정대로 방문해주세요.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '방문 취소' })).toBeNull();
+    expect(screen.queryByText('홈 화면')).toBeNull();
+    expect(screen.getByRole('button', { name: '현장 도착' })).toBeInTheDocument(); // 방문은 그대로 할 수 있다
     expect(__fake.cancelledJobs).toHaveLength(1);
     expect(__fake.cancelledJobs[0].reason).toBe('sick');
     expect(__fake.calls.find((c) => c.method === 'POST' && c.path.endsWith('/cancel')).idempotencyKey).toBeTruthy(); // 재시도가 두 번 처리되지 않게 (자체 점검 #44)
+  });
+
+  // 이미 요청해 둔 작업을 다시 열면(서버 cancelRequest) 처음부터 '취소 요청 중' 이다
+  it('대기 중인 취소 요청이 있으면 방문 취소 대신 취소 요청 중을 보인다', async () => {
+    const { __fake } = await import('../../api/http.js');
+    __fake.jobDetail = { cancelRequest: { status: 'pending', requestedAt: '2026-09-15T04:00:00Z' } };
+    renderDetail();
+    expect(await screen.findByRole('button', { name: '취소 요청 중' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: '방문 취소' })).toBeNull();
   });
 
   // 가짜 서버는 UNSTARTABLE_JOB_ID 의 취소를 409 INVALID_STATE + '… 고객센터로 전화해주세요' 로 거부한다
@@ -61,7 +79,7 @@ describe('Manager/Job/Detail 방문 취소', () => {
     fireEvent.click(await screen.findByRole('button', { name: '방문 취소' }));
     const sheet = screen.getByRole('dialog');
     fireEvent.click(await within(sheet).findByRole('radio', { name: '질병·부상' }));
-    fireEvent.click(within(sheet).getByRole('button', { name: '방문 취소하기' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: '취소 요청하기' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('고객센터로 전화해주세요');
   });
 

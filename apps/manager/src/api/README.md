@@ -30,7 +30,7 @@ ScheduleItem: `{ id, time, status, customer, service }` — status 는 StatusBad
 | availability.detail | string | 오늘 09:00 - 18:00 근무 설정됨 |
 | tabBadge | number | 2 (콜 탭 배지) |
 
-CallItem: `{ id, expiry, title, location, pay, eta, note }`
+CallItem: `{ id, expiry, title, location, pay, eta, note, reassign }` — `reassign: true` = 재배정 건(다른 매니저의 방문 취소를 관리자가 승인해 다시 나온 콜, 2026-11-13). 카드 상단 문구가 `REASSIGN_CALL_COPY.eyebrow`('재배정 청소 요청')로 바뀐다 (코드에서 정함)
 
 ## `getCall(id)` → Manager/Call/Detail
 CallItem + `customerRequest: string` (고객 요청사항)
@@ -50,6 +50,10 @@ CallItem + `customerRequest: string` (고객 요청사항)
 | scope[] | string | 거실 · 주방 · 욕실 2 · 침실 3 |
 | requests[] | string | 반려묘 있음 … (수리 예약이면 '가전: 냉장고' '증상: …' '사진 N장 첨부' 줄이 앞에) |
 | photos[] | string | 수리 첨부 사진 서명 URL(1시간). 청소는 빈 배열 |
+| cancelRequest | `null \| { status: 'pending', requestedAt }` | 관리자 결정을 기다리는 방문 취소 요청 (2026-11-13). 있으면 '방문 취소' 대신 안내 + '취소 요청 중'(비활성) |
+
+## `getCancelReasons()` / `cancelJob(id, { reason, detail })` → Manager/Job/Detail 방문 취소 시트 (코드에서 정함)
+`cancelJob` 은 **취소 요청**이다(2026-11-13, backend/docs/domain.md '매니저 방문 취소 승인·재배정'): `{ id, bookingId, status: 'pending', requestedAt }`. 예약은 관리자가 승인할 때까지 그대로 내 일정이고, 승인되면 푸시('방문 취소가 승인됐어요')와 함께 일정에서 빠진다. 대기 요청이 이미 있으면 같은 요청을 돌려준다. 방문 4시간 전부터는 `INVALID_STATE` + 고객센터 안내.
 
 ## `getEquipmentStatus()` → Manager/Job/Preparing
 `{ label, value, status: 'ok'|'issue' }[]` — 카메라 연결됨 · 배터리 82% · 네트워크 양호 · 실시간 전송 준비 완료

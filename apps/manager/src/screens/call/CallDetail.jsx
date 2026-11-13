@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { ScreenLayout, NavBar, CallCard, Card, Sheet, Button, cx, useAsync, useAction, useCountdown, secondsUntil, mmss, ScreenError, ScreenLoading, ActionError } from '@ansimclean/ui';
 import { getCall, getRejectReasons, rejectCall, acceptCall, isCallClosed } from '../../api/manager.js';
-import { CALL_CLOSED_COPY, ACTION_FAILED_COPY } from '../../api/mock.js';
+import { CALL_CLOSED_COPY, ACTION_FAILED_COPY, REASSIGN_CALL_COPY } from '../../api/mock.js';
 import ReasonList from './ReasonList.jsx';
 import styles from './CallDetail.module.css';
 
@@ -55,6 +55,7 @@ export default function CallDetail() {
     <ScreenLayout gap="md" navBar={<NavBar title="청소 요청 상세" onBack={() => navigate('/call')} />}>
       {/* 만료 문구: expiresAt 이 있으면 남은 시간을 m:ss 로 계산하고, 없으면 서버 문구(expiry) 그대로 */}
       <CallCard
+        eyebrow={call.reassign ? REASSIGN_CALL_COPY.eyebrow : undefined /* 재배정 건(2026-11-13)만 상단 문구를 바꾼다 */}
         expiry={call.expiresAt ? `${mmss(secondsUntil(call.expiresAt))} 후 만료` : call.expiry}
         title={call.title}
         location={call.location}

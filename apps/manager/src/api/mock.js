@@ -28,11 +28,17 @@ export const HOME_EMPTY = {
 export const CALLS = {
   tabBadge: 2,
   calls: [
-    { id: 'call-1', expiry: '4:32 후 만료', title: '9월 18일 목요일 오후 2:00', location: '서울 강남구 역삼동 · 아파트 기본청소', pay: '85,000원', details: ['예상 소요 3시간', '아파트·빌라 · 25평 · 방 3 · 화장실 2', '청소 범위: 설거지, 세탁'], note: '특이사항: 반려묘 1마리' },
-    { id: 'call-2', expiry: '4:32 후 만료', title: '9월 19일 금요일 오전 10:00', location: '부산 해운대구 우동 · 가전청소', pay: '62,000원', details: ['예상 소요 2시간', '원룸·오피스텔 · 10평'], note: '특이사항: 반려묘 1마리' },
+    { id: 'call-1', expiry: '4:32 후 만료', title: '9월 18일 목요일 오후 2:00', location: '서울 강남구 역삼동 · 아파트 기본청소', pay: '85,000원', details: ['예상 소요 3시간', '아파트·빌라 · 25평 · 방 3 · 화장실 2', '청소 범위: 설거지, 세탁'], note: '특이사항: 반려묘 1마리', reassign: false },
+    { id: 'call-2', expiry: '4:32 후 만료', title: '9월 19일 금요일 오전 10:00', location: '부산 해운대구 우동 · 가전청소', pay: '62,000원', details: ['예상 소요 2시간', '원룸·오피스텔 · 10평'], note: '특이사항: 반려묘 1마리', reassign: false },
   ],
   availability: { status: '콜 수신 중', detail: '오늘 09:00 - 18:00 근무 설정됨' },
 };
+
+/**
+ * 재배정 콜(reassign: true — 다른 매니저의 방문 취소를 관리자가 승인해 다시 나온 콜, 2026-11-13)의 카드 상단 문구.
+ * Figma 에 없어 코드에서 정함 — CallCard 의 eyebrow('새로운 청소 요청') 자리만 바꾼다 (PROGRESS 판단 항목)
+ */
+export const REASSIGN_CALL_COPY = { eyebrow: '재배정 청소 요청' };
 
 export const CALLS_EMPTY = { tabBadge: 0, calls: [], availability: CALLS.availability }; // 지금 import 하는 곳은 없다 (빈 상태는 ?scenario=empty)
 
@@ -60,6 +66,7 @@ export const JOB_DETAIL = {
   pay: '85,000원',
   scope: ['거실', '주방', '욕실 2', '침실 3'],
   requests: ['반려묘 있음', '안방 서랍장은 청소 제외', '음식물 쓰레기 처리 요청'],
+  cancelRequest: null, // 관리자 결정을 기다리는 방문 취소 요청 { status: 'pending', requestedAt } — 없으면 null (2026-11-13)
 };
 
 // Manager/Job/Preparing — 촬영 장비 상태
@@ -253,18 +260,24 @@ export const MANAGER_NOTICES = [
 export const SUPPORT_COPY = { title: '고객센터', description: '업무 중 어려움이나 문의 사항을 남겨주세요. 영업일 기준 1일 안에 답변드려요.', placeholder: '문의 내용을 입력해주세요', done: '문의가 접수되었어요' };
 /** 현장에서 장비가 죽으면 '1일 안에 답변' 은 소용이 없다 → 바로 전화할 수 있게 (사용성 검토 2026-09-22). 번호는 서버 설정(support_phone) */
 export const URGENT_SUPPORT_COPY = { title: '지금 바로 도움이 필요하면', call: '고객센터 전화하기', note: '방문 시간이 임박했다면 전화로 알려주세요. 고객에게도 안내해 드려요.' };
-/** 매니저 방문 취소·패널티 (backend/docs/manager-policy.md — 사용자 승인 2026-09-22. Figma 에 없어 코드에서 정함) */
+/**
+ * 매니저 방문 취소 **요청** (backend/docs/domain.md '매니저 방문 취소 승인·재배정' — 2026-11-13 사용자 결정. Figma 에 없어 코드에서 정함).
+ * 관리자가 승인해야 배정이 풀린다 — 그 전까지는 예정대로 방문해야 한다. 승인 취소는 점수 없이 기록만 남는다
+ */
 export const JOB_CANCEL_COPY = {
   button: '방문 취소',
-  title: '이 방문을 취소할까요?',
-  description: '고객에게 바로 알리고 다른 매니저를 찾아요. 취소는 기록에 남고, 방문이 가까울수록 패널티 점수가 커져요.',
+  title: '방문 취소를 요청할까요?',
+  description: '관리자가 확인하고 승인하면 다른 매니저에게 넘어가요. 승인 전까지는 예정대로 방문해주세요.',
   reasonLabel: '취소 사유',
   detailLabel: '상세 내용 (선택)',
-  detailPlaceholder: '고객센터가 확인할 내용을 적어주세요',
-  confirm: '방문 취소하기',
+  detailPlaceholder: '관리자가 확인할 내용을 적어주세요',
+  confirm: '취소 요청하기',
   back: '돌아가기',
-  done: '방문이 취소됐어요',
-  failed: '취소하지 못했어요. 잠시 후 다시 시도해주세요.',
+  done: '취소 요청을 보냈어요',
+  failed: '요청하지 못했어요. 잠시 후 다시 시도해주세요.',
+  /** 요청을 보낸 뒤(작업 상세의 cancelRequest 가 있을 때) — 버튼 대신 */
+  pendingButton: '취소 요청 중',
+  pendingNote: '방문 취소를 요청했어요. 관리자가 승인하면 알려드려요. 그 전까지는 예정대로 방문해주세요.',
   /** 방문일 전: 서버가 시작을 당일에만 받는데 '현장 도착' 이 보여 준비 화면까지 갔다가 막혔다 (코드에서 정함, 직접 사용 점검 U11) */
   notToday: '현장 도착은 방문 당일에 할 수 있어요.',
 };
@@ -275,7 +288,8 @@ export const PENALTY_COPY = {
   pointsLabel: '누적 점수',
   empty: '패널티 내역이 없어요',
   emptyDescription: '약속한 방문을 지키면 점수가 쌓이지 않아요.',
-  guide: '방문 24시간 전까지 취소는 월 2회까지 점수가 없어요. 그 뒤 취소는 1점, 미방문은 3점이에요. 12개월이 지나면 사라지고, 3개월 동안 아무 일이 없으면 1점이 줄어요.',
+  // 2026-11-13: 방문 취소는 관리자 승인제·점수 없음 (backend/docs/manager-policy.md §1 변경 안내)
+  guide: '방문 취소는 관리자 승인을 거치고 점수가 없어요. 미방문은 3점이에요. 12개월이 지나면 사라지고, 3개월 동안 아무 일이 없으면 1점이 줄어요.',
 };
 
 export const HOURS_EDIT_COPY = { title: '기본 근무시간 수정', off: '휴무' }; // 지금 import 하는 곳은 없다 — Availability.jsx 는 같은 제목을 직접 쓴다

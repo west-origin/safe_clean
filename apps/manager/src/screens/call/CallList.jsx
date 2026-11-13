@@ -10,7 +10,7 @@ import { ScreenLayout, ManagerTabBar, CallCard, Card, Dot, EmptyState, Sheet, Bu
 import { getCalls, acceptCall, rejectCall, getRejectReasons, isCallClosed } from '../../api/manager.js';
 import ReasonList from './ReasonList.jsx';
 import { onPushReceived } from '../../push/pushClient.js';
-import { CALL_CLOSED_COPY, ACTION_FAILED_COPY } from '../../api/mock.js';
+import { CALL_CLOSED_COPY, ACTION_FAILED_COPY, REASSIGN_CALL_COPY } from '../../api/mock.js';
 import { useManagerTabs } from '../useManagerTabs.js';
 import styles from './CallList.module.css';
 
@@ -112,6 +112,7 @@ export default function CallList() {
           {calls.map((call) => (
             <CallCard
               key={call.id}
+              eyebrow={call.reassign ? REASSIGN_CALL_COPY.eyebrow : undefined /* 재배정 건(2026-11-13)만 상단 문구를 바꾼다 — 기본은 '새로운 청소 요청' */}
               expiry={expiryOf(call)}
               title={call.title}
               location={call.location}

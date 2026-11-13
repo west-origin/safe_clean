@@ -1,7 +1,9 @@
 // Figma: Manager/Job/Detail (2140:2502)
 // 프로토타입: Back → Home · 현장 도착 → Job/Preparing. 지도 보기·고객 연락은 연결 없음 → 지도 앱·전화 (코드에서 정함)
 // "방문 취소" 는 Figma 에 없다 — 매니저 정책(docs/manager-policy.md, 사용자 승인 2026-09-22)으로 추가.
-//   서버가 구간(24시간 전/이내)을 판단해 패널티를 매기고, 예약은 취소되지 않고 다시 매칭된다. 4시간 안에는 서버가 막고 그 문구를 보여 준다.
+//   2026-11-13 부터 이 버튼은 취소 **요청**이다(backend/docs/domain.md '매니저 방문 취소 승인·재배정'): 관리자가 승인해야 배정이 풀리고
+//   다른 매니저에게 재배정 콜이 간다. 요청 뒤에는 job.cancelRequest 가 실려 버튼 자리에 '취소 요청 중' 과 안내가 보인다(코드에서 정함).
+//   4시간 안에는 서버가 막고 그 문구를 보여 준다.
 // 매니저 앱 /job/:id 화면. 들어오는 곳 예: 홈·일정 탭의 일정 카드, 콜 수락 직후(CallList).
 // 작업 상세(getJob)와 고객 연락처(getJobContact)를 따로 받는다. 연락처는 서버가 방문일 ±1일에만 주고,
 // 그 밖에는 null 이라 '지도 보기'·'고객 연락' 버튼이 비활성이다.
@@ -19,7 +21,8 @@ const PHOTO_REUSE_MS = 60 * 60_000; // 사진 서명 URL(24시간)을 다시 쓰
 
 // 업무 상세. 하단 버튼은 작업 상태로 고른다: scheduled 면 '현장 도착'(당일만)·'방문 취소', inProgress 면 진행 화면으로,
 // paused 면 일시정지 화면(재개)으로, 그 밖(complete)은 버튼이 없다.
-// 방문 취소 시트는 사유(서버 목록, 필수) + 상세(선택)를 cancelJob 으로 보내고, 성공하면 토스트를 띄우고 홈으로 간다.
+// 방문 취소 시트는 사유(서버 목록, 필수) + 상세(선택)를 cancelJob 으로 보내고(취소 요청), 성공하면 토스트를 띄우고 이 화면을 다시 받는다 —
+// 승인 전까지 이 작업은 내 일정이라 홈으로 보내지 않는다.
 export default function JobDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -49,12 +52,13 @@ export default function JobDetail() {
   const [detail, setDetail] = useState('');
   // 취소 사유 목록은 화면을 열 때 같이 받는다. 실패는 화면 전체가 아니라 시트 안(ErrorState)에서만 보여 준다
   const reasonsQ = useAsync(() => getCancelReasons(), []);
-  // 취소 요청. cancelJob 이 멱등 키를 붙여(manager.js) 다시 눌러도 한 번만 처리된다. 성공한 뒤에만 시트를 닫고 홈으로
+  // 취소 요청. cancelJob 이 멱등 키를 붙여(manager.js) 다시 눌러도 한 번만 처리된다. 성공한 뒤에만 시트를 닫고,
+  // 상세를 다시 받아 '취소 요청 중' 으로 바꾼다 (요청일 뿐 배정은 그대로라 홈으로 가지 않는다)
   const cancel = useAction(async () => {
     await cancelJob(id, { reason, detail });
     setCancelOpen(false);
     showToast(JOB_CANCEL_COPY.done);
-    navigate('/');
+    reload();
   });
   // 오류 화면의 '다시 시도': 상세와 연락처를 둘 다 처음부터 다시 받는다
   const reloadAll = () => {
@@ -75,9 +79,19 @@ export default function JobDetail() {
           <>
             {/* 시작은 작업 당일에만 된다(서버) — 전날에 누르면 준비 화면까지 갔다가 막혔다 (직접 사용 점검 U11) */}
             {job.today ? <Button onClick={() => navigate(`/job/${id}/preparing`)}>현장 도착</Button> : <InfoNote glyph="ⓘ">{JOB_CANCEL_COPY.notToday}</InfoNote>}
-            <Button variant="secondary" chevron={false} onClick={() => setCancelOpen(true)}>
-              {JOB_CANCEL_COPY.button}
-            </Button>
+            {job.cancelRequest ? (
+              // 취소를 요청해 관리자 결정을 기다리는 중 — 다시 요청할 수 없고, 승인 전까지는 방문해야 한다는 안내 (코드에서 정함)
+              <>
+                <InfoNote glyph="ⓘ">{JOB_CANCEL_COPY.pendingNote}</InfoNote>
+                <Button variant="secondary" chevron={false} disabled>
+                  {JOB_CANCEL_COPY.pendingButton}
+                </Button>
+              </>
+            ) : (
+              <Button variant="secondary" chevron={false} onClick={() => setCancelOpen(true)}>
+                {JOB_CANCEL_COPY.button}
+              </Button>
+            )}
           </>
         ) : job.status === 'inProgress' || job.status === 'paused' ? (
           // 진행 중이면 진행 화면으로, 일시정지(서버 JobService.badge 가 'paused' 로 따로 준다)면 재개할 수 있는 일시정지 화면으로 —

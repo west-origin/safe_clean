@@ -99,7 +99,7 @@ export function fakeHttpModule() {
       { id: 'banner-2', title: '청소는 맡기고, 일상은 여유롭게', description: '우리 집에 맞는 청소를 만나보세요', imageUrl: dailyBanner, startsOn: null, endsOn: null, periodLabel: '기간 제한 없음', state: 'live', stateLabel: '게시 중' },
       { id: 'banner-3', title: '소중한 사람에게 깨끗한 하루', description: '깨끗함을 넘어, 안심을 전해요', imageUrl: giftBanner, startsOn: '2026-12-01', endsOn: '2026-12-31', periodLabel: '12월 1일 ~ 12월 31일', state: 'scheduled', stateLabel: '게시 예정' },
     ],
-    cancelledJobs: [], // 방문 취소 요청 { id, reason, detail } 기록
+    cancelledJobs: [], // 방문 취소 요청 { id, reason, detail } 기록 (새 대기 요청을 만들 때만)
     homeManager: {}, // __fake.homeManager = { suspension: '…' } → 홈 매니저 필드 덮어쓰기
     jobDetail: {}, // __fake.jobDetail = { status: 'inProgress' } → 업무 상세 필드 덮어쓰기
     jobError: null, // __fake.jobError = { status: 409, code: 'INVALID_STATE', message: '취소된 예약이에요' } → 업무 상세(GET /manager/jobs/:id)가 이 오류로 실패
@@ -343,12 +343,16 @@ export function fakeHttpModule() {
       return null;
     }],
     ['GET', /^\/manager\/offers\/([^/]+)$/, ([id]) => ({ ...CALL_DETAIL, ...offerOf(id) })], // 콜 상세 = CALL_DETAIL 위에 목록의 그 콜을 덮는다
-    // 매니저 방문 취소 (docs/manager-policy.md) — 예약은 취소되지 않고 다시 매칭된다
+    // 매니저 방문 취소 **요청** (backend/docs/domain.md '매니저 방문 취소 승인·재배정') — 예약은 그대로, 대기 요청 1건.
+    // 이후 업무 상세에는 cancelRequest 가 실린다(서버와 같다). 이미 대기 요청이 있으면 그 요청을 그대로 돌려준다
     ['POST', /^\/manager\/jobs\/([^/]+)\/cancel$/, ([id], b) => {
       if (!b.reason) throw new ApiError(400, 'VALIDATION', '취소 사유를 선택해주세요');
       if (id === UNSTARTABLE_JOB_ID) throw new ApiError(409, 'INVALID_STATE', '방문 4시간 전부터는 앱에서 취소할 수 없어요. 고객센터로 전화해주세요');
-      state.cancelledJobs.push({ id, ...b });
-      return { id, status: 'assigning' };
+      if (!state.jobDetail.cancelRequest) {
+        state.cancelledJobs.push({ id, ...b });
+        state.jobDetail = { ...state.jobDetail, cancelRequest: { status: 'pending', requestedAt: '2026-09-15T05:00:00Z' } };
+      }
+      return { id: `cancel-${id}`, bookingId: id, status: 'pending', requestedAt: state.jobDetail.cancelRequest.requestedAt };
     }],
     // 수락을 시도한 콜은 성공·실패(OFFER_TAKEN) 모두 목록에서 뺀다 — 목록을 다시 받아 오면 마감된 콜이 빠져 있다.
     // 근무 일정과 맞지 않아 거부된 콜(UNAVAILABLE_OFFER_ID)은 서버처럼 대기 중으로 남긴다

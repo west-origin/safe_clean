@@ -641,7 +641,10 @@ export async function deleteAccount(password) {
   return { ok: true };
 }
 
-/** Job/Detail › "방문 취소" (매니저 정책, docs/manager-policy.md) — 예약은 취소되지 않고 다시 매칭된다 */
+/**
+ * Job/Detail › "방문 취소" = 취소 **요청** (2026-11-13, backend/docs/domain.md '매니저 방문 취소 승인·재배정').
+ * 관리자가 승인해야 배정이 풀린다. 결과 { id, bookingId, status: 'pending', requestedAt }
+ */
 export async function cancelJob(id, { reason, detail }) {
   // 멱등 키 — 응답이 늦어 다시 눌러도 두 번 처리되거나 '찾을 수 없어요' 가 뜨지 않게 (자체 점검 #44)
   // 키는 작업마다 하나다. 서버는 처리했는데 응답만 잃은 뒤 사유를 바꿔 다시 보내면 IDEMPOTENCY_MISMATCH 가 된다

@@ -32,6 +32,18 @@ describe('콜 수락 (B4 §9.2-2)', () => {
     __fake.offers = CALLS.calls.map((c) => ({ ...c, expiresAt: new Date(Date.now() + 272_000).toISOString() }));
   });
 
+  // 재배정 건(reassign: true — 다른 매니저의 방문 취소를 관리자가 승인해 다시 나온 콜, 2026-11-13)은 카드 상단 문구가 '재배정 청소 요청'.
+  // 목록과 상세 모두. 일반 콜은 Figma 그대로 '새로운 청소 요청'
+  it('재배정 콜은 카드 상단에 재배정 청소 요청이 보인다', async () => {
+    const { __fake } = await import('../../api/http.js');
+    __fake.offers = __fake.offers.map((o, i) => (i === 1 ? { ...o, reassign: true } : o));
+    const { unmount } = renderCalls();
+    expect(await screen.findAllByText('재배정 청소 요청')).toHaveLength(1); // 둘째 카드만 — 첫 카드는 일반 콜
+    unmount();
+    renderCalls('/call/call-2');
+    expect(await screen.findByText('재배정 청소 요청')).toBeInTheDocument();
+  });
+
   // 첫 카드의 수락 → 업무 상세 자리 화면이 보이고, 요청 기록의 accept 경로와 멱등 키(가짜 서버는 늘 'key-1')를 확인한다
   it('수락하면 서버가 준 jobId 의 업무 상세로 가고, 멱등 키를 보낸다', async () => {
     const { __fake } = await import('../../api/http.js');
