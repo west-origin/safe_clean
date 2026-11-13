@@ -19,8 +19,15 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     @Query("select p.bookingId from Payment p where p.id = :id and p.provider = 'toss'")
     java.util.Optional<UUID> findCheckoutBookingId(UUID id);
 
+    /** 선물 결제면 선물 id (예약 결제면 비어 온다) */
+    @Query("select p.giftId from Payment p where p.id = :id and p.provider = 'toss'")
+    java.util.Optional<UUID> findCheckoutGiftId(UUID id);
+
+    /** 이 선물의 가장 최근 결제 (GiftService 의 결제 전 취소·결제창 이탈 정리가 상태를 본다) */
+    java.util.Optional<Payment> findFirstByGiftIdOrderByCreatedAtDesc(UUID giftId);
+
     @Query(value = """
-            select p.id from payments p join bookings b on b.id = p.booking_id
+            select p.id from payments p left join bookings b on b.id = p.booking_id
              where p.provider = 'toss' and p.status not in ('failed','refunded')
                and p.provider_tx_id is not null
                and (p.next_check_at is null or p.next_check_at <= :now

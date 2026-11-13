@@ -14,7 +14,11 @@ import kr.ansimclean.api.payment.dto.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** DB 트랜잭션만 담당. 잠금 순서는 항상 예약 → 결제 → 환불이다. */
+/**
+ * DB 트랜잭션만 담당. 잠금 순서는 항상 예약 → 결제 → 환불이다.
+ * 금액권 선물 결제(payments.gift_id, V070)는 예약 대신 선물이 앞에 선다: 선물(+금액권) → 결제 — GiftPaymentHooks 가 선물을 잠그고 결과를 받는다.
+ * 예약 결제의 흐름·검사는 그대로이고, 메서드마다 결제 행이 어느 쪽인지(target) 보고 갈린다.
+ */
 @Service
 @Transactional
 public class CheckoutService {
@@ -26,13 +30,37 @@ public class CheckoutService {
     private final OutboxService outbox;
     private final AppClock clock;
     private final kr.ansimclean.api.profile.ProfileService profiles;
+    private final GiftPaymentHooks gifts;
+    static final String GIFT_ORDER_NAME = "안심클린 금액권 선물";
 
     public CheckoutService(PaymentRepository payments, PaymentRefundRepository refunds, BookingService bookings,
                            CheckoutProperties properties, Idempotent idempotent, OutboxService outbox, AppClock clock,
-                           kr.ansimclean.api.profile.ProfileService profiles) {
+                           kr.ansimclean.api.profile.ProfileService profiles, GiftPaymentHooks gifts) {
         this.payments = payments; this.refunds = refunds; this.bookings = bookings; this.properties = properties;
         this.idempotent = idempotent; this.outbox = outbox; this.clock = clock;
-        this.profiles = profiles;
+        this.profiles = profiles; this.gifts = gifts;
+    }
+
+    /**
+     * 금액권 선물의 결제 주문을 만든다. GiftService.create 가 선물·금액권을 만든 같은 트랜잭션에서 부른다(선물 행은 이미 그 트랜잭션 것).
+     * 금액은 서버 선물 목록 값 — 앱이 보낸 금액을 쓰지 않는다. 결제 키가 없으면 INVALID_STATE (선물 자체를 만들지 않는다)
+     */
+    public CheckoutResponse prepareGift(UUID giftId, long amount) {
+        properties.requireEnabled();
+        if (amount <= 0) throw new ApiException(ErrorCode.INVALID_STATE, "결제할 수 없는 금액이에요");
+        Payment p = payments.save(Payment.pendingGift(giftId, amount, clock.now()));
+        return giftResponse(p);
+    }
+
+    /** 이 선물의 가장 최근 결제 상태 (없으면 empty). 부르는 쪽(GiftService)이 선물을 먼저 잠근 뒤 읽는다 */
+    @Transactional(readOnly = true)
+    public java.util.Optional<String> giftPaymentStatus(UUID giftId) {
+        return payments.findFirstByGiftIdOrderByCreatedAtDesc(giftId).map(Payment::getStatus);
+    }
+
+    /** 이 선물의 가장 최근 결제 화면 정보 (결제창을 다시 열 때). 보낸 사람 확인은 GiftService 가 한다 */
+    public java.util.Optional<CheckoutResponse> giftCheckout(UUID giftId) {
+        return payments.findFirstByGiftIdOrderByCreatedAtDesc(giftId).map(this::giftResponse);
     }
 
     public CheckoutResponse prepare(UUID userId, UUID bookingId, String key) {
@@ -50,6 +78,11 @@ public class CheckoutService {
     }
 
     public CheckoutResponse get(UUID userId, UUID id) {
+        UUID giftId = giftIdOf(id);
+        if (giftId != null) {
+            ownGift(userId, giftId);
+            return giftResponse(payments.lockById(id).orElseThrow(ApiException::notFound));
+        }
         Booking b = ownBooking(userId, bookingIdOf(id));
         return response(payments.lockById(id).orElseThrow(ApiException::notFound), b);
     }
@@ -58,6 +91,8 @@ public class CheckoutService {
         properties.requireEnabled(); requireKey(key);
         return idempotent.run(key, userId, java.util.List.of("confirm", id, req), CheckoutResponse.class, () -> {
             profiles.holdLive(userId);
+            UUID giftId = giftIdOf(id);
+            if (giftId != null) return confirmGift(userId, giftId, id, req);
             Booking b = ownBooking(userId, bookingIdOf(id));
             Payment p = payments.lockById(id).orElseThrow(ApiException::notFound);
             if (b.getStatus() == BookingStatus.CANCELLED && "pending".equals(p.getStatus())) throw new ApiException(ErrorCode.INVALID_STATE);
@@ -66,6 +101,16 @@ public class CheckoutService {
             if (enqueue) { b.recordPayment(p.getStatus()); outbox.publish(new PaymentWorkRequested(id)); }
             return response(p, b);
         });
+    }
+
+    private CheckoutResponse confirmGift(UUID userId, UUID giftId, UUID id, ConfirmPaymentRequest req) {
+        ownGift(userId, giftId);
+        Payment p = payments.lockById(id).orElseThrow(ApiException::notFound);
+        if ("pending".equals(p.getStatus()) && !gifts.payable(giftId)) throw new ApiException(ErrorCode.INVALID_STATE, "이 선물은 결제할 수 없어요");
+        boolean enqueue = "pending".equals(p.getStatus());
+        p.requestConfirmation(req.paymentKey(), req.amount(), clock.now());
+        if (enqueue) { gifts.paymentChanged(giftId, p.getStatus()); outbox.publish(new PaymentWorkRequested(id)); }
+        return giftResponse(p);
     }
 
     // 웹훅은 조회를 깨우는 신호일 뿐이다. 본문의 상태·paymentKey·금액을 신뢰하지 않는다.
@@ -88,6 +133,15 @@ public class CheckoutService {
     public record Work(UUID id, String paymentKey, long amount, boolean confirm, UUID refundId) {}
 
     public Work work(UUID id) {
+        UUID giftId = giftIdOf(id);
+        if (giftId != null) {
+            gifts.lockForPayment(giftId);
+            Payment p = payments.lockById(id).orElseThrow(ApiException::notFound);
+            p.defer(clock.now());
+            // 선물 결제 환불(구매 7일 안 카드 취소)은 3회차 — 그때 환불 행을 만든다. 지금은 남아 있는 대기 환불만 이어서 한다
+            UUID refundId = refunds.findByPaymentId(id).filter(r -> "pending".equals(r.getStatus())).map(PaymentRefund::getId).orElse(null);
+            return new Work(id, p.getProviderTxId(), p.getAmount(), "authorized".equals(p.getStatus()), refundId);
+        }
         Booking b = bookings.lockForUpdate(bookingIdOf(id));
         Payment p = payments.lockById(id).orElseThrow(ApiException::notFound);
         p.defer(clock.now());
@@ -100,6 +154,17 @@ public class CheckoutService {
     }
 
     public void apply(UUID id, TossPaymentGateway.Result result) {
+        UUID giftId = giftIdOf(id);
+        if (giftId != null) {
+            gifts.lockForPayment(giftId);
+            Payment p = payments.lockById(id).orElseThrow(ApiException::notFound);
+            if ("failed".equals(p.getStatus())) return;
+            p.apply(result, clock.now());
+            // 결제 확정(paid)과 선물 보내기가 이 트랜잭션 하나에서 같이 커밋된다 — 결제는 됐는데 선물이 없는 순간이 없다
+            gifts.paymentChanged(giftId, p.getStatus());
+            if ("refunded".equals(p.getStatus())) refunds.findByPaymentId(id).ifPresent(r -> r.done(clock.now()));
+            return;
+        }
         Booking b = bookings.lockForUpdate(bookingIdOf(id));
         Payment p = payments.lockById(id).orElseThrow(ApiException::notFound);
         // 실패 확정 뒤 새 결제 시도가 생길 수 있다. 옛 실패 알림이 새 결제의 요약을 unpaid로 되돌리면 안 된다.
@@ -113,6 +178,18 @@ public class CheckoutService {
         if (!userId.equals(b.getCustomerId())) throw ApiException.notFound();
         return b;
     }
+    /** 선물 결제면 그 선물을 잠그고 결제한 사람이 userId 인지 본다 (아니면 남의 것 — 404) */
+    private void ownGift(UUID userId, UUID giftId) {
+        UUID payer = gifts.lockForPayment(giftId).orElseThrow(ApiException::notFound);
+        if (!payer.equals(userId)) throw ApiException.notFound();
+    }
+    /** 선물 결제면 선물 id, 예약 결제면 null. 없는 결제는 404 */
+    private UUID giftIdOf(UUID id) {
+        java.util.Optional<UUID> gift = payments.findCheckoutGiftId(id);
+        if (gift.isPresent()) return gift.get();
+        bookingIdOf(id); // 예약 결제인지 확인 (아니면 404)
+        return null;
+    }
     private UUID bookingIdOf(UUID id) {
         return payments.findCheckoutBookingId(id).orElseThrow(ApiException::notFound);
     }
@@ -123,6 +200,12 @@ public class CheckoutService {
         return new CheckoutResponse(p.getId(), p.getBookingId(), p.getId().toString(), p.getAmount(), "KRW",
                 p.getStatus(), p.getRefundedAmount(), properties.clientKey(), "안심클린 방문 서비스",
                 b.getStatus() != BookingStatus.CANCELLED && "pending".equals(p.getStatus()),
-                refunds.findByPaymentId(p.getId()).map(PaymentRefund::getStatus).orElse(null));
+                refunds.findByPaymentId(p.getId()).map(PaymentRefund::getStatus).orElse(null), null);
+    }
+    private CheckoutResponse giftResponse(Payment p) {
+        return new CheckoutResponse(p.getId(), null, p.getId().toString(), p.getAmount(), "KRW",
+                p.getStatus(), p.getRefundedAmount(), properties.clientKey(), GIFT_ORDER_NAME,
+                "pending".equals(p.getStatus()) && gifts.payable(p.getGiftId()),
+                refunds.findByPaymentId(p.getId()).map(PaymentRefund::getStatus).orElse(null), p.getGiftId());
     }
 }

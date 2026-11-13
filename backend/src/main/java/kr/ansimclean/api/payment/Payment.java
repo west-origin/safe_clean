@@ -20,9 +20,13 @@ public class Payment {
     @Column(columnDefinition = "uuid")
     private UUID id;
 
-    // 어느 예약의 결제인가 (bookings.id)
-    @Column(name = "booking_id", columnDefinition = "uuid", nullable = false)
+    // 어느 예약의 결제인가 (bookings.id). 선물 결제면 null (V070 — 예약·선물 중 정확히 하나)
+    @Column(name = "booking_id", columnDefinition = "uuid")
     private UUID bookingId;
+
+    // 어느 선물의 결제인가 (gifts.id, '새로 구매해 선물'). 예약 결제면 null
+    @Column(name = "gift_id", columnDefinition = "uuid")
+    private UUID giftId;
 
     // 쓴 결제 수단(payment_methods.id). 수단 없이 만든 행이거나 고객 계정 파기 뒤에는 null
     @Column(name = "payment_method_id", columnDefinition = "uuid")
@@ -78,9 +82,17 @@ public class Payment {
         return p;
     }
 
+    /** 금액권 선물의 결제 대기 행 (GiftService → CheckoutService.prepareGift). 저장은 부르는 쪽이 한다 */
+    public static Payment pendingGift(UUID giftId, long amount, Instant now) {
+        Payment p = pending(null, null, "toss", amount, now);
+        p.giftId = giftId;
+        return p;
+    }
+
     // 읽기 전용 getter. 상태를 바꾸는 메서드는 아직 없다
     public UUID getId() { return id; }
     public UUID getBookingId() { return bookingId; }
+    public UUID getGiftId() { return giftId; }
     public String getProvider() { return provider; }
     public long getAmount() { return amount; }
     public String getStatus() { return status; }

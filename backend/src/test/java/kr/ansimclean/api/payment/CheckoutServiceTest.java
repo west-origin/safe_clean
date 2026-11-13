@@ -23,11 +23,12 @@ class CheckoutServiceTest {
     final Idempotent idempotent = mock(Idempotent.class);
     final OutboxService outbox = mock(OutboxService.class);
     final kr.ansimclean.api.profile.ProfileService profiles = mock(kr.ansimclean.api.profile.ProfileService.class);
+    final GiftPaymentHooks gifts = mock(GiftPaymentHooks.class);
     final Instant now = Instant.parse("2026-09-15T05:00:00Z");
     final UUID user = UUID.randomUUID();
     final Booking booking = TestBookings.requested(user, LocalDate.of(2026, 9, 22), LocalTime.NOON);
     final CheckoutService service = new CheckoutService(payments, refunds, bookings,
-            new CheckoutProperties("test_ck_stub", "test_sk_stub"), idempotent, outbox, new AppClock(Clock.fixed(now, ZoneOffset.UTC)), profiles);
+            new CheckoutProperties("test_ck_stub", "test_sk_stub"), idempotent, outbox, new AppClock(Clock.fixed(now, ZoneOffset.UTC)), profiles, gifts);
 
     @BeforeEach void setup() {
         when(bookings.lockForUpdate(booking.getId())).thenReturn(booking);
@@ -84,8 +85,71 @@ class CheckoutServiceTest {
         assertThat(booking.getPaymentStatus()).isEqualTo("paid");
     }
     @Test void no_keys_never_creates_a_fake_payment() {
-        var disabled = new CheckoutService(payments, refunds, bookings, new CheckoutProperties("", ""), idempotent, outbox, AppClock.system(), profiles);
+        var disabled = new CheckoutService(payments, refunds, bookings, new CheckoutProperties("", ""), idempotent, outbox, AppClock.system(), profiles, gifts);
         assertThatThrownBy(() -> disabled.prepare(user, booking.getId(), "key")).isInstanceOf(ApiException.class);
         verifyNoInteractions(payments);
+    }
+
+    // ── 금액권 선물 결제 (V070) — 선물이 예약 자리에 선다. 잠금 순서 선물 → 결제, 결과는 GiftPaymentHooks 로 같은 트랜잭션에서 ──
+    Payment giftPayment(UUID giftId) {
+        Payment p = Payment.pendingGift(giftId, 69000, now);
+        when(payments.findCheckoutGiftId(p.getId())).thenReturn(Optional.of(giftId));
+        when(payments.lockById(p.getId())).thenReturn(Optional.of(p));
+        when(gifts.lockForPayment(giftId)).thenReturn(Optional.of(user));
+        when(gifts.payable(giftId)).thenReturn(true);
+        return p;
+    }
+    @Test void gift_order_uses_server_amount_and_names_the_gift() {
+        UUID giftId = UUID.randomUUID();
+        when(gifts.payable(giftId)).thenReturn(true);
+        var res = service.prepareGift(giftId, 69000);
+        assertThat(res.giftId()).isEqualTo(giftId);
+        assertThat(res.bookingId()).isNull();
+        assertThat(res.amount()).isEqualTo(69000);
+        assertThat(res.orderName()).isEqualTo("안심클린 금액권 선물");
+        assertThat(res.payable()).isTrue();
+        verify(payments).save(org.mockito.ArgumentMatchers.argThat(p -> giftId.equals(p.getGiftId()) && p.getBookingId() == null));
+        var disabled = new CheckoutService(payments, refunds, bookings, new CheckoutProperties("", ""), idempotent, outbox, AppClock.system(), profiles, gifts);
+        assertThatThrownBy(() -> disabled.prepareGift(giftId, 69000)).isInstanceOf(ApiException.class);
+    }
+    @Test void gift_confirm_locks_gift_first_hides_from_others_and_refuses_closed_gifts() {
+        UUID giftId = UUID.randomUUID();
+        var p = giftPayment(giftId);
+        assertThatThrownBy(() -> service.confirm(UUID.randomUUID(), p.getId(), "x", new ConfirmPaymentRequest("key", 69000)))
+                .isInstanceOf(ApiException.class).extracting("code").isEqualTo(kr.ansimclean.api.common.error.ErrorCode.NOT_FOUND);
+        service.confirm(user, p.getId(), "first", new ConfirmPaymentRequest("key", 69000));
+        service.confirm(user, p.getId(), "second", new ConfirmPaymentRequest("key", 69000));
+        var order = org.mockito.Mockito.inOrder(gifts, payments);
+        order.verify(gifts).lockForPayment(giftId);
+        order.verify(payments).lockById(p.getId());
+        verify(gifts, times(1)).paymentChanged(giftId, "authorized");
+        verify(outbox, times(1)).publish(new PaymentWorkRequested(p.getId()));
+        verify(bookings, never()).lockForUpdate(any());
+
+        UUID closed = UUID.randomUUID();
+        var q = giftPayment(closed);
+        when(gifts.payable(closed)).thenReturn(false); // 보낸 사람이 결제 전에 취소한 선물
+        assertThatThrownBy(() -> service.confirm(user, q.getId(), "k", new ConfirmPaymentRequest("key2", 69000)))
+                .isInstanceOf(ApiException.class).extracting("code").isEqualTo(kr.ansimclean.api.common.error.ErrorCode.INVALID_STATE);
+    }
+    @Test void gift_paid_result_is_handed_to_the_gift_in_the_same_transaction() {
+        UUID giftId = UUID.randomUUID();
+        var p = giftPayment(giftId);
+        p.requestConfirmation("key", 69000, now);
+        assertThat(service.work(p.getId()).confirm()).isTrue();
+        service.apply(p.getId(), new TossPaymentGateway.Result("key", p.getId().toString(), "DONE", "KRW", 69000, 69000));
+        assertThat(p.getStatus()).isEqualTo("paid");
+        var order = org.mockito.Mockito.inOrder(gifts, payments);
+        order.verify(gifts).lockForPayment(giftId);
+        order.verify(payments).lockById(p.getId());
+        verify(gifts).paymentChanged(giftId, "paid");
+        verify(bookings, never()).lockForUpdate(any());
+    }
+    @Test void gift_payment_failure_is_reported_to_the_gift() {
+        UUID giftId = UUID.randomUUID();
+        var p = giftPayment(giftId);
+        p.requestConfirmation("key", 69000, now);
+        service.apply(p.getId(), new TossPaymentGateway.Result("key", p.getId().toString(), "ABORTED", "KRW", 69000, 69000));
+        verify(gifts).paymentChanged(giftId, "failed");
     }
 }

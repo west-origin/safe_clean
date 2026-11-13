@@ -353,6 +353,12 @@ public class FriendService {
         return new FriendEntry(view(row.user()), row.requestId(), row.at().toString(), KoreanFormat.dateShort(AppClock.toSeoul(row.at()).toLocalDate()));
     }
 
+    /** 다른 기능(선물)이 사람 한 명을 친구 화면과 같은 모양으로 보여 줄 때. 탈퇴한 사람은 deleted = true (닉네임 없이 '탈퇴한 사용자') */
+    public static FriendUser person(UUID id, String nickname, String tag, String name, boolean deleted) {
+        if (deleted) return new FriendUser(id, null, null, null, "탈퇴한 사용자");
+        return view(new FriendStore.UserRow(id, nickname, tag, name));
+    }
+
     static FriendUser view(FriendStore.UserRow u) {
         String handle = u.nickname() == null || u.tag() == null ? null : u.nickname() + "#" + u.tag();
         return new FriendUser(u.id(), u.nickname(), u.tag(), handle, maskName(u.name()));

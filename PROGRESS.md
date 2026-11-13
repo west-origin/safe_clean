@@ -11,7 +11,15 @@
   - 설정 `INVITE_BASE_URL`·`INVITE_ANDROID_STORE_URL`·`INVITE_IOS_STORE_URL`(`.env.example` 2곳) — **배포 전에 값을 넣어야 초대 링크가 만들어진다**
   - 테스트: `FriendServiceTest` 16 · `FriendControllerTest` 3 · `ProfileServiceTest` 태그 3 · `PushHandlerTest` 1 · `FriendIT` 7(흐름·서로 동시 요청 5회·수락/취소 경합 5회·차단·초대·같은 닉네임 동시 태그·탈퇴 제외) — **IT 미실행(Docker 없음)**. 대신 `scripts/verify-friends-v069.mjs`(PGlite, V001~V069 + 기존 고객 태그 채우기·제약·서버 SQL) 통과. 백엔드 785 테스트 통과(IT 제외), 앱 609 통과, 토큰·빌드 통과
   - 판단(코드에서 정함): 닉네임 1~12자·'#' 금지, 검색 30회/시간·요청 30회/시간·초대 60회/시간, 초대 코드 30일(7일 미만 남으면 새 코드), 초대 수락 = 바로 친구(초대한 사람에게 알림 없음), 자동 친구·수락 알림 없음, 탈퇴 즉시 관계 행은 남기고 조회에서 거름(5년 파기 때 삭제), 초대 페이지 문구·색(서버 HTML이라 토큰 못 씀), 푸시 문구
-- [ ] 2회차: 서버 금액권·선물
+- [x] 2회차: 서버 금액권·선물 (V070)
+  - V070: `vouchers`(얼굴 금액·잔액·소유자·구매자·상태 unpaid/held/gifting/void·양도 가능·구매/받은 시각·유효기간), `gifts`(보낸·받는 사람·금액권·방식 purchase|voucher·메시지 200자·금액·상품 이름·상태 7종·시각 — 이력 겸용), 금액권당 열린 선물 1건 유니크, `payments.gift_id` + `booking_id` nullable + 대상 하나 check + 선물당 살아 있는 결제 1건 유니크, 설정 `gift_accept_days=7`·`voucher_valid_days=365`·`gift_catalog`(요금표 14항목, 첫 1회 체험 제외)
+  - 결제 재사용: `payment.GiftPaymentHooks`(인터페이스) ← `gift.GiftPaymentBridge`. `CheckoutService` 가 결제 행의 대상(예약|선물)에 따라 갈린다 — 예약 결제 흐름은 그대로. `prepareGift`, 기존 `/customer/payments/{id}`·`/confirm`·웹훅·재조정·`PaymentWorkHandler` 공용. **PG 확정과 선물 보내기가 한 트랜잭션**(결제됐는데 선물 없음 없음), 실패 확정 → `payment_failed`·`void`
+  - `gift/` 패키지: `GiftService`(목록·보내기·받기·거절·취소·만료·결제창 이탈 정리) · `GiftStore`(SQL) · `GiftLifecycle`(보내기·반환) · `GiftController`(8개) · `GiftExpirer`(1분, ShedLock) · `GiftDeletionGuard` · `GiftAccountPurge`(5년 뒤 메시지만 삭제)
+  - 무결성: 잠금 순서 (친구 쌍) → 선물 → 금액권 → 결제. 보내기는 친구 쌍 잠금 안에서 친구 확인(`FriendService.lockFriendship`), 보유 금액권은 `FOR UPDATE` + 상태 확인 → 동시 선물 1건만. 받기·거절·취소·만료는 선물 행 잠금으로 1건만
+  - 푸시: `GiftReceived` → 받는 사람 '선물이 도착했어요', `GiftResolved` → 보낸 사람 '선물을 받았어요'·'선물이 돌아왔어요'(거절·만료). 모두 거래성(토글 무관). 취소는 알리지 않음
+  - 테스트: `GiftServiceTest` 10 · `GiftPaymentBridgeTest` 4 · `CheckoutServiceTest` 선물 결제 4 · `GiftControllerTest` 2 · `PushHandlerTest` 1 · `GiftIT` 7(구매→승인→확정과 보내기 같이→받기·소유자 이전·1년, 결제 실패, 친구 아님, 같은 금액권 동시 선물 5회, 받기·취소 경합 5회, 만료 반환, 탈퇴 가드) — **IT 미실행(Docker 없음)**. `scripts/verify-gifts-v070.mjs`(PGlite, 기존 예약 결제 유지·새 제약·서버 SQL·설정) 통과. 백엔드 806 테스트 통과(IT 제외), 앱 609 통과, 토큰·빌드 통과
+  - 판단(코드에서 정함): 선물 목록 상품 이름(요금표 문구에서 만듦)·정기청소는 월 요금을 금액으로, 원룸 주 1회는 첫 달 할인(199,000) 아닌 정가 229,000, 결제창 이탈 1시간 뒤 정리, 보유 금액권 선물은 유효기간이 받는 기간(7일)보다 많이 남아야 함·30일 안이면 경고, 받은 금액권을 다시 선물해도 유효기간은 늘지 않음, 아무도 받지 않고 돌아온 금액권은 구매일 + 1년, 받기는 아직 친구일 때만, 선물 보내기 20회/시간, 잔액 있는 금액권·처리 중 선물이 있으면 탈퇴 막음, 푸시·오류 문구
+  - 남은 것(3회차): 예약 결제에 금액권 차감·취소 시 복원, 환불(구매 7일 안 미사용 100% 카드 취소 / 만료 후 5만 원 초과 95% 계좌), 만료 처리
 - [ ] 3회차: 서버 금액권 사용·환불
 - [ ] 4회차: 고객 앱 친구 화면
 - [ ] 5회차: 고객 앱 선물 화면

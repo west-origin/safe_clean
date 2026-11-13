@@ -14,6 +14,8 @@ import kr.ansimclean.api.common.events.ManagerReleased;
 import kr.ansimclean.api.common.events.CameraOffline;
 import kr.ansimclean.api.common.events.CameraOnline;
 import kr.ansimclean.api.common.events.FriendRequested;
+import kr.ansimclean.api.common.events.GiftReceived;
+import kr.ansimclean.api.common.events.GiftResolved;
 import kr.ansimclean.api.common.events.InquiryAnswered;
 import kr.ansimclean.api.common.events.ManagerLate;
 import kr.ansimclean.api.common.events.MatchingFailed;
@@ -50,7 +52,7 @@ public class PushHandler implements OutboxHandler {
     // 아래 handle 의 case 와 같아야 한다 — 여기 없으면 '핸들러 없음' 으로 실패 처리되고, case 가 없으면 default 에서 던진다
     static final Set<String> TYPES = Set.of("BookingCancelled", "BookingRescheduled", "BookingUnassigned", "SeriesEnding", "ManagerPenalized", "ManagerReleased",
             "OffersDispatched", "BookingAssigned", "BookingCompleted", "CameraOnline", "CameraOffline", "RecordingReady", "RecordingFailed", "MatchingFailed", "InquiryAnswered",
-            "ManagerLate", "CancelRequested", "CancelRequestDecided", "AdminAssignNeeded", "AdminAssigned", "FriendRequested");
+            "ManagerLate", "CancelRequested", "CancelRequestDecided", "AdminAssignNeeded", "AdminAssigned", "FriendRequested", "GiftReceived", "GiftResolved");
 
     /** booking/StaleBookingCleaner.REASON_NOT_STARTED 와 같다 (push 는 booking 을 보지 않는다 — 문자열만 맞춘다) */
     static final String NOT_STARTED = "not_started";
@@ -93,6 +95,21 @@ public class PushHandler implements OutboxHandler {
                 // 친구 요청을 받음 → 받은 고객 (push 토글). 닉네임은 싣지 않는다. 탭하면 고객 앱 받은 요청 목록
                 FriendRequested e = json.readValue(payloadJson, FriendRequested.class);
                 toCustomer(e.addresseeId(), PushCopy.FRIEND_REQUESTED, Map.of("type", "friendRequest", "requestId", e.requestId().toString()), collapse);
+            }
+            case "GiftReceived" -> {
+                // 금액권 선물이 도착 → 받는 사람 (돈이 오가는 거래성 알림이라 토글과 무관). 탭하면 고객 앱 받은 선물
+                GiftReceived e = json.readValue(payloadJson, GiftReceived.class);
+                toCustomerAlways(e.recipientId(), PushCopy.GIFT_RECEIVED, Map.of("type", "gift", "giftId", e.giftId().toString()), collapse);
+            }
+            case "GiftResolved" -> {
+                // 보낸 선물의 결과 → 보낸 사람 (거래성). 거절·만료면 금액권이 돌아왔다는 안내
+                GiftResolved e = json.readValue(payloadJson, GiftResolved.class);
+                PushCopy.Text text = switch (e.result()) {
+                    case "accepted" -> PushCopy.GIFT_ACCEPTED;
+                    case "rejected" -> PushCopy.GIFT_REJECTED;
+                    default -> PushCopy.GIFT_EXPIRED;
+                };
+                toCustomerAlways(e.senderId(), text, Map.of("type", "gift", "giftId", e.giftId().toString()), collapse);
             }
             case "BookingAssigned" -> {
                 // 매니저 배정 → 고객 (push 토글)

@@ -46,7 +46,7 @@ class CheckoutControllerTest {
     }
     @Test void checkout_shape_has_no_provider_transaction_or_secret() throws Exception {
         UUID user = login(Roles.CUSTOMER), booking = UUID.randomUUID(), id = UUID.randomUUID();
-        when(service.prepare(user, booking, "key")).thenReturn(new CheckoutResponse(id, booking, id.toString(), 85000, "KRW", "pending", 0, "test_ck_stub", "안심클린 방문 서비스", true, null));
+        when(service.prepare(user, booking, "key")).thenReturn(new CheckoutResponse(id, booking, id.toString(), 85000, "KRW", "pending", 0, "test_ck_stub", "안심클린 방문 서비스", true, null, null));
         mvc.perform(post("/api/v1/customer/bookings/" + booking + "/checkout").header("Authorization", "Bearer token").header("Idempotency-Key", "key"))
                 .andExpect(status().isOk()).andExpect(jsonPath("amount").value(85000))
                 .andExpect(jsonPath("orderId").value(id.toString())).andExpect(jsonPath("currency").value("KRW"))

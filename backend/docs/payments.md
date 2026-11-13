@@ -18,6 +18,13 @@ PaymentWorkHandler는 아웃박스 트랜잭션을 `NOT_SUPPORTED`로 중단하�
 새 결제/승인 요청은 ProfileService.holdLive 공유 잠금으로 탈퇴와 직렬화한다. PaymentDeletionGuard는 확인 중 승인·환불이 남은 고객의 탈퇴를 차단한다.
 PG 호출 성공 후 프로세스가 죽거나 아웃박스의 sent 기록이 실패하면 조회 API로 완료를 확인하므로 새 청구를 만들지 않는다.
 
+## 금액권 선물 결제 (V070, 2026-11-13)
+
+`payments` 한 행은 예약(`booking_id`) 또는 금액권 선물(`gift_id`) 중 정확히 하나의 결제다(`payments_one_target`). 선물 결제는 선물당 살아 있는 주문 하나(`payments_one_gift`).
+주문은 `GiftService` 가 선물·금액권과 같은 트랜잭션에서 `CheckoutService.prepareGift` 로 만들고, 승인·조회·웹훅·재조정·`PaymentWorkHandler` 는 예약 결제와 같은 길을 쓴다.
+잠금 순서는 선물 → 금액권 → 결제(`GiftPaymentHooks.lockForPayment`). PG 확정(`apply` → paid)과 선물 보내기(금액권 `gifting`, 선물 `sent`, 받는 사람 푸시)가 같은 트랜잭션에서 커밋된다. 실패 확정이면 선물 `payment_failed`·금액권 `void`.
+선물 결제의 환불(구매 7일 안 카드 취소)은 3회차. 그 전까지 승인 요청 뒤에는 선물 취소를 막아 '취소된 선물의 결제 확정' 이 생기지 않게 한다.
+
 ## API
 
 모든 고객 API는 ROLE_CUSTOMER + 예약 소유권 검사(남의 자원은 404).

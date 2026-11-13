@@ -22,6 +22,23 @@
 | `acceptFriendInvite(code)` | `POST /customer/friends/invites/{code}/accept` (+`Idempotency-Key`) | — | `{ id, status: "accepted", user }` 바로 친구(이미 친구여도 성공). 내 초대 `VALIDATION`, 차단·만료 `NOT_FOUND` |
 | (공개 페이지) | `GET /i/{code}` (로그인 없음, `/api/v1` 밖) | — | HTML: 앱에서 열기 `ansimclean://friend-invite/{code}` + 스토어 설치 버튼(Android 는 `referrer=invite={code}`). 만료·없음이면 404 '초대 링크가 만료됐어요' |
 
+## 금액권·선물 (2026-11-13 — 규칙은 domain.md '고객 친구·금액권 선물' › 금액권·선물 규칙)
+
+모두 `ROLE_CUSTOMER`. `GiftView = { id, direction: "sent"|"received", method: "purchase"|"voucher", status, amount, amountLabel, label, message, person: FriendUser(상대 — 탈퇴면 maskedName "탈퇴한 사용자"·나머지 null), createdAt, sentAt, expiresAt, expiresLabel: "11월 20일 14:32까지"(sent 일 때만), decidedAt }`. `status`: `awaiting_payment`(구매 결제 전) · `sent` · `accepted` · `rejected` · `expired` · `cancelled` · `payment_failed`. 남의 선물·금액권은 `NOT_FOUND`(받는 사람에게 결제 전 선물은 없는 것).
+
+| 앱 함수 | 메서드 · 경로 | 요청 | 응답 / 오류 |
+|---|---|---|---|
+| `getGiftCatalog()` | `GET /customer/gifts/catalog` | — | `{ items: [{ key, group, label, amount, amountLabel }], acceptDays: 7, validDays: 365 }` — `app_settings.gift_catalog`(첫 1회 체험 없음) |
+| `getVouchers()` | `GET /customer/vouchers` | — | `{ vouchers: [{ id, label, faceAmount, balance, balanceLabel, status: "held"\|"gifting", validUntil(ISO)\|null, validUntilLabel: "2027년 11월 13일까지"\|null, giftable, expiringSoon, blockedReason\|null }] }` — `expiringSoon` = 유효기간 30일 안 |
+| `sendGift(req)` | `POST /customer/gifts` (+`Idempotency-Key`) | `{ recipientId, method: "purchase"\|"voucher", catalogKey?, voucherId?, message? }` (메시지 200자, 금액은 받지 않는다) | `{ gift: GiftView, checkout: CheckoutResponse\|null }`. 구매면 `gift.status = awaiting_payment` + `checkout`(기존 결제 응답 모양 + `giftId`, `orderName: "안심클린 금액권 선물"`) → 토스 결제창 → 기존 `POST /customer/payments/{checkout.id}/confirm` → 결제가 확정되면 서버가 선물을 보낸다(앱은 `GET /customer/payments/{id}` 또는 `GET /customer/gifts/{id}` 로 확인). 보유 금액권이면 바로 `sent`. 친구 아님 `INVALID_STATE` "친구에게만 선물할 수 있어요", 선물할 수 없는 금액권 `INVALID_STATE`(이유 문구), 나 자신·모르는 상품·방식 `VALIDATION`, 남의 금액권 `NOT_FOUND`, 결제 키 없음 `INVALID_STATE`, 고객당 시간 20회 `RATE_LIMITED` |
+| `getGifts(box)` | `GET /customer/gifts?box=sent\|received` | — | `{ box, gifts: GiftView[] }` 최근 100건 (받은 목록에는 결제 전·결제 실패 선물이 없다) |
+| `getGift(id)` | `GET /customer/gifts/{id}` | — | `{ gift, checkout }` — `checkout` 은 보낸 사람의 결제 대기 선물일 때만(결제창 다시 열기) |
+| `acceptGift(id)` | `POST /customer/gifts/{id}/accept` | — | `{ gift, checkout: null }` 받는 사람만. 금액권 소유자가 바뀌고 유효기간 = 받은 날 + 1년(이미 있으면 그대로). 마감 지남·친구 아님·처리된 선물 `INVALID_STATE` |
+| `rejectGift(id)` | `POST /customer/gifts/{id}/reject` | — | 받는 사람만, `sent` 만. 금액권은 보낸 사람에게 |
+| `cancelGift(id)` | `POST /customer/gifts/{id}/cancel` | — | 보낸 사람만, 받기 전까지. 결제 대기 선물은 승인 요청 전만(아니면 `INVALID_STATE` "결제를 확인하고 있어요") |
+
+푸시 data `type: gift` + `giftId`: 받는 사람 '선물이 도착했어요', 보낸 사람 '선물을 받았어요' · '선물이 돌아왔어요'(거절·만료). 모두 거래성(토글 무관).
+
 ## 매니저 방문 취소 승인·재배정 (2026-11-13 — 규칙은 domain.md 같은 이름의 절. 아래 §5.3 `cancelJob` 설명보다 이 절이 우선한다)
 
 | 앱 함수 | 메서드 · 경로 | 요청 | 응답 / 오류 |

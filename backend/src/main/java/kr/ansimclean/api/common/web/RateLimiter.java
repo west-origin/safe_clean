@@ -52,6 +52,8 @@ public class RateLimiter {
     public static final int FRIEND_REQUEST_PER_USER_PER_HOUR = 30;
     /** 같은 고객의 시간당 초대 코드 조회·수락 */
     public static final int FRIEND_INVITE_PER_USER_PER_HOUR = 60;
+    /** 같은 고객의 시간당 선물 보내기 — 선물마다 결제 주문·받는 사람 푸시가 생긴다 (코드에서 정함) */
+    public static final int GIFT_CREATE_PER_USER_PER_HOUR = 20;
     /**
      * 들고 있을 키 수 상한(메모리를 키 수만큼 늘리지 못하게, 감사 M-05). 넘으면 **가장 오래 쓰이지 않은 키**를 버린다.
      * 예전에는 새 키를 전부 막아, IP 를 바꿔 가며 키를 채운 한 사람이 모든 사용자의 로그인·토큰 갱신을 막을 수 있었다 (자체 점검 #12).
