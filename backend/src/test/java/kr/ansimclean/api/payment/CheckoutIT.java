@@ -69,7 +69,7 @@ class CheckoutIT {
         verify(gateway, times(1)).confirm(first.orderId(), req.paymentKey(), 85000);
         bookings.cancel(user.id(), booking, new CancelRequest("customer", false));
         when(gateway.lookup(first.orderId())).thenReturn(paid);
-        when(gateway.cancel(eq(first.orderId()), eq(req.paymentKey()), any())).thenReturn(
+        when(gateway.cancel(eq(first.orderId()), eq(req.paymentKey()), any(), isNull())).thenReturn(
                 new TossPaymentGateway.Result(req.paymentKey(), first.orderId(), "CANCELED", "KRW", 85000, 0));
         checkout.enqueue(first.id()); dispatcher.dispatchBatch();
         var refunded = checkout.get(user.id(), first.id());

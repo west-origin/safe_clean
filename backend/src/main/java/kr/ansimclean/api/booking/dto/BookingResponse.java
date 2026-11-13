@@ -20,6 +20,15 @@ import java.util.UUID;
  * Visit: 회차 한 번 — id = 그 회차 예약 id, label = "2026년 11월 1일 (일)" 모양.
  */
 public record BookingResponse(UUID id, String category, String frequency, String date, String time, String roadAddress, String detailAddress,
-                              String serviceLabel, String cleaner, boolean managerAssigned, boolean matchingFailed, boolean cancelled, UUID seriesId, List<Visit> visits, String perVisitLabel, long totalAmount, String totalLabel, String homeType) {
+                              String serviceLabel, String cleaner, boolean managerAssigned, boolean matchingFailed, boolean cancelled, UUID seriesId, List<Visit> visits, String perVisitLabel, long totalAmount, String totalLabel, String homeType,
+                              String pricePlan) {
+    /** pricePlan = 요금표 요금제 키(house_trial · studio_once · house_weekly_N · studio_weekly_N · hood_600|900|1200, 없으면 null — 요금표 전환 2026-11-13).
+     *  _weekly_ 면 결제는 회차가 아니라 한 달치 시리즈 결제다 */
+    public BookingResponse(UUID id, String category, String frequency, String date, String time, String roadAddress, String detailAddress,
+                           String serviceLabel, String cleaner, boolean managerAssigned, boolean matchingFailed, boolean cancelled, UUID seriesId, List<Visit> visits,
+                           String perVisitLabel, long totalAmount, String totalLabel, String homeType) {
+        this(id, category, frequency, date, time, roadAddress, detailAddress, serviceLabel, cleaner, managerAssigned, matchingFailed, cancelled, seriesId, visits,
+                perVisitLabel, totalAmount, totalLabel, homeType, null);
+    }
     public record Visit(UUID id, String date, String label) {}
 }

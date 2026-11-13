@@ -124,6 +124,10 @@ public class BookingService implements ManagerWorkLookup {
         LocalTime time = parseTime(req.time());
         requireBookableSchedule(req.category(), date, time, clock.today());
         List<CatalogOption> options = catalog.requireOptions(req.category(), distinct(req.freeOptions()), distinct(req.paidOptions()));
+        // 요금표 요금제(가정·원룸·분해청소 — 요금표 전환 2026-11-13). 견적에는 고객이 없어 원룸 첫 달 할인은 '받을 수 있다' 로 보이고, 생성 때 다시 판정한다
+        String homeType = homeType(req.category(), req.homeType());
+        var plan = pricing.plan(req.category(), homeType, req.frequency(), req.visitsPerWeek(), req.hoodSize(), true);
+        if (plan.isPresent()) return planQuote(plan.get(), req.category(), date, req.weekdays(), options);
         durationMinutes(req.category(), req.durationHours()); // 생성과 같은 시간 범위를 확인한다.
         PriceQuote q = priceQuote(req.category(), req.frequency(), options, req.durationHours());
         List<LocalDate> dates = "recurring".equals(req.frequency()) ? seriesDates(date) : List.of(date); // 정기청소면 회차 날짜 전부, 1회면 그날 하나
@@ -134,6 +138,29 @@ public class BookingService implements ManagerWorkLookup {
         return new QuoteResponse(perVisit,
                 dates.stream().map(d -> new QuoteResponse.Visit(d.toString(), KoreanFormat.dateLongWeekday(d))).toList(),
                 dates.size(), total, KoreanFormat.won(total), settings.get(SETTING_PAYMENT_NOTE, String.class), (req.durationHours() != null && !"repair".equals(req.category()) && "recurring".equals(req.frequency()) ? KoreanFormat.won(settings.integer("cleaning_recurring_discount")) + " 할인" : savingNote(req.category(), req.frequency(), q.base())));
+    }
+
+    /** 요금제 견적: 회차 날짜(정기면 고른 요일마다 4주)와 회차별 금액. perVisit 는 첫 회차, 총액 = 회차 금액 합 = 결제 금액 */
+    private QuoteResponse planQuote(PricingService.Plan plan, String category, LocalDate date, List<Integer> weekdays, List<CatalogOption> options) {
+        List<LocalDate> dates = plan.weekly() ? BookingSeries.weeklyDates(date, requireWeekdays(plan, date, weekdays), plan.weeks()) : List.of(date);
+        List<PriceQuote> quotes = pricing.planVisits(plan, category, options);
+        PriceQuote q = quotes.get(0);
+        long total = quotes.stream().mapToLong(PriceQuote::total).sum();
+        QuoteResponse.PerVisit perVisit = new QuoteResponse.PerVisit(q.base(), q.options(), q.total(), KoreanFormat.won(q.total()),
+                KoreanFormat.won(q.base()), q.options() > 0 ? "+" + KoreanFormat.won(q.options()) : null);
+        String note = plan.discount() > 0 ? "첫 달 " + KoreanFormat.won(plan.discount()) + " 할인" : null;
+        return new QuoteResponse(perVisit, dates.stream().map(d -> new QuoteResponse.Visit(d.toString(), KoreanFormat.dateLongWeekday(d))).toList(),
+                dates.size(), total, KoreanFormat.won(total), settings.get(SETTING_PAYMENT_NOTE, String.class), note);
+    }
+
+    /** 주 N회 요금제의 요일 검사: 0~6 서로 다른 N개, 첫 방문일의 요일 포함. 맞으면 그 목록 */
+    static List<Integer> requireWeekdays(PricingService.Plan plan, LocalDate firstVisit, List<Integer> weekdays) {
+        List<Integer> days = weekdays == null ? List.of() : weekdays;
+        if (days.size() != plan.visitsPerWeek() || days.stream().distinct().count() != days.size()
+                || days.stream().anyMatch(d -> d == null || d < 0 || d > 6))
+            throw ApiException.validation("방문 요일을 주 " + plan.visitsPerWeek() + "회에 맞게 " + plan.visitsPerWeek() + "개 골라주세요");
+        if (!days.contains(firstVisit.getDayOfWeek().getValue() - 1)) throw ApiException.validation("첫 방문일은 고른 요일 중 하나여야 해요");
+        return days;
     }
 
     /** 정기청소가 1회 청소보다 싼 만큼 — 배너는 '정기 이용 할인' 을 말하는데 확인 화면은 아무 말도 안 했다 (사용성 검토 2026-09-22) */
@@ -177,7 +204,14 @@ public class BookingService implements ManagerWorkLookup {
         List<CatalogOption> options = catalog.requireOptions(req.category(), freeOptions, paidOptions);
         catalog.requireNoticeKeys(req.category(), req.notices());
         String homeType = homeType(req.category(), req.homeType()); // 가정/원룸 중 어느 쪽인가 (home 만, 아니면 null)
-        PriceQuote quote = withDuration(priceQuote(req.category(), req.frequency(), options, req.durationHours()), durationMinutes(req.category(), req.durationHours())); // 회당 금액·수수료·소요 시간 — 아래에서 모든 회차 행에 그대로 고정한다(시간 선택 예약은 시간 요금 적용)
+        // 요금표 요금제 (요금표 전환 2026-11-13). 원룸 주 1회면 고객별 잠금 뒤 첫 원룸 정기인지 본다 — 동시에 두 번 만들어도 첫 달 할인은 하나
+        boolean studioFirst = false;
+        if ("studio".equals(homeType) && "recurring".equals(req.frequency()) && Integer.valueOf(1).equals(req.visitsPerWeek())) {
+            seriesRepo.advisoryLock("studio-first:" + customerId);
+            studioFirst = !seriesRepo.hasStudioPlan(customerId);
+        }
+        var plan = pricing.plan(req.category(), homeType, req.frequency(), req.visitsPerWeek(), req.hoodSize(), studioFirst);
+        PriceQuote quote = plan.isPresent() ? null : withDuration(priceQuote(req.category(), req.frequency(), options, req.durationHours()), durationMinutes(req.category(), req.durationHours())); // 회당 금액·수수료·소요 시간 — 아래에서 모든 회차 행에 그대로 고정한다(시간 선택 예약은 시간 요금 적용)
         Instant now = clock.now();
         String road = req.roadAddress().trim();
         String detail = blankToNull(req.detailAddress());
@@ -188,16 +222,27 @@ public class BookingService implements ManagerWorkLookup {
         UUID seriesId = null;
         List<LocalDate> dates = List.of(date);
         int termMonths = settings.integer(SETTING_SERIES_TERM_MONTHS);
-        if ("recurring".equals(req.frequency())) {
+        List<PriceQuote> planQuotes = plan.map(p -> pricing.planVisits(p, req.category(), options)).orElse(null); // 요금제면 회차별 금액
+        if (plan.isPresent() && plan.get().weekly()) {
+            // 주 N회 요금제: 첫 방문일부터 4주 동안 고른 요일마다, 한 달치를 시리즈 하나로 결제한다 (자동 연장 없음)
+            var p = plan.get();
+            BookingSeries series = seriesRepo.save(BookingSeries.createWeekly(customerId, req.category(), date, time, requireWeekdays(p, date, req.weekdays()),
+                    p.weeks(), p.key(), p.amount(), road, detail, freeOptions, paidOptions, req.notices(), request, now));
+            seriesId = series.getId();
+            dates = series.visitDates();
+        } else if ("recurring".equals(req.frequency())) {
             BookingSeries series = seriesRepo.save(BookingSeries.create(customerId, req.category(), date, time, termMonths, road, detail,
                     freeOptions, paidOptions, req.notices(), request, now));
             seriesId = series.getId();
             dates = series.visitDates();
         }
         List<Booking> visits = new ArrayList<>();
-        for (LocalDate d : dates) {
+        for (int i = 0; i < dates.size(); i++) {
+            LocalDate d = dates.get(i);
             Booking b = Booking.create(customerId, seriesId, req.category(), homeType, req.frequency(), d, time, road, detail,
-                    region.sido(), region.sigungu(), freeOptions, paidOptions, req.notices(), request, blankToNull(req.repairType()), quote, now);
+                    region.sido(), region.sigungu(), freeOptions, paidOptions, req.notices(), request, blankToNull(req.repairType()),
+                    planQuotes != null ? planQuotes.get(i) : quote, now);
+            if (plan.isPresent()) b.markPricePlan(plan.get().key());
             if ("repair".equals(req.category()) && req.repair() != null) {
                 b.describeRepair(blankToNull(req.repair().appliance()), blankToNull(req.repair().symptom()), blankToNull(req.repair().applianceKey()), blankToNull(req.repair().symptomKey()),
                         blankToNull(req.repair().detail()), ownPhotos(customerId, req.repair().photos()));
@@ -206,7 +251,7 @@ public class BookingService implements ManagerWorkLookup {
             record(b, null, BookingStatus.REQUESTED, customerId, null, now); // 상태 이력 첫 줄: (없음) → requested
             visits.add(b);
         }
-        if ("home".equals(req.category()) && "oneTime".equals(req.frequency())) {
+        if ("home".equals(req.category()) && "oneTime".equals(req.frequency()) && !"studio".equals(homeType)) { // 가정 첫 1회 체험만 (원룸 1회는 언제나 — 요금표 2026-11-13)
             if (firstCleaning == null) throw new IllegalStateException("FirstCleaningService required");
             bookings.flush(); // JDBC claim references the booking inserted by Hibernate.
             firstCleaning.claim(customerId, visits.get(0).getId(), road, detail); // 번호·주소당 한 번 (다른 계정이어도)
@@ -479,6 +524,28 @@ public class BookingService implements ManagerWorkLookup {
         Booking b = lockWithSeries(id);
         if (!managerId.equals(b.getManagerId())) throw ApiException.notFound();
         return b;
+    }
+
+    // ── 주 N회 요금제 시리즈 결제 (요금표 전환 2026-11-13 — payment/CheckoutService 가 부른다) ──
+
+    /** 고객 자신의 예약이 주 N회 요금제 회차면 그 시리즈 id (잠그지 않는다). 아니면 empty, 남의 예약은 NOT_FOUND */
+    public java.util.Optional<UUID> weeklyPlanSeriesOf(UUID customerId, UUID bookingId) {
+        UUID seriesId = seriesIdOf(customerId, bookingId);
+        if (seriesId == null) return java.util.Optional.empty();
+        return seriesRepo.findPricePlan(seriesId).map(plan -> seriesId);
+    }
+
+    /**
+     * 시리즈 결제의 잠금: 시리즈 → 회차(id 순, 취소와 같은 순서)를 잠그고 회차를 날짜 순으로 돌려준다.
+     * customerId 가 있으면 그 고객의 시리즈인지 본다(남의 것 NOT_FOUND). 재조정·PG 결과 적용은 null 로 부른다
+     */
+    public List<Booking> lockSeriesVisits(UUID customerId, UUID seriesId) {
+        BookingSeries series = seriesRepo.lockById(seriesId).orElseThrow(ApiException::notFound);
+        if (customerId != null && !customerId.equals(series.getCustomerId())) throw ApiException.notFound();
+        List<Booking> visits = new ArrayList<>();
+        for (UUID id : bookings.findIdsBySeriesId(seriesId)) visits.add(lockForUpdate(id));
+        visits.sort(java.util.Comparator.comparing(Booking::getServiceDate).thenComparing(Booking::getId));
+        return visits;
     }
 
     /** 운영자 완료용 (매니저 소유권 검사 없음) — 순서는 같다: 시리즈 → 예약 */

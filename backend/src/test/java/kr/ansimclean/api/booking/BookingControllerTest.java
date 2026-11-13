@@ -101,6 +101,21 @@ class BookingControllerTest {
     }
 
     @Test
+    void 요금제_칸은_서비스까지_오고_응답에_pricePlan_이_실린다() throws Exception { // 요금표 전환 2026-11-13
+        UUID id = customer("c");
+        UUID bookingId = UUID.randomUUID();
+        org.mockito.ArgumentCaptor<kr.ansimclean.api.booking.dto.CreateBookingRequest> req = org.mockito.ArgumentCaptor.forClass(kr.ansimclean.api.booking.dto.CreateBookingRequest.class);
+        when(bookings.create(eq(id), eq("k-plan"), req.capture())).thenReturn(new BookingResponse(bookingId, "home", "recurring", "2026-11-02", "10:00", "주소", null,
+                "원룸 청소", "배정 후 알려드려요", false, false, false, UUID.randomUUID(), List.of(), "49,875원", 399000, "399,000원", "studio", "studio_weekly_2"));
+        String body = "{\"category\":\"home\",\"homeType\":\"studio\",\"frequency\":\"recurring\",\"visitsPerWeek\":2,\"weekdays\":[0,3],\"hoodSize\":null," +
+                "\"date\":\"2026-11-02\",\"time\":\"10:00\",\"roadAddress\":\"주소\"}";
+        mvc.perform(post("/api/v1/customer/bookings").header("Authorization", "Bearer c").header("Idempotency-Key", "k-plan").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.pricePlan").value("studio_weekly_2")).andExpect(jsonPath("$.totalAmount").value(399000));
+        assertThat(req.getValue().visitsPerWeek()).isEqualTo(2);
+        assertThat(req.getValue().weekdays()).containsExactly(0, 3);
+    }
+
+    @Test
     void 생성은_Idempotency_Key_를_서비스에_넘기고_빈_주소는_400() throws Exception {
         UUID id = customer("c");
         UUID bookingId = UUID.randomUUID();

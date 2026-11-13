@@ -79,6 +79,7 @@ public class CatalogService {
         List<OptionsResponse.Option> free = new ArrayList<>();
         List<OptionsResponse.Option> paid = new ArrayList<>();
         for (CatalogOption o : options.findByCategoryKeyOrderBySort(key)) {
+            if (o.isRetired()) continue; // 요금표에 없어 뺀 옛 옵션 (V074)
             if (o.isFree()) free.add(new OptionsResponse.Option(o.getKey(), o.getLabel(), null, o.getIcon()));
             else paid.add(new OptionsResponse.Option(o.getKey(), o.getLabel(), KoreanFormat.wonSigned(o.getPrice()), o.getIcon()));
         }
@@ -147,7 +148,7 @@ public class CatalogService {
         Set<String> paid = new LinkedHashSet<>(paidKeys);
         if (free.size() > limit) throw ApiException.validation("무료 옵션은 " + limit + "개까지 고를 수 있어요");
         Map<String, CatalogOption> byKey = new LinkedHashMap<>(); // 이 카테고리의 옵션을 key 로 찾기 쉽게 모아 둔다
-        for (CatalogOption o : options.findByCategoryKeyOrderBySort(category)) byKey.put(o.getKey(), o);
+        for (CatalogOption o : options.findByCategoryKeyOrderBySort(category)) if (!o.isRetired()) byKey.put(o.getKey(), o); // 뺀 옛 옵션은 새 예약에서 모르는 옵션
         List<CatalogOption> chosen = new ArrayList<>(); // 무료 먼저, 그다음 유료 순서
         for (String key : free) chosen.add(requireOption(byKey, key, true));
         for (String key : paid) chosen.add(requireOption(byKey, key, false));

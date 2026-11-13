@@ -53,6 +53,11 @@ public class Booking {
     @Column(name = "home_type", columnDefinition = "text")
     private String homeType;
 
+    // 요금표 요금제 키 (V074 — 요금표 전환 2026-11-13): house_trial · studio_once · house_weekly_N · studio_weekly_N · hood_600|900|1200.
+    // 요금표를 쓰지 않는 예약(매장·사무실·입주·수리·옛 예약)은 null. 만들 때 BookingService.doCreate 가 한 번 정한다
+    @Column(name = "price_plan", columnDefinition = "text")
+    private String pricePlan;
+
     // "oneTime"(1회) 또는 "recurring"(정기청소) — DB check 제약이 두 값만 허용한다
     @Column(columnDefinition = "text", nullable = false)
     private String frequency;
@@ -298,6 +303,12 @@ public class Booking {
     public UUID getManagerId() { return managerId; }
     public String getCategoryKey() { return categoryKey; }
     public String getHomeType() { return homeType; }
+    public String getPricePlan() { return pricePlan; }
+    /** 주 N회 요금제 회차인가 — 결제는 회차가 아니라 시리즈(한 달치)로 한다 (CheckoutService) */
+    public boolean isWeeklyPlan() { return pricePlan != null && pricePlan.contains("_weekly_"); }
+
+    /** 만들 때 요금제 키를 적는다 (BookingService.doCreate 만, 저장 전) */
+    void markPricePlan(String key) { this.pricePlan = key; }
     public String getFrequency() { return frequency; }
     public LocalDate getServiceDate() { return serviceDate; }
     public LocalTime getServiceTime() { return serviceTime; }

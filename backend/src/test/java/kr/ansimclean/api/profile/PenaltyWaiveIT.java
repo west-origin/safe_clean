@@ -142,7 +142,7 @@ class PenaltyWaiveIT {
     void 면제된_정기청소_취소도_다음_회차_우선_제안에서_빠진다() throws Exception {
         ItSupport.User customer = ItSupport.signedUp(profiles, jwtDecoder, "customer", "김하늘");
         String res = mvc.perform(post("/api/v1/customer/bookings").header("Authorization", customer.bearer()).contentType(MediaType.APPLICATION_JSON)
-                        .content(ItSupport.bookingBody("2026-09-18", "10:00").replace("\"oneTime\"", "\"recurring\"")))
+                        .content(ItSupport.bookingBody("2026-09-18", "10:00").replace("\"oneTime\"", "\"recurring\",\"visitsPerWeek\":1,\"weekdays\":[4]"))) // 가정 주 1회 금요일 (요금표 2026-11-13)
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         tools.jackson.databind.JsonNode booking = tools.jackson.databind.json.JsonMapper.builder().build().readTree(res);
         UUID bookingId = UUID.fromString(booking.get("id").asString());

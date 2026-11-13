@@ -72,6 +72,8 @@ public class VoucherService {
         profiles.holdLive(me);
         Booking b = ownBooking(me, bookingId);
         if (b.getStatus() == BookingStatus.CANCELLED) throw new ApiException(ErrorCode.INVALID_STATE, "취소된 예약에는 금액권을 쓸 수 없어요");
+        // 주 N회 요금제는 한 달치를 시리즈로 결제한다 — 회차 금액권과 시리즈 결제를 함께 계산하는 일은 다음 회차 (요금표 전환 2026-11-13)
+        if (b.isWeeklyPlan()) throw new ApiException(ErrorCode.INVALID_STATE, WEEKLY_PLAN_BLOCKED);
         Optional<VoucherStore.UseRow> existing = store.appliedFor(bookingId);
         if (existing.isPresent()) {
             if (existing.get().voucherId().equals(voucherId)) return response(b);
@@ -105,6 +107,8 @@ public class VoucherService {
         if (use.get().amount() == b.getTotalAmount()) b.recordPayment("unpaid");
         return response(b);
     }
+
+    static final String WEEKLY_PLAN_BLOCKED = "정기 요금제 예약에는 금액권을 아직 쓸 수 없어요";
 
     /** 사용할 수 없는 이유 (쓸 수 있으면 null). 문구는 코드에서 정함 */
     static String useBlockReason(GiftStore.VoucherRow v, Instant now) {

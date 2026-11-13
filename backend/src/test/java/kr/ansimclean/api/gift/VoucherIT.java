@@ -48,6 +48,7 @@ import java.util.concurrent.Future;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -215,7 +216,7 @@ class VoucherIT {
         mvc.perform(get("/api/v1/customer/vouchers/" + v + "/refund").header("Authorization", a.bearer()))
                 .andExpect(jsonPath("$.method").value("card")).andExpect(jsonPath("$.amount").value(69000));
         when(gateway.lookup(orderId)).thenReturn(done);
-        when(gateway.cancel(eq(orderId), eq("pk"), any())).thenReturn(new TossPaymentGateway.Result("pk", orderId, "CANCELED", "KRW", 69000, 0));
+        when(gateway.cancel(eq(orderId), eq("pk"), any(), isNull())).thenReturn(new TossPaymentGateway.Result("pk", orderId, "CANCELED", "KRW", 69000, 0));
         mvc.perform(post("/api/v1/customer/vouchers/" + v + "/refund").header("Authorization", a.bearer()).header("Idempotency-Key", "r-" + v))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("processing"));
         dispatcher.dispatchBatch();

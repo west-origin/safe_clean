@@ -91,6 +91,17 @@ public class BookingSeries {
     @Column(name = "cancelled_at")
     private Instant cancelledAt;
 
+    // 주 N회 요금제 (V074 — 요금표 전환 2026-11-13). 매월 1회 정기(매장 등·옛 시리즈)면 셋 다 null
+    @Column(name = "price_plan", columnDefinition = "text")
+    private String pricePlan; // house_weekly_N · studio_weekly_N
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(columnDefinition = "smallint[]")
+    private Short[] weekdays; // 고른 요일 0=월 … 6=일
+
+    @Column(name = "plan_amount")
+    private Long planAmount; // 만들 때 정한 한 달 요금 (원룸 첫 달 할인 반영)
+
     /** JPA 가 DB 에서 읽은 행으로 객체를 만들 때 쓰는 빈 생성자. 코드에서는 create() 를 쓴다 */
     protected BookingSeries() {}
 
@@ -121,6 +132,33 @@ public class BookingSeries {
         return s;
     }
 
+    /**
+     * 주 N회 요금제 시리즈 (요금표 전환 2026-11-13): 첫 방문일부터 weeks 주 동안 고른 요일마다. 자동 연장 없음.
+     * weekdays 는 0=월 … 6=일, 첫 방문일의 요일을 포함해야 한다(검사는 BookingService). planAmount = 결제할 한 달 금액
+     */
+    public static BookingSeries createWeekly(UUID customerId, String categoryKey, LocalDate firstVisit, LocalTime time, List<Integer> weekdays, int weeks,
+                                             String pricePlan, long planAmount, String roadAddress, String detailAddress, List<String> freeOptions,
+                                             List<String> paidOptions, List<String> notices, String request, Instant now) {
+        BookingSeries s = create(customerId, categoryKey, firstVisit, time, 1, roadAddress, detailAddress, freeOptions, paidOptions, notices, request, now);
+        List<LocalDate> dates = weeklyDates(firstVisit, weekdays, weeks);
+        s.termEnd = dates.get(dates.size() - 1);
+        s.visitsPlanned = dates.size();
+        s.pricePlan = pricePlan;
+        s.weekdays = weekdays.stream().sorted().map(Integer::shortValue).toArray(Short[]::new);
+        s.planAmount = planAmount;
+        return s;
+    }
+
+    /** 첫 방문일부터 weeks 주(7 × weeks 일) 안에서 고른 요일마다 — 요일이 N개면 N × weeks 회. 날짜 순 */
+    public static List<LocalDate> weeklyDates(LocalDate firstVisit, List<Integer> weekdays, int weeks) {
+        List<LocalDate> dates = new ArrayList<>();
+        for (int i = 0; i < 7 * weeks; i++) {
+            LocalDate d = firstVisit.plusDays(i);
+            if (weekdays.contains(d.getDayOfWeek().getValue() - 1)) dates.add(d);
+        }
+        return dates;
+    }
+
     /** 첫 방문일부터 매월 같은 날짜 n회. 주말도 유지하고, 없는 날짜만 그 달 마지막 날로 (java plusMonths 규칙) */
     public static List<LocalDate> monthlyDates(LocalDate firstVisit, int months) {
         List<LocalDate> dates = new ArrayList<>();
@@ -141,8 +179,12 @@ public class BookingSeries {
         }
     }
 
-    /** 이 시리즈의 회차 날짜 목록 — BookingService.doCreate 가 회차별 예약 행을 만들 때 쓴다 */
+    /** 이 시리즈의 회차 날짜 목록 — BookingService.doCreate 가 회차별 예약 행을 만들 때 쓴다. 주 N회 요금제면 고른 요일마다 */
     public List<LocalDate> visitDates() {
+        if (weekdays != null) {
+            List<Integer> days = java.util.Arrays.stream(weekdays).map(Short::intValue).toList();
+            return weeklyDates(termStart, days, (int) ((termEnd.toEpochDay() - termStart.toEpochDay()) / 7 + 1));
+        }
         return visitDates(termStart, termEnd);
     }
 
@@ -165,6 +207,10 @@ public class BookingSeries {
     public int getVisitsPlanned() { return visitsPlanned; }
     public Instant getEndingNotifiedAt() { return endingNotifiedAt; }
     public Instant getCancelledAt() { return cancelledAt; }
+    public String getPricePlan() { return pricePlan; }
+    public Long getPlanAmount() { return planAmount; }
+    /** 주 N회 요금제(한 달치 시리즈 결제)인가 */
+    public boolean isWeeklyPlan() { return pricePlan != null; }
 
     /** 아직 진행 중(active)인가 — 취소·종료·회차 매칭 전에 확인한다 */
     public boolean isActive() {

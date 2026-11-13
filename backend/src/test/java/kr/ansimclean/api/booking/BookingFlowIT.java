@@ -110,9 +110,13 @@ class BookingFlowIT {
         auth = "Bearer " + token;
     }
 
-    /** 예약 생성 요청 본문(JSON 문자열). 가정 청소·주소·요청사항은 고정이고 반복·날짜·시각·무료 옵션만 바꾼다. saveAddress=true 라 주소 목록에도 남는다 */
+    /**
+     * 예약 생성 요청 본문(JSON 문자열). 주소·요청사항은 고정이고 반복·날짜·시각·무료 옵션만 바꾼다. saveAddress=true 라 주소 목록에도 남는다.
+     * 1회 = 가정 청소(요금표: 첫 1회 체험), 정기 = 매장 청소 — 가정·원룸 정기는 주 N회 요금제(PricePlanBookingTest)라 매월 1회 정기는 매장으로 본다 (요금표 전환 2026-11-13)
+     */
     String body(String frequency, String date, String time, List<String> free) {
-        return "{\"category\":\"home\",\"frequency\":\"" + frequency + "\",\"date\":\"" + date + "\",\"time\":\"" + time + "\"," +
+        String category = "recurring".equals(frequency) ? "\"store\"" : "\"home\",\"homeType\":\"house\"";
+        return "{\"category\":" + category + ",\"frequency\":\"" + frequency + "\",\"date\":\"" + date + "\",\"time\":\"" + time + "\"," +
                 "\"roadAddress\":\"서울특별시 강남구 테헤란로 123\",\"detailAddress\":\"3층\",\"freeOptions\":" + jsonList(free) +
                 ",\"paidOptions\":[],\"notices\":[],\"request\":\"잘 부탁드려요\",\"saveAddress\":true}";
     }
@@ -133,7 +137,7 @@ class BookingFlowIT {
     // 견적의 회당 금액을 먼저 받아 두고, 1회 예약이라 생성 응답의 totalAmount 가 그 값과 같아야 한다
     @Test
     void 일회_예약_생성_목록_변경_취소() throws Exception {
-        String home = "{\"category\":\"home\",\"frequency\":\"oneTime\",\"date\":\"2026-09-17\",\"time\":\"10:00\",\"freeOptions\":[\"dishes\"],\"paidOptions\":[]}";
+        String home = "{\"category\":\"home\",\"homeType\":\"house\",\"frequency\":\"oneTime\",\"date\":\"2026-09-17\",\"time\":\"10:00\",\"freeOptions\":[\"dishes\"],\"paidOptions\":[]}";
         String quote = mvc.perform(post("/api/v1/customer/bookings/quote").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON).content(home))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.visitsPlanned").value(1)).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         long perVisit = json.readTree(quote).get("perVisit").get("total").asLong();
@@ -147,7 +151,7 @@ class BookingFlowIT {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         String id = json.readTree(created).get("id").asString();
 
-        mvc.perform(get("/api/v1/customer/bookings/" + id).header("Authorization", auth)).andExpect(status().isOk()).andExpect(jsonPath("$.serviceLabel").value("가정/원룸 청소"));
+        mvc.perform(get("/api/v1/customer/bookings/" + id).header("Authorization", auth)).andExpect(status().isOk()).andExpect(jsonPath("$.serviceLabel").value("가정 청소"));
         // saveAddress → 주소 목록에 남고 첫 주소라 기본 주소
         mvc.perform(get("/api/v1/customer/addresses/default").header("Authorization", auth)).andExpect(status().isOk()).andExpect(jsonPath("$.roadAddress").value("서울특별시 강남구 테헤란로 123"));
         // 주소 관리에서 다른 주소를 기본으로 → 예약 "기존 주소" 가 바뀐다 (직접 사용 점검 U15 — 부분 유니크 인덱스를 실제 DB 에서)
@@ -208,23 +212,17 @@ class BookingFlowIT {
         JsonNode card = reservations().get(0);
         assertThat(card.get("title").asString()).isEqualTo("원룸 청소");
         assertThat(card.get("homeType").asString()).isEqualTo("studio");
-        assertThat(card.get("endTime").asString()).isEqualTo("15:00"); // 10:00 + 고른 5시간 (카탈로그 기본 3시간이 아니라)
+        assertThat(card.get("endTime").asString()).isEqualTo("12:00"); // 원룸 1회는 요금표대로 2시간 — 고른 5시간은 무시 (요금표 전환 2026-11-13)
 
-        // 시간을 고르지 않은 옛 앱 본문: homeType null → 카탈로그 이름, 끝 시각은 기본 3시간
+        // homeType 없는 옛 앱 본문은 이제 400 — 가정·원룸 요금이 다르다 (요금표 전환 2026-11-13)
         mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
-                        .content(body("oneTime", "2026-09-18", "10:00", List.of())))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.homeType").isEmpty()).andExpect(jsonPath("$.serviceLabel").value("가정/원룸 청소"));
-        JsonNode older = reservations().get(0); // starts_at 내림차순 — 9/18 이 먼저
-        assertThat(older.get("homeType").isNull()).isTrue();
-        assertThat(older.get("endTime").asString()).isEqualTo("13:00");
+                        .content(studio.replace("\"homeType\":\"studio\",", "")))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.message").value("가정 청소와 원룸 청소 중 골라주세요"));
 
-        // 모르는 종류·범위 밖 시간은 400
+        // 모르는 종류는 400 (원룸 1회는 시간을 요금표가 정해 고른 시간은 검사하지 않는다)
         mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
                         .content(studio.replace("\"studio\"", "\"villa\"")))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.message").value("알 수 없는 청소 종류예요"));
-        mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
-                        .content(studio.replace("\"durationHours\":5", "\"durationHours\":9")))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.message").value("청소 시간은 2~8시간 중에서 골라 주세요"));
     }
 
     // 방문일이 지나도 매니저가 없어 시스템(StaleBookingCleaner, 매일 03:10)이 먼저 취소한 예약에 고객 취소를 보내면 409 INVALID_STATE.
@@ -269,7 +267,7 @@ class BookingFlowIT {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("VALIDATION"));
         // 9/19 토요일도 선택한 날짜로 견적을 받는다. 저장 없이 기존 테스트 데이터는 유지한다.
         mvc.perform(post("/api/v1/customer/bookings/quote").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"category\":\"home\",\"frequency\":\"oneTime\",\"date\":\"2026-09-19\",\"time\":\"10:00\"}"))
+                        .content("{\"category\":\"home\",\"homeType\":\"house\",\"frequency\":\"oneTime\",\"date\":\"2026-09-19\",\"time\":\"10:00\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.visits[0].date").value("2026-09-19"));
         // 10:30 은 운영 시간대(app_settings.time_slots)에 없는 시각 — 같은 409
         mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
@@ -295,7 +293,7 @@ class BookingFlowIT {
         assertThat(booking.get("visits").valueStream().map(v -> v.get("date").asString()).toList())
                 .containsExactly("2026-09-18", "2026-10-18", "2026-11-18", "2026-12-18", "2027-01-18", "2027-02-18");
         String quote = mvc.perform(post("/api/v1/customer/bookings/quote").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"category\":\"home\",\"frequency\":\"recurring\",\"date\":\"2026-09-18\",\"time\":\"10:00\"}"))
+                        .content("{\"category\":\"store\",\"frequency\":\"recurring\",\"date\":\"2026-09-18\",\"time\":\"10:00\"}"))
                 .andExpect(jsonPath("$.visitsPlanned").value(6))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         assertThat(booking.get("totalAmount").asLong()).isEqualTo(json.readTree(quote).get("totalAmount").asLong()); // 저장된 금액 = 앱이 본 견적 (회당 × 6)
@@ -329,7 +327,7 @@ class BookingFlowIT {
         assertThat(series.dispatchDue()).isZero();
         // 취소 뒤에도 새 정기청소 견적(11/23 부터)을 받을 수 있고 회차 수가 설정(series_term_months = 6)과 같은지 본다. 탈퇴 가드는 여기서 부르지 않는다
         mvc.perform(post("/api/v1/customer/bookings/quote").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"category\":\"home\",\"frequency\":\"recurring\",\"date\":\"2026-11-23\",\"time\":\"10:00\"}"))
+                        .content("{\"category\":\"store\",\"frequency\":\"recurring\",\"date\":\"2026-11-23\",\"time\":\"10:00\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.visitsPlanned").value(6));
     }
 }

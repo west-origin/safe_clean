@@ -28,6 +28,10 @@ public class Payment {
     @Column(name = "gift_id", columnDefinition = "uuid")
     private UUID giftId;
 
+    // 어느 정기 요금제 시리즈의 한 달치 결제인가 (booking_series.id, V074 — 요금표 전환 2026-11-13). 예약·선물 결제면 null
+    @Column(name = "series_id", columnDefinition = "uuid")
+    private UUID seriesId;
+
     // 쓴 결제 수단(payment_methods.id). 수단 없이 만든 행이거나 고객 계정 파기 뒤에는 null
     @Column(name = "payment_method_id", columnDefinition = "uuid")
     private UUID paymentMethodId;
@@ -89,10 +93,19 @@ public class Payment {
         return p;
     }
 
+    /** 주 N회 요금제 시리즈의 한 달치 결제 대기 행 (CheckoutService.prepare). 금액 = 취소되지 않은 회차 금액의 합. 저장은 부르는 쪽이 한다 */
+    public static Payment pendingSeries(UUID seriesId, long amount, Instant now) {
+        Payment p = pending(null, null, "toss", amount, now);
+        p.seriesId = seriesId;
+        return p;
+    }
+
     // 읽기 전용 getter. 상태를 바꾸는 메서드는 아직 없다
     public UUID getId() { return id; }
     public UUID getBookingId() { return bookingId; }
     public UUID getGiftId() { return giftId; }
+    public UUID getSeriesId() { return seriesId; }
+    public Instant getCreatedAt() { return createdAt; }
     public String getProvider() { return provider; }
     public long getAmount() { return amount; }
     public String getStatus() { return status; }

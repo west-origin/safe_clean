@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 첫 1회 청소(가정/원룸 1회) 혜택은 휴대폰 번호 하나·주소 하나에 한 번. 다른 계정으로 로그인해도 같은 번호나 같은 집이면 막는다.
  * 취소된 예약의 혜택은 돌려준다(사용자 결정 2026-11-11) — 취소된 예약에 붙은 기록은 없는 것으로 본다.
+ * 요금표 전환(2026-11-13)부터 체험은 가정(house)만이다 — 원룸 1회(home_type = studio)는 언제나 예약할 수 있어 세지 않는다.
  */
 @Service
 @Transactional
@@ -30,7 +31,8 @@ public class FirstCleaningService {
     public Eligibility eligibility(UUID id) {
         boolean completed = jdbc.sql("""
             select exists(select 1 from bookings where customer_id=:id
-              and category_key in ('home','store') and frequency='oneTime' and status='done')
+              and category_key in ('home','store') and frequency='oneTime' and status='done'
+              and home_type is distinct from 'studio')
             """).param("id", id).query(Boolean.class).single();
         if (completed) return new Eligibility(false, false, "already_used", true);
         var phone = jdbc.sql("select phone from customer_phone_proofs where customer_id=:id").param("id", id).query(String.class).optional();
@@ -73,6 +75,7 @@ public class FirstCleaningService {
         List<Address> others = jdbc.sql("""
             select road_address, detail_address, building_key from bookings
             where category_key='home' and frequency='oneTime' and status<>'cancelled' and id<>:booking
+              and home_type is distinct from 'studio'
               and (building_key=:building or (sido=:sido and replace(road_address,' ','') like :name))
             """).param("booking", bookingId).param("building", building).param("sido", sido).param("name", "%" + key.name() + "%")
             .query((rs, i) -> new Address(rs.getString(1), rs.getString(2), rs.getString(3))).list();

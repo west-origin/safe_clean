@@ -40,6 +40,9 @@ public class CatalogOption {
     @Column(nullable = false)
     private int sort; // 화면에 보이는 순서 (작은 값이 먼저)
 
+    @Column(nullable = false)
+    private boolean retired; // 새 예약에서 고를 수 없는 옛 옵션 (V074 — 옛 예약의 이름 표시는 그대로)
+
     /** JPA 가 DB 행으로 객체를 만들 때 쓰는 빈 생성자 */
     protected CatalogOption() {}
 
@@ -50,6 +53,7 @@ public class CatalogOption {
     public long getPrice() { return price; }
     public short getIcon() { return icon; }
     public int getSort() { return sort; }
+    public boolean isRetired() { return retired; }
 
     /** 무료 옵션인가. 옵션 검증(무료 칸에 유료 key 를 넣으면 거절)과 가격 합산(무료는 빼고 더한다)에서 쓴다 */
     public boolean isFree() { return "free".equals(kind); }

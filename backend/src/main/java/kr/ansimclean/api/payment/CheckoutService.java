@@ -1,5 +1,6 @@
 package kr.ansimclean.api.payment;
 
+import java.util.List;
 import java.util.UUID;
 import kr.ansimclean.api.booking.Booking;
 import kr.ansimclean.api.booking.BookingService;
@@ -18,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
  * DB 트랜잭션만 담당. 잠금 순서는 항상 예약 → 결제 → 환불이다.
  * 금액권 선물 결제(payments.gift_id, V070)는 예약 대신 선물이 앞에 선다: 선물(+금액권) → 결제 — GiftPaymentHooks 가 선물을 잠그고 결과를 받는다.
  * 예약 결제의 흐름·검사는 그대로이고, 메서드마다 결제 행이 어느 쪽인지(target) 보고 갈린다.
+ * 주 N회 요금제(V074 — 요금표 전환 2026-11-13)는 한 달치를 시리즈 하나로 결제한다(payments.series_id): 잠금 순서 시리즈 → 회차(id 순) → 결제 → 환불.
+ * 회차가 취소되면 그 회차 몫만 환불 행(payment_refunds.booking_id)을 만들어 토스 부분 취소한다 — 재조정이 상태를 보고 이어 간다.
  */
 @Service
 @Transactional
@@ -32,6 +35,8 @@ public class CheckoutService {
     private final kr.ansimclean.api.profile.ProfileService profiles;
     private final GiftPaymentHooks gifts;
     static final String GIFT_ORDER_NAME = "안심클린 금액권 선물";
+    static final String SERIES_ORDER_NAME = "안심클린 정기청소 한 달";
+    static final String SERIES_CHANGED = "series_changed"; // 대기 주문 금액이 회차 취소로 바뀌어 닫음
 
     public CheckoutService(PaymentRepository payments, PaymentRefundRepository refunds, BookingService bookings,
                            CheckoutProperties properties, Idempotent idempotent, OutboxService outbox, AppClock clock,
@@ -97,6 +102,9 @@ public class CheckoutService {
         properties.requireEnabled(); requireKey(key);
         return idempotent.run(key, userId, "checkout:" + bookingId, CheckoutResponse.class, () -> {
             profiles.holdLive(userId);
+            // 주 N회 요금제 회차면 그 시리즈의 한 달치 결제를 준비한다 (회차 어디서 눌러도 같은 주문)
+            java.util.Optional<UUID> series = bookings.weeklyPlanSeriesOf(userId, bookingId);
+            if (series.isPresent()) return prepareSeries(userId, series.get());
             Booking b = ownBooking(userId, bookingId);
             Payment p = payments.findFirstByBookingIdAndProviderAndStatusNotOrderByCreatedAtDesc(bookingId, "toss", "failed").orElse(null);
             // 금액권을 쓰고 있으면 카드로 낼 금액은 그만큼 줄어든다 (3회차, 예약당 1장)
@@ -114,7 +122,29 @@ public class CheckoutService {
         });
     }
 
+    /** 시리즈 결제 준비: 금액 = 취소되지 않은 회차 금액의 합. 대기 주문 금액이 다르면(그 사이 회차 취소) 닫고 새로 만든다 */
+    private CheckoutResponse prepareSeries(UUID userId, UUID seriesId) {
+        List<Booking> visits = bookings.lockSeriesVisits(userId, seriesId);
+        long due = visits.stream().filter(v -> v.getStatus() != BookingStatus.CANCELLED).mapToLong(Booking::getTotalAmount).sum();
+        Payment p = payments.findFirstBySeriesIdAndProviderAndStatusNotOrderByCreatedAtDesc(seriesId, "toss", "failed")
+                .flatMap(found -> payments.lockById(found.getId())).orElse(null);
+        if (p != null && "pending".equals(p.getStatus()) && p.getAmount() != due && p.abandon(SERIES_CHANGED, clock.now())) {
+            payments.flush(); // 시리즈당 살아 있는 주문 1건(부분 유니크) — 닫은 것을 먼저 쓰고 새 주문을 넣는다
+            p = null;
+        }
+        if (p == null || "failed".equals(p.getStatus())) {
+            if (due <= 0) throw new ApiException(ErrorCode.INVALID_STATE, "이 예약은 결제할 수 없어요");
+            p = payments.save(Payment.pendingSeries(seriesId, due, clock.now()));
+        }
+        return seriesResponse(p, visits);
+    }
+
     public CheckoutResponse get(UUID userId, UUID id) {
+        java.util.Optional<UUID> series = payments.findCheckoutSeriesId(id);
+        if (series.isPresent()) {
+            List<Booking> visits = bookings.lockSeriesVisits(userId, series.get());
+            return seriesResponse(payments.lockById(id).orElseThrow(ApiException::notFound), visits);
+        }
         UUID giftId = giftIdOf(id);
         if (giftId != null) {
             ownGift(userId, giftId);
@@ -128,6 +158,8 @@ public class CheckoutService {
         properties.requireEnabled(); requireKey(key);
         return idempotent.run(key, userId, java.util.List.of("confirm", id, req), CheckoutResponse.class, () -> {
             profiles.holdLive(userId);
+            java.util.Optional<UUID> series = payments.findCheckoutSeriesId(id);
+            if (series.isPresent()) return confirmSeries(userId, series.get(), id, req);
             UUID giftId = giftIdOf(id);
             if (giftId != null) return confirmGift(userId, giftId, id, req);
             Booking b = ownBooking(userId, bookingIdOf(id));
@@ -138,6 +170,17 @@ public class CheckoutService {
             if (enqueue) { b.recordPayment(p.getStatus()); outbox.publish(new PaymentWorkRequested(id)); }
             return response(p, b);
         });
+    }
+
+    private CheckoutResponse confirmSeries(UUID userId, UUID seriesId, UUID id, ConfirmPaymentRequest req) {
+        List<Booking> visits = bookings.lockSeriesVisits(userId, seriesId);
+        Payment p = payments.lockById(id).orElseThrow(ApiException::notFound);
+        boolean open = visits.stream().anyMatch(v -> v.getStatus() != BookingStatus.CANCELLED);
+        if (!open && "pending".equals(p.getStatus())) throw new ApiException(ErrorCode.INVALID_STATE, "이 예약은 결제할 수 없어요");
+        boolean enqueue = "pending".equals(p.getStatus());
+        p.requestConfirmation(req.paymentKey(), req.amount(), clock.now());
+        if (enqueue) { recordSeries(p, visits); outbox.publish(new PaymentWorkRequested(id)); }
+        return seriesResponse(p, visits);
     }
 
     private CheckoutResponse confirmGift(UUID userId, UUID giftId, UUID id, ConfirmPaymentRequest req) {
@@ -167,9 +210,14 @@ public class CheckoutService {
         p.defer(clock.now()); outbox.publish(new PaymentWorkRequested(id));
     }
 
-    public record Work(UUID id, String paymentKey, long amount, boolean confirm, UUID refundId) {}
+    /** cancelAmount = 부분 취소 금액(시리즈 회차 몫). null 이면 남은 잔액 전체 취소 */
+    public record Work(UUID id, String paymentKey, long amount, boolean confirm, UUID refundId, Long cancelAmount) {
+        public Work(UUID id, String paymentKey, long amount, boolean confirm, UUID refundId) { this(id, paymentKey, amount, confirm, refundId, null); }
+    }
 
     public Work work(UUID id) {
+        java.util.Optional<UUID> series = payments.findCheckoutSeriesId(id);
+        if (series.isPresent()) return seriesWork(id, series.get());
         UUID giftId = giftIdOf(id);
         if (giftId != null) {
             gifts.lockForPayment(giftId);
@@ -190,7 +238,65 @@ public class CheckoutService {
         return new Work(id, p.getProviderTxId(), p.getAmount(), "authorized".equals(p.getStatus()) && b.getStatus() != BookingStatus.CANCELLED, refundId);
     }
 
+    /**
+     * 시리즈 결제 작업: 결제가 확정됐는데 취소된 회차가 있으면 회차마다 환불 행(그 회차 금액)을 만들고, 아직 끝나지 않은 첫 행을 돌려준다.
+     * 결제를 만들기 전에 취소된 회차는 결제 금액에 없으므로 환불하지 않는다. 승인은 취소되지 않은 회차가 있을 때만
+     */
+    private Work seriesWork(UUID id, UUID seriesId) {
+        List<Booking> visits = bookings.lockSeriesVisits(null, seriesId);
+        Payment p = payments.lockById(id).orElseThrow(ApiException::notFound);
+        p.defer(clock.now());
+        PaymentRefund next = null;
+        if ("paid".equals(p.getStatus()) || "partially_refunded".equals(p.getStatus())) {
+            List<PaymentRefund> rows = refunds.findByPaymentIdAndBookingIdIsNotNullOrderByCreatedAtAscIdAsc(id);
+            java.util.Set<UUID> have = new java.util.HashSet<>();
+            rows.forEach(r -> have.add(r.getBookingId()));
+            for (Booking v : visits) {
+                if (paidFor(p, v) && v.getStatus() == BookingStatus.CANCELLED && !have.contains(v.getId()) && v.getTotalAmount() > 0)
+                    refunds.save(PaymentRefund.pendingVisit(p, v.getId(), v.getTotalAmount(), clock.now()));
+            }
+            next = refunds.findByPaymentIdAndBookingIdIsNotNullOrderByCreatedAtAscIdAsc(id).stream()
+                    .filter(r -> "pending".equals(r.getStatus())).findFirst().orElse(null);
+        }
+        boolean open = visits.stream().anyMatch(v -> v.getStatus() != BookingStatus.CANCELLED);
+        return new Work(id, p.getProviderTxId(), p.getAmount(), "authorized".equals(p.getStatus()) && open,
+                next == null ? null : next.getId(), next == null ? null : next.getAmount());
+    }
+
+    /** 이 회차가 이 결제 금액에 들어 있나 — 결제 주문을 만든 뒤에 취소된(또는 아직 취소되지 않은) 회차 */
+    private static boolean paidFor(Payment p, Booking v) {
+        return v.getStatus() != BookingStatus.CANCELLED || (v.getCancelledAt() != null && v.getCancelledAt().isAfter(p.getCreatedAt()));
+    }
+
+    /**
+     * 시리즈 결제 상태를 회차에 옮긴다: 취소되지 않은 회차 = 결제 상태, 몫을 돌려준 취소 회차 = refunded, 몫이 결제에 든 취소 회차 = 결제 상태.
+     * 환불 행은 만든 순서대로 PG 누적 환불액에 닿으면 done
+     */
+    private void recordSeries(Payment p, List<Booking> visits) {
+        java.util.Set<UUID> refunded = new java.util.HashSet<>();
+        long sum = 0;
+        for (PaymentRefund r : refunds.findByPaymentIdAndBookingIdIsNotNullOrderByCreatedAtAscIdAsc(p.getId())) {
+            sum += r.getAmount();
+            if (sum > p.getRefundedAmount()) break;
+            if ("pending".equals(r.getStatus())) r.done(clock.now());
+            refunded.add(r.getBookingId());
+        }
+        for (Booking v : visits) {
+            if (refunded.contains(v.getId())) v.recordPayment("refunded");
+            else if (paidFor(p, v)) v.recordPayment(p.getStatus());
+        }
+    }
+
     public void apply(UUID id, TossPaymentGateway.Result result) {
+        java.util.Optional<UUID> series = payments.findCheckoutSeriesId(id);
+        if (series.isPresent()) {
+            List<Booking> visits = bookings.lockSeriesVisits(null, series.get());
+            Payment p = payments.lockById(id).orElseThrow(ApiException::notFound);
+            if ("failed".equals(p.getStatus())) return;
+            p.apply(result, clock.now());
+            recordSeries(p, visits);
+            return;
+        }
         UUID giftId = giftIdOf(id);
         if (giftId != null) {
             gifts.lockForPayment(giftId);
@@ -239,6 +345,14 @@ public class CheckoutService {
                 b.getStatus() != BookingStatus.CANCELLED && "pending".equals(p.getStatus()),
                 refunds.findByPaymentId(p.getId()).map(PaymentRefund::getStatus).orElse(null), null);
     }
+    private CheckoutResponse seriesResponse(Payment p, List<Booking> visits) {
+        boolean open = visits.stream().anyMatch(v -> v.getStatus() != BookingStatus.CANCELLED);
+        List<PaymentRefund> rows = refunds.findByPaymentIdAndBookingIdIsNotNullOrderByCreatedAtAscIdAsc(p.getId());
+        String refundStatus = rows.isEmpty() ? null : rows.stream().anyMatch(r -> "pending".equals(r.getStatus())) ? "pending" : "done";
+        return new CheckoutResponse(p.getId(), null, p.getId().toString(), p.getAmount(), "KRW", p.getStatus(), p.getRefundedAmount(),
+                properties.clientKey(), SERIES_ORDER_NAME, open && "pending".equals(p.getStatus()), refundStatus, null, p.getSeriesId());
+    }
+
     private CheckoutResponse giftResponse(Payment p) {
         return new CheckoutResponse(p.getId(), null, p.getId().toString(), p.getAmount(), "KRW",
                 p.getStatus(), p.getRefundedAmount(), properties.clientKey(), GIFT_ORDER_NAME,

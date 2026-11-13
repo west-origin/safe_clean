@@ -50,10 +50,17 @@ public class TossPaymentGateway {
     }
 
     public Result cancel(String orderId, String paymentKey, java.util.UUID refundId) {
+        return cancel(orderId, paymentKey, refundId, null);
+    }
+
+    /** cancelAmount 가 있으면 그 금액만 부분 취소(시리즈 결제의 회차 몫 — 요금표 전환 V074), null 이면 남은 잔액 전체 */
+    public Result cancel(String orderId, String paymentKey, java.util.UUID refundId, Long cancelAmount) {
         try {
+            Map<String, Object> body = cancelAmount == null ? Map.of("cancelReason", "예약 취소")
+                    : Map.of("cancelReason", "예약 취소", "cancelAmount", cancelAmount);
             return client.post().uri("/payments/{key}/cancel", paymentKey)
                     .header("Idempotency-Key", "refund-" + refundId)
-                    .body(Map.of("cancelReason", "예약 취소"))
+                    .body(body)
                     .retrieve().body(Result.class);
         } catch (org.springframework.web.client.RestClientException e) { throw unavailable(); }
     }

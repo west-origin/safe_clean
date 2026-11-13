@@ -2,6 +2,7 @@ package kr.ansimclean.api.booking.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -17,8 +18,18 @@ public record QuoteRequest(@NotBlank String category,
                            @NotBlank @Pattern(regexp = "\\d{2}:\\d{2}", message = "time 은 HH:mm 형식이에요") String time,
                            List<String> freeOptions,
                            List<String> paidOptions,
-                           Integer durationHours) {
+                           Integer durationHours,
+                           @Size(max = 20) String homeType,
+                           Integer visitsPerWeek,
+                           @Size(max = 7) List<Integer> weekdays,
+                           @Size(max = 10) String hoodSize) {
+    // 요금표 전환 (2026-11-13): 생성 요청과 같은 homeType·visitsPerWeek·weekdays·hoodSize — 요금제 금액·회차를 같은 계산으로 보여 준다
+    /** 요금표 칸이 없는 옛 모양 (테스트·옛 앱) */
+    public QuoteRequest(String category, String frequency, String date, String time, List<String> freeOptions, List<String> paidOptions, Integer durationHours) {
+        this(category, frequency, date, time, freeOptions, paidOptions, durationHours, null, null, null, null);
+    }
     public QuoteRequest {
+        if (weekdays == null) weekdays = List.of();
         if (frequency == null) frequency = "recurring";
         if (freeOptions == null) freeOptions = List.of();
         if (paidOptions == null) paidOptions = List.of();

@@ -72,7 +72,7 @@ public final class BookingMapper {
         return new BookingResponse(b.getId(), b.getCategoryKey(), b.getFrequency(), b.getServiceDate().toString(), KoreanFormat.hhmm(b.getServiceTime()),
                 b.getRoadAddress(), b.getDetailAddress(), categoryLabel, cleaner, b.getManagerId() != null, b.getMatchingFailedAt() != null,
                 b.getStatus() == BookingStatus.CANCELLED, b.getSeriesId(), visitRows,
-                KoreanFormat.won(b.getTotalAmount()), total, KoreanFormat.won(total), b.getHomeType());
+                KoreanFormat.won(b.getTotalAmount()), total, KoreanFormat.won(total), b.getHomeType(), b.getPricePlan());
     }
 
     /** 예약 상태 → 카드가 들어갈 탭 키: done / cancelled / 그 밖은 upcoming(예정) */

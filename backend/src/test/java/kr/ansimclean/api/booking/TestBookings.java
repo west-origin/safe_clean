@@ -45,6 +45,15 @@ public final class TestBookings {
         return b;
     }
 
+    /** 주 N회 요금제 회차 (요금표 전환 V074) — 매칭 중, 회차 금액 amount, 요금제 key. 한 달치는 시리즈 결제(CheckoutService) */
+    public static Booking weeklyPlanVisit(UUID customerId, UUID seriesId, LocalDate date, long amount, String planKey) {
+        Booking b = Booking.create(customerId, seriesId, "home", "house", "recurring", date, LocalTime.of(10, 0), ROAD, "3층", "서울특별시", "강남구",
+                List.of(), List.of(), List.of(), null, null, new PriceQuote(amount, 0, amount, amount / 10, 180), Instant.parse("2026-09-15T05:00:00Z"));
+        b.markPricePlan(planKey);
+        b.beginAssigning();
+        return b;
+    }
+
     /** 매니저가 수락해 배정된 1회 예약 (assigning → scheduled) */
     public static Booking scheduled(UUID customerId, UUID managerId, LocalDate date, LocalTime time) {
         Booking b = assigning(customerId, date, time);

@@ -53,4 +53,15 @@ class TossPaymentGatewayTest {
         assertThat(gateway.cancel("order-123", "key", refund).status()).isEqualTo("CANCELED");
         server.verify();
     }
+    @Test void series_visit_refund_cancels_only_that_amount() { // 요금표 전환 V074: 회차 몫 부분 취소
+        var builder = RestClient.builder().baseUrl("https://api.tosspayments.com/v1");
+        var server = MockRestServiceServer.bindTo(builder).build();
+        var gateway = new TossPaymentGateway(builder.build());
+        UUID refund = UUID.randomUUID();
+        server.expect(requestTo("https://api.tosspayments.com/v1/payments/key/cancel"))
+                .andExpect(header("Idempotency-Key", "refund-" + refund)).andExpect(content().json("{\"cancelReason\":\"예약 취소\",\"cancelAmount\":82249}"))
+                .andRespond(withSuccess("{\"orderId\":\"order-123\",\"paymentKey\":\"key\",\"status\":\"PARTIAL_CANCELED\",\"currency\":\"KRW\",\"totalAmount\":329000,\"balanceAmount\":246751}", MediaType.APPLICATION_JSON));
+        assertThat(gateway.cancel("order-123", "key", refund, 82249L).status()).isEqualTo("PARTIAL_CANCELED");
+        server.verify();
+    }
 }

@@ -32,6 +32,13 @@ PG 호출 성공 후 프로세스가 죽거나 아웃박스의 sent 기록이 �
 - 구매 7일 안 금액권 환불(구매자가 갖고 있고 아무도 받지 않음)은 `CheckoutService.requestGiftRefund` 가 기존 `payment_refunds` 행(전액)을 만들고 같은 `PaymentWorkHandler` 로 토스 취소를 부른다. 확인되면 `voucher_refunds` 카드 행 `done`.
 - 계좌 환불은 PG 를 거치지 않는다 — 운영자가 송금하고 어드민 API 로 완료 처리. 계좌번호 암호화 키 `REFUND_ACCOUNT_KEY`(base64 32바이트). 처리 중 요청이 있을 때 키를 바꾸면 그 계좌를 열 수 없다.
 
+## 정기 요금제 한 달치 결제 (V074, 2026-11-13 요금표 전환)
+
+- 가정·원룸 주 N회 요금제는 시리즈 하나를 한 번에 결제한다: `payments.series_id`(예약·선물·시리즈 중 정확히 하나, 시리즈당 살아 있는 주문 1건 부분 유니크). 회차의 `POST /customer/bookings/{id}/checkout` 이 시리즈 주문을 준비한다.
+- 잠금 순서 시리즈 → 회차(id 순) → 결제 → 환불. 결제 상태가 바뀌면 취소되지 않은 회차와 결제 금액에 든 취소 회차의 `payment_status` 를 같이 바꾼다.
+- 회차 취소 환불: `payment_refunds.booking_id` 로 회차마다 한 행(금액 = 그 회차 금액), 토스 `cancelAmount` 로 부분 취소, 같은 행 id 를 멱등키로 재시도. 결제 주문을 만들기 전에 취소된 회차는 결제 금액에 없어 환불하지 않는다(`cancelled_at > payments.created_at` 만). 행은 만든 순서대로 PG 누적 환불액에 닿으면 `done`. `PaymentWorkHandler` 는 한 번에 남은 행을 차례로(최대 20) 처리하고, 남거나 결과가 늦으면 재조정이 잇는다.
+- 정기 요금제 회차에는 금액권을 쓸 수 없다(다음 회차).
+
 ## API
 
 모든 고객 API는 ROLE_CUSTOMER + 예약 소유권 검사(남의 자원은 404).

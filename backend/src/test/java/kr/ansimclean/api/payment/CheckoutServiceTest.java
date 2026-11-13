@@ -198,4 +198,98 @@ class CheckoutServiceTest {
         when(payments.findFirstByGiftIdOrderByCreatedAtDesc(unpaid)).thenReturn(Optional.of(q));
         assertThat(service.requestGiftRefund(unpaid)).isFalse();
     }
+
+    // ── 주 N회 요금제 시리즈 결제 (요금표 전환 2026-11-13, V074) ──
+
+    final UUID series = UUID.randomUUID();
+    /** 가정 주 1회 4회차 (329,000 = 82,253 + 82,249 × 3) */
+    List<Booking> seriesVisits() {
+        List<Booking> visits = new ArrayList<>();
+        for (int i = 0; i < 4; i++)
+            visits.add(TestBookings.weeklyPlanVisit(user, series, LocalDate.of(2026, 9, 21).plusWeeks(i), i == 0 ? 82253 : 82249, "house_weekly_1"));
+        when(bookings.weeklyPlanSeriesOf(user, visits.get(1).getId())).thenReturn(Optional.of(series));
+        when(bookings.lockSeriesVisits(any(), eq(series))).thenReturn(visits);
+        return visits;
+    }
+    Payment seriesPayment(long amount) {
+        Payment p = Payment.pendingSeries(series, amount, now);
+        when(payments.findCheckoutSeriesId(p.getId())).thenReturn(Optional.of(series));
+        when(payments.lockById(p.getId())).thenReturn(Optional.of(p));
+        return p;
+    }
+
+    @Test void any_visit_of_a_weekly_plan_prepares_one_month_series_payment() {
+        var visits = seriesVisits();
+        var result = service.prepare(user, visits.get(1).getId(), "k");
+        assertThat(result.amount()).isEqualTo(329000);
+        assertThat(result.seriesId()).isEqualTo(series);
+        assertThat(result.bookingId()).isNull();
+        assertThat(result.orderName()).isEqualTo("안심클린 정기청소 한 달");
+        assertThat(result.payable()).isTrue();
+        verify(bookings).lockSeriesVisits(user, series); // 고객 소유 확인 + 시리즈 → 회차 잠금
+    }
+
+    @Test void a_pending_series_order_with_a_stale_amount_is_closed_and_replaced() {
+        var visits = seriesVisits();
+        var old = seriesPayment(329000);
+        when(payments.findFirstBySeriesIdAndProviderAndStatusNotOrderByCreatedAtDesc(series, "toss", "failed")).thenReturn(Optional.of(old));
+        visits.get(3).cancel("customer", now, 24); // 그 사이 한 회차 취소
+        var result = service.prepare(user, visits.get(1).getId(), "k");
+        assertThat(old.getStatus()).isEqualTo("failed");
+        assertThat(result.amount()).isEqualTo(329000 - 82249);
+        verify(payments).flush(); // 닫은 주문을 먼저 쓴다 (시리즈당 살아 있는 주문 1건)
+    }
+
+    @Test void confirming_series_marks_open_visits_authorized() {
+        var visits = seriesVisits();
+        var p = seriesPayment(329000);
+        service.confirm(user, p.getId(), "c", new ConfirmPaymentRequest("key", 329000));
+        assertThat(visits).extracting(Booking::getPaymentStatus).containsOnly("authorized");
+        verify(outbox).publish(new PaymentWorkRequested(p.getId()));
+    }
+
+    @Test void a_cancelled_visit_after_payment_gets_only_its_share_refunded() {
+        var visits = seriesVisits();
+        var p = seriesPayment(329000);
+        p.requestConfirmation("key", 329000, now);
+        service.apply(p.getId(), new TossPaymentGateway.Result("key", p.getId().toString(), "DONE", "KRW", 329000, 329000));
+        assertThat(visits).extracting(Booking::getPaymentStatus).containsOnly("paid");
+
+        visits.get(2).cancel("customer", now.plusSeconds(60), 24); // 결제 뒤 회차 취소
+        List<PaymentRefund> rows = new ArrayList<>();
+        when(refunds.save(any())).thenAnswer(i -> { rows.add(i.getArgument(0)); return i.getArgument(0); });
+        when(refunds.findByPaymentIdAndBookingIdIsNotNullOrderByCreatedAtAscIdAsc(p.getId())).thenAnswer(i -> List.copyOf(rows));
+        var work = service.work(p.getId());
+        assertThat(work.cancelAmount()).isEqualTo(82249L);
+        assertThat(work.refundId()).isEqualTo(rows.get(0).getId());
+        assertThat(work.confirm()).isFalse();
+        service.work(p.getId()); // 다시 불러도 행은 하나
+        assertThat(rows).hasSize(1);
+
+        service.apply(p.getId(), new TossPaymentGateway.Result("key", p.getId().toString(), "PARTIAL_CANCELED", "KRW", 329000, 329000 - 82249));
+        assertThat(rows.get(0).getStatus()).isEqualTo("done");
+        assertThat(visits.get(2).getPaymentStatus()).isEqualTo("refunded");
+        assertThat(visits.get(0).getPaymentStatus()).isEqualTo("paid");
+        assertThat(service.work(p.getId()).refundId()).isNull(); // 남은 환불 없음
+    }
+
+    @Test void a_visit_cancelled_before_the_order_existed_is_not_refunded() {
+        var visits = seriesVisits();
+        visits.get(3).cancel("customer", now.minusSeconds(60), 24); // 주문을 만들기 전에 취소 — 결제 금액에 없다
+        var p = seriesPayment(329000 - 82249);
+        p.requestConfirmation("key", 329000 - 82249, now);
+        service.apply(p.getId(), new TossPaymentGateway.Result("key", p.getId().toString(), "DONE", "KRW", 329000 - 82249, 329000 - 82249));
+        when(refunds.findByPaymentIdAndBookingIdIsNotNullOrderByCreatedAtAscIdAsc(p.getId())).thenReturn(List.of());
+        assertThat(service.work(p.getId()).refundId()).isNull();
+        verify(refunds, never()).save(any());
+        assertThat(visits.get(3).getPaymentStatus()).isEqualTo("unpaid");
+    }
+
+    @Test void others_cannot_read_a_series_payment() {
+        seriesVisits();
+        var p = seriesPayment(329000);
+        UUID stranger = UUID.randomUUID();
+        when(bookings.lockSeriesVisits(stranger, series)).thenThrow(ApiException.notFound());
+        assertThatThrownBy(() -> service.get(stranger, p.getId())).isInstanceOf(ApiException.class);
+    }
 }

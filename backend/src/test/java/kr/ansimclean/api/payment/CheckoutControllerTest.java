@@ -52,6 +52,14 @@ class CheckoutControllerTest {
                 .andExpect(jsonPath("orderId").value(id.toString())).andExpect(jsonPath("currency").value("KRW"))
                 .andExpect(jsonPath("paymentKey").doesNotExist()).andExpect(jsonPath("secretKey").doesNotExist());
     }
+    @Test void series_checkout_shape_has_series_id_and_no_booking_id() throws Exception { // 요금표 전환 V074: 한 달치 시리즈 결제
+        UUID user = login(Roles.CUSTOMER), booking = UUID.randomUUID(), id = UUID.randomUUID(), series = UUID.randomUUID();
+        when(service.prepare(user, booking, "key")).thenReturn(new CheckoutResponse(id, null, id.toString(), 329000, "KRW", "pending", 0, "test_ck_stub",
+                "안심클린 정기청소 한 달", true, null, null, series));
+        mvc.perform(post("/api/v1/customer/bookings/" + booking + "/checkout").header("Authorization", "Bearer token").header("Idempotency-Key", "key"))
+                .andExpect(status().isOk()).andExpect(jsonPath("amount").value(329000)).andExpect(jsonPath("seriesId").value(series.toString()))
+                .andExpect(jsonPath("bookingId").isEmpty()).andExpect(jsonPath("orderName").value("안심클린 정기청소 한 달"));
+    }
     @Test void confirmation_requires_idempotency_header_positive_amount_and_key() throws Exception {
         login(Roles.CUSTOMER);
         String url = "/api/v1/customer/payments/" + UUID.randomUUID() + "/confirm";

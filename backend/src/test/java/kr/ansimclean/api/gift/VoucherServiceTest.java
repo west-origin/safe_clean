@@ -119,6 +119,15 @@ class VoucherServiceTest {
     }
 
     @Test
+    void 주_N회_요금제_회차에는_아직_금액권을_쓸_수_없다() { // 요금표 전환 2026-11-13 — 한 달치 시리즈 결제와 함께 계산하는 일은 다음 회차
+        Booking visit = TestBookings.weeklyPlanVisit(me, UUID.randomUUID(), LocalDate.of(2026, 11, 20), 82250, "house_weekly_1");
+        when(bookings.lockForUpdate(visit.getId())).thenReturn(visit);
+        var ok = voucher(me, me, 69000, 69000, "held", NOW, NOW, NOW.plus(Duration.ofDays(300)));
+        assertThatThrownBy(() -> service.apply(me, visit.getId(), ok.id())).hasMessage(VoucherService.WEEKLY_PLAN_BLOCKED);
+        verify(store, never()).insertUse(any(), any(), any(), anyLong(), any());
+    }
+
+    @Test
     void 예약당_한_장_같은_금액권이면_같은_결과() {
         var v = voucher(me, me, 69000, 69000, "held", NOW, NOW, NOW.plus(Duration.ofDays(300)));
         when(store.appliedFor(booking.getId())).thenReturn(Optional.of(new VoucherStore.UseRow(UUID.randomUUID(), v.id(), booking.getId(), me, 69000, "applied")));

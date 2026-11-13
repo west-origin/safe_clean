@@ -31,4 +31,16 @@ public interface BookingSeriesRepository extends JpaRepository<BookingSeries, UU
 
     /** status 이고 term_end ≤ date 인데 종료 안내를 아직 안 보낸 시리즈 — 종료 7일 전 안내(BookingSeriesService.notifyEnding)용 */
     List<BookingSeries> findByStatusAndTermEndLessThanEqualAndEndingNotifiedAtIsNull(String status, LocalDate date);
+
+    /** 주 N회 요금제 키 (매월 1회 정기·옛 시리즈면 비어 온다). 엔티티를 올리지 않아 뒤이은 lockById 가 최신 행을 읽는다 */
+    @Query("select s.pricePlan from BookingSeries s where s.id = :id and s.pricePlan is not null")
+    Optional<String> findPricePlan(UUID id);
+
+    /** 트랜잭션 끝까지 key 로 줄 세우기 (원룸 첫 달 판정 — BookingService.doCreate). 돌려주는 값은 쓰지 않는다 */
+    @Query(value = "select count(*) from (select pg_advisory_xact_lock(hashtextextended(:key, 0))) x", nativeQuery = true)
+    long advisoryLock(String key);
+
+    /** 이 고객에게 취소되지 않은 원룸 정기 요금제가 있는가 — 없으면 원룸 주 1회 첫 달 할인 (요금표 전환 2026-11-13) */
+    @Query(value = "select exists(select 1 from booking_series where customer_id = :customerId and price_plan like 'studio_weekly_%' and status <> 'cancelled')", nativeQuery = true)
+    boolean hasStudioPlan(UUID customerId);
 }

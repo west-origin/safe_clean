@@ -30,7 +30,19 @@ public record CreateBookingRequest(@NotBlank String category,
                                    @Valid Repair repair,
                                    Boolean saveAddress,
                                    @Size(max = 20) String homeType,
-                                   Integer durationHours) {
+                                   Integer durationHours,
+                                   Integer visitsPerWeek,
+                                   @Size(max = 7) List<Integer> weekdays,
+                                   @Size(max = 10) String hoodSize) {
+    // 요금표 전환 (2026-11-13, docs/domain.md '요금표 전환'): visitsPerWeek = 가정/원룸 정기의 주 몇 회(1~3), weekdays = 고른 요일(0=월 … 6=일, N개),
+    // hoodSize = 분해청소 후드 크기 "600"·"900"·"1200". 해당하지 않는 예약이면 무시한다.
+    /** 요금표 칸이 없는 옛 모양 (테스트·옛 앱) */
+    public CreateBookingRequest(String category, String frequency, String date, String time, String roadAddress, String detailAddress,
+                                List<String> freeOptions, List<String> paidOptions, List<String> notices, String request, String repairType,
+                                Repair repair, Boolean saveAddress, String homeType, Integer durationHours) {
+        this(category, frequency, date, time, roadAddress, detailAddress, freeOptions, paidOptions, notices, request, repairType, repair,
+                saveAddress, homeType, durationHours, null, null, null);
+    }
     /** 수리 예약(category=repair) 의 가전·증상·상세·사진. 가전·증상은 앱 카탈로그의 표시 문구 그대로 + 키(applianceKey/symptomKey, 통계·매칭용, 선택) */
     public record Repair(@Size(max = 40) String appliance, @Size(max = 60) String symptom, @Size(max = 40) String applianceKey, @Size(max = 40) String symptomKey, @Size(max = 1000) String detail,
                          @Size(max = 5, message = "사진은 5장까지 첨부할 수 있어요") List<@Size(max = 300) String> photos) {
@@ -47,5 +59,6 @@ public record CreateBookingRequest(@NotBlank String category,
         if (paidOptions == null) paidOptions = List.of();
         if (notices == null) notices = List.of();
         if (saveAddress == null) saveAddress = false;
+        if (weekdays == null) weekdays = List.of();
     }
 }

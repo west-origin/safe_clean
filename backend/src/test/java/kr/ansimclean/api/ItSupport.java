@@ -113,9 +113,9 @@ public final class ItSupport {
         return new MockMultipartFile("file", "room.png", "image/png", bytes.toByteArray());
     }
 
-    /** 고객 예약 생성(POST /customer/bookings) 요청 본문 JSON — 가정 청소 1회, 옵션 없음, 주의사항 반려동물. date "YYYY-MM-DD", time "HH:mm" */
+    /** 고객 예약 생성(POST /customer/bookings) 요청 본문 JSON — 가정 청소 1회(요금표: 첫 1회 체험), 옵션 없음, 주의사항 반려동물. date "YYYY-MM-DD", time "HH:mm" */
     public static String bookingBody(String date, String time) {
-        return "{\"category\":\"home\",\"frequency\":\"oneTime\",\"date\":\"" + date + "\",\"time\":\"" + time + "\"," +
+        return "{\"category\":\"home\",\"homeType\":\"house\",\"frequency\":\"oneTime\",\"date\":\"" + date + "\",\"time\":\"" + time + "\"," +
                 "\"roadAddress\":\"서울특별시 강남구 테헤란로 123\",\"detailAddress\":\"3층\",\"freeOptions\":[],\"paidOptions\":[],\"notices\":[\"pet\"],\"request\":\"잘 부탁드려요\"}";
     }
 }

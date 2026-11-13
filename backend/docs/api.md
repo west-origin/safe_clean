@@ -1,5 +1,20 @@
 # API 계약
 
+## 요금표 전환 (2026-11-13 — 규칙은 domain.md '요금표 전환', 친구·선물 6회차)
+
+예약 요청·견적에 칸이 늘었다. 가정·원룸·분해청소는 요금표 요금제로 계산하고, 매장·사무실·입주·수리는 예전 계산 그대로다.
+
+| 앱 함수 | 메서드 · 경로 | 바뀐 요청 | 바뀐 응답 / 오류 |
+|---|---|---|---|
+| `getBookingQuote(body)` | `POST /customer/bookings/quote` | `+ homeType`(house\|studio), `visitsPerWeek`(1~3, 정기), `weekdays`([0=월…6=일] N개, 정기), `hoodSize`("600"\|"900"\|"1200", 분해청소) | 요금제면 `visits` = 첫 방문일부터 4주 동안 고른 요일마다(4N개), `totalAmount` = 결제 금액(한 달·1회), `perVisit` = 첫 회차(나머지 원 단위 포함). `savingNote` = 원룸 첫 달이면 "첫 달 30,000원 할인"(견적은 첫 원룸 정기라고 보고 보인다 — 생성 때 다시 판정). 가정·원룸 1회는 `durationHours` 무시 |
+| `createBooking(body)` | `POST /customer/bookings` | 위와 같은 칸 | `+ pricePlan`(house_trial · studio_once · house_weekly_N · studio_weekly_N · hood_600\|900\|1200 · 그 밖 null). 가정·원룸에 `homeType` 없음 `VALIDATION` "가정 청소와 원룸 청소 중 골라주세요", 주 4회 이상 `VALIDATION`(상담 안내), 요일 수·중복·첫 방문 요일 불일치 `VALIDATION`, 분해청소 정기 `VALIDATION` "분해청소는 1회만 예약할 수 있어요", 후드 크기 없음 `VALIDATION` "후드 크기를 골라주세요". 가정 1회 = 첫 1회 체험(기존 휴대폰 인증 규칙), 원룸 1회는 제한 없음 |
+| `prepareCheckout(bookingId)` | `POST /customer/bookings/{id}/checkout` | — | 주 N회 요금제 회차면 **그 시리즈의 한 달치 결제**: `bookingId: null`, `+ seriesId`, `amount` = 취소되지 않은 회차 금액 합, `orderName: "안심클린 정기청소 한 달"`. 회차 어디서 불러도 같은 주문. 그 사이 회차가 취소돼 금액이 바뀌면 대기 주문을 닫고 새 주문 |
+| `getPayment(id)` · `confirmPayment(id, …)` | 기존 | — | 시리즈 결제도 같은 경로. 응답 `seriesId` 가 있으면 시리즈 결제(`refundStatus` = 회차 환불 행 중 대기가 있으면 pending, 모두 끝났으면 done) |
+| `getCatalogOptions('appliance')` | `GET /catalog/categories/appliance/options` | — | 유료 옵션 = 콘센트 가림판넬 분리 +20,000 · 자동 소화장치 없는 경우 +20,000 (에어컨·세탁조는 새 예약에서 빠짐) |
+| `applyVoucher(bookingId, …)` | `POST /customer/bookings/{id}/voucher` | — | 주 N회 요금제 회차면 `INVALID_STATE` "정기 요금제 예약에는 금액권을 아직 쓸 수 없어요" |
+
+회차 취소(기존 `POST /customer/reservations/{id}/cancel`, 기한 규칙 그대로) 뒤 시리즈 결제가 확정돼 있으면 서버가 그 회차 금액만 토스 부분 취소한다(재조정 1분). 그 회차 `payment_status` = `refunded`.
+
 ## 고객 친구 (2026-11-13 — 규칙은 domain.md '고객 친구·금액권 선물' › 친구 규칙)
 
 모두 `ROLE_CUSTOMER`(가입 완료 고객). `FriendUser = { userId, nickname, tag, handle: "닉네임#1234", maskedName: "김*수" }` — 전화번호는 내보내지 않는다. `FriendEntry = { user: FriendUser, requestId \| null, at(ISO), atLabel: "11월 13일" }`. 남의 요청·차단 관계·탈퇴 상대는 `NOT_FOUND`.
