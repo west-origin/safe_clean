@@ -130,6 +130,14 @@ describe('새 홈 서비스와 탐색', () => {
     fireEvent.click(screen.getByRole('button', { name: '문의' }));
     expect(await screen.findByText('문의 화면')).toBeInTheDocument();
   });
+  it('하단 선물 안내를 누르면 선물하기로 이동한다 (2026-11-13 친구·선물 5회차)', async () => {
+    render(<MemoryRouter initialEntries={['/home']}><Routes>
+      <Route path="/home" element={<Home />} />
+      <Route path="/gifts/new" element={<p>선물하기 화면</p>} />
+    </Routes></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: /청소 선물하러 가기/ }));
+    expect(await screen.findByText('선물하기 화면')).toBeInTheDocument();
+  });
 });
 
 /** 홈이 열려 있는 동안 매니저가 배정되면(서버가 고객에게 푸시) 다시 받아 '다가오는 방문' 카드가 바뀐다 */

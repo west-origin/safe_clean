@@ -1,0 +1,48 @@
+/* 선물·금액권 화면들의 레이아웃만 (색·글꼴은 ui 프리미티브·.text-* 클래스). Figma 에 없어 코드에서 정함 */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* 라디오 묶음·목록 (세로로 쌓기) */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+/* 두 버튼을 가로로 반씩 (금액권 카드의 선물하기·환불, 선물 받기·거절) */
+.buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.buttons > * {
+  flex: 1 1 0;
+}
+
+.plain {
+  margin: 0;
+}
+
+/* 선물 메시지·사용자가 쓴 글 — 줄바꿈을 그대로 */
+.message {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* 메시지 글자 수 (오른쪽 정렬) */
+.counter {
+  margin: 0;
+  text-align: right;
+}
+
+.policy {
+  margin: 0;
+  padding-left: var(--spacing-3xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}

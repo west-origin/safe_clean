@@ -229,6 +229,8 @@ export function pushTarget(data = {}) {
     case 'recording': return `/service/live?booking=${data.bookingId}&replay=1`;
     case 'inquiry': return '/settings/inquiry'; // 문의 답변 — 화면 위쪽 '내 문의'
     case 'friendRequest': return '/friends?tab=received'; // 친구 요청을 받음
+    case 'gift': return data.giftId ? `/gifts/${encodeURIComponent(data.giftId)}` : '/gifts'; // 선물 도착·받음·돌아옴
+    case 'voucher': return '/gifts?tab=vouchers'; // 금액권 환불 결과
     case 'reservation':
     case 'series': return '/reservations';
     default: return '/home';

@@ -148,7 +148,7 @@ export const SETTINGS_HEADER = { title: '내 정보와\n설정을 관리해요',
 export const PROFILE = { name: '김하늘 님', phone: '010-1234-5678', avatarSrc: '' };
 export const SETTINGS_GROUPS = [
   { title: '계정', rows: [{ key: 'editProfile', label: '내 정보 수정' }, { key: 'addresses', label: '주소 관리' }, { key: 'payment', label: '결제 수단' }] },
-  { title: '친구·선물', rows: [{ key: 'friends', label: '친구' }] }, // 2026-11-13 코드에서 정함 (backend V072)
+  { title: '친구·선물', rows: [{ key: 'friends', label: '친구' }, { key: 'gifts', label: '선물하기' }, { key: 'giftBox', label: '선물함' }] }, // 2026-11-13 코드에서 정함 (backend V072·V073)
   { title: '알림', rows: [{ key: 'push', label: '푸시 알림', toggle: true }, { key: 'marketing', label: '마케팅 정보 수신', toggle: true }] },
   { title: '고객지원', rows: [{ key: 'faq', label: '자주 묻는 질문' }, { key: 'inquiry', label: '1:1 문의하기' }, { key: 'notice', label: '공지사항' }] },
   { title: '약관 및 정보', rows: [{ key: 'terms', label: '이용약관' }, { key: 'privacy', label: '개인정보 처리방침' }, { key: 'version', label: '버전 정보', value: 'v1.0.0' }] },
@@ -788,6 +788,7 @@ export const FRIENDS_COPY = {
     blocks: { title: '차단한 사람이 없어요' },
   },
   manage: '관리',
+  gift: '선물', // 친구 줄의 선물 보내기 버튼 (5회차)
   accept: '수락',
   reject: '거절',
   cancel: '요청 취소',
@@ -843,4 +844,124 @@ export const FRIEND_PEOPLE = [
   { userId: 'f-2', nickname: '반짝이', tag: '1004', handle: '반짝이#1004', maskedName: '이*' }, // token-ok: 친구 코드 닉네임#태그 — 색이 아니다
   { userId: 'f-3', nickname: '깔끔쟁이', tag: '7777', handle: '깔끔쟁이#7777', maskedName: '박*영' }, // token-ok: 친구 코드 닉네임#태그 — 색이 아니다
   { userId: 'f-4', nickname: '새친구', tag: '2026', handle: '새친구#2026', maskedName: '최*호' }, // token-ok: 친구 코드 닉네임#태그 — 색이 아니다
+];
+
+// ── 금액권·선물 (2026-11-13 친구·선물 5회차 — Figma 에 화면이 없어 코드에서 정함, PROGRESS.md 판단 항목) ──────────────
+/** 선물·금액권 화면 문구 (screens/gifts, 결제 화면의 금액권 칸). 모두 코드에서 정함. 환불 기준 문구는 사용자 환불 정책(2026-11-13) */
+export const GIFTS_COPY = {
+  boxTitle: '선물함',
+  sendTitle: '선물하기',
+  sendCta: '청소 선물하기',
+  boxIntro: '친구에게 청소를 선물하고, 받은 금액권으로 예약을 결제할 수 있어요',
+  tabs: { received: '받은 선물', sent: '보낸 선물', vouchers: '내 금액권' },
+  empty: {
+    received: { title: '받은 선물이 없어요' },
+    sent: { title: '보낸 선물이 없어요', description: '친구에게 청소를 선물해보세요' },
+    vouchers: { title: '가진 금액권이 없어요', description: '친구에게 선물을 받으면 여기에 보여요' },
+  },
+  status: { awaiting_payment: '결제 전', sent: '받기 전', accepted: '받음', rejected: '거절됨', expired: '기간 지남', cancelled: '취소됨', payment_failed: '결제 실패' },
+  view: '보기',
+  deletedUser: '탈퇴한 사용자',
+  // 선물 보내기 (단계: 친구 → 선물 → 메시지 → 확인)
+  steps: { friend: '누구에게 보낼까요?', item: '무엇을 선물할까요?', message: '함께 보낼 메시지를 써주세요', confirm: '선물 내용을 확인해주세요' },
+  friendHint: '친구에게만 선물할 수 있어요',
+  noFriends: { title: '선물할 친구가 없어요', description: '친구를 먼저 추가해주세요' },
+  goFriends: '친구 추가하러 가기',
+  methods: {
+    purchase: { label: '새로 구매해서 선물', description: '고른 서비스 금액만큼 금액권을 사서 보내요' },
+    voucher: { label: '내 금액권 선물', description: '쓰지 않은 금액권을 그대로 보내요' },
+  },
+  itemTitle: { purchase: '서비스를 골라주세요', voucher: '보낼 금액권을 골라주세요' },
+  noGiftableVoucher: '선물할 수 있는 금액권이 없어요',
+  expiringSoon: '유효기간이 30일 안 남았어요',
+  voucherLine: (v) => `${v.balanceLabel}${v.validUntilLabel ? ` · ${v.validUntilLabel}` : ''}`,
+  messageLabel: '메시지 (선택)',
+  messagePlaceholder: '마음을 전해보세요 (200자까지)',
+  messageCount: (n) => `${n}/200`,
+  next: '다음',
+  summary: { to: '받는 사람', from: '보낸 사람', item: '선물', amount: '금액', method: '방식', message: '메시지', expires: '받을 수 있는 기간' },
+  methodShort: { purchase: '새로 구매', voucher: '내 금액권' },
+  confirmNote: (acceptDays) => `친구가 ${acceptDays}일 안에 받지 않으면 선물이 돌아와요. 받은 날부터 1년 동안 어느 서비스 결제에나 쓸 수 있어요.`,
+  payAndSend: '결제하고 선물하기',
+  send: '선물 보내기',
+  sentToast: '선물을 보냈어요',
+  sendFailed: '선물을 보내지 못했어요. 다시 시도해주세요.',
+  paymentOpenFailed: '결제창을 열지 못했어요. 아래 결제하기를 눌러 다시 시도해주세요.',
+  // 선물 한 건
+  detailTitle: '선물',
+  statusLong: {
+    awaiting_payment: { sent: '결제를 마치면 선물이 전달돼요.' },
+    sent: { sent: '친구가 선물을 받기를 기다리고 있어요.', received: '선물이 도착했어요. 받으면 금액권이 내 것이 돼요.' },
+    accepted: { sent: '친구가 선물을 받았어요.', received: '받은 선물이에요. 내 금액권에서 확인할 수 있어요.' },
+    rejected: { sent: '친구가 선물을 거절해 금액권이 돌아왔어요.', received: '거절한 선물이에요.' },
+    expired: { sent: '친구가 기간 안에 받지 않아 금액권이 돌아왔어요.', received: '받을 수 있는 기간이 지났어요.' },
+    cancelled: { sent: '취소한 선물이에요.', received: '보낸 사람이 취소한 선물이에요.' },
+    payment_failed: { sent: '결제가 완료되지 않아 선물을 보내지 못했어요.' },
+  },
+  accept: '선물 받기',
+  reject: '거절하기',
+  cancelGift: '선물 취소',
+  pay: '결제하기',
+  checking: '결제 결과를 확인하고 있어요.',
+  toVouchers: '내 금액권 보기',
+  sendAgain: '다시 선물하기',
+  acceptedToast: '선물을 받았어요',
+  rejectedToast: '선물을 거절했어요',
+  cancelledToast: '선물을 취소했어요',
+  actionFailed: '처리하지 못했어요. 다시 시도해주세요.',
+  paymentCancelled: '결제가 완료되지 않았어요. 다시 결제할 수 있어요.',
+  // 내 금액권
+  voucherStatus: { gifting: '선물 중', refund_requested: '환불 접수' },
+  balance: '남은 금액',
+  refund: '환불',
+  giftThis: '선물하기',
+  // 환불
+  refundTitle: '금액권 환불',
+  refundAmount: '환불 금액',
+  refundRate: (rate) => `남은 금액의 ${rate}%`,
+  refundMethod: { card: '카드 결제를 취소해 돌려드려요.', bank: '입력한 계좌로 운영자가 송금해요. 송금을 마치면 계좌번호는 지워요.' },
+  refundPolicyTitle: '환불 기준',
+  refundPolicy: [
+    '구매 후 7일 안에 쓰지 않은 금액권은 100% 환불해요',
+    '유효기간이 끝난 뒤 남은 금액이 5만 원을 넘으면 95%를 환불해요',
+    '받은 금액권은 받은 사람이 입력한 계좌로 환불해요',
+  ],
+  bankName: '은행',
+  bankPlaceholder: '예: 국민은행',
+  accountNumber: '계좌번호',
+  accountPlaceholder: '숫자만 입력해주세요',
+  accountHolder: '예금주',
+  accountHolderPlaceholder: '예금주 이름',
+  requestRefund: '환불 신청',
+  refundDone: { processing: '카드 결제 취소를 요청했어요', requested: '환불을 접수했어요. 송금하면 알려드릴게요' },
+  openStatus: { processing: '카드 결제 취소를 처리하고 있어요.', requested: '환불을 접수했어요. 송금하면 알려드릴게요.' },
+  refundFailed: '환불을 신청하지 못했어요. 다시 시도해주세요.',
+  // 예약 결제 화면의 금액권 칸
+  voucherSection: '금액권',
+  useVoucher: '금액권 쓰기',
+  removeVoucher: '금액권 빼기',
+  voucherApplied: (label) => `${label} 사용`,
+  voucherCovered: '금액권으로 결제가 끝났어요.',
+  pickVoucher: '쓸 금액권을 골라주세요',
+  applyVoucher: '이 금액권 쓰기',
+  perBooking: '예약 한 건에 금액권 한 장을 쓸 수 있어요. 남은 금액은 다음에 쓸 수 있어요.',
+  voucherFailed: '금액권을 바꾸지 못했어요. 다시 시도해주세요.',
+  close: '닫기',
+};
+/** 선물 목록 — backend V070 app_settings.gift_catalog 와 같은 값 (사용자 요금표 2026-11-13, 첫 1회 체험 없음). test/fakeGifts.js 가 쓴다 */
+export const GIFT_CATALOG = [
+  { key: 'home_weekly_1', group: '가정 정기청소', label: '가정 정기청소 주 1회 (한 달 4회 방문)', amount: 329000 },
+  { key: 'home_weekly_2', group: '가정 정기청소', label: '가정 정기청소 주 2회 (한 달 8회 방문)', amount: 599000 },
+  { key: 'home_weekly_3', group: '가정 정기청소', label: '가정 정기청소 주 3회 (한 달 12회 방문)', amount: 889000 },
+  { key: 'studio_weekly_1', group: '원룸 정기청소', label: '원룸 정기청소 주 1회 (한 달 4회 방문)', amount: 229000 },
+  { key: 'studio_weekly_2', group: '원룸 정기청소', label: '원룸 정기청소 주 2회 (한 달 8회 방문)', amount: 399000 },
+  { key: 'studio_weekly_3', group: '원룸 정기청소', label: '원룸 정기청소 주 3회 (한 달 12회 방문)', amount: 599000 },
+  { key: 'studio_once', group: '원룸 정기청소', label: '원룸 1회 청소 (1회 2시간)', amount: 69000 },
+  { key: 'hood_600', group: '후드·덕트 분해청소', label: '후드·덕트 분해청소 600mm (일반 주방)', amount: 130000 },
+  { key: 'hood_900', group: '후드·덕트 분해청소', label: '후드·덕트 분해청소 900mm (넓은 주방)', amount: 150000 },
+  { key: 'hood_1200', group: '후드·덕트 분해청소', label: '후드·덕트 분해청소 1200mm (초대형)', amount: 200000 },
+  { key: 'marble_straight', group: '대리석 코팅', label: '대리석 코팅 1자 상판 (일자형 주방)', amount: 290000 },
+  { key: 'marble_l', group: '대리석 코팅', label: '대리석 코팅 ㄱ자 상판 (ㄱ자형 주방)', amount: 360000 },
+  { key: 'marble_u', group: '대리석 코팅', label: '대리석 코팅 ㄷ자 상판 (ㄷ자형 주방)', amount: 420000 },
+  { key: 'crack_basic', group: '대리석 크랙 수리', label: '대리석 크랙 수리 기본 (일자 크랙 1개, 30cm 미만)', amount: 140000 },
 ];

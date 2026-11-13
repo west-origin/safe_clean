@@ -43,10 +43,16 @@ export function loadPaymentSdk() {
   return sdkPromise;
 }
 
+/** 토스 결제창을 연다. 돌아오는 곳: 예약 결제면 /payments/checkout?booking=…, 금액권 선물 결제(giftId)면 /gifts/{giftId}/payment */
 export async function openPayment(checkout) {
   const TossPayments = await loadPaymentSdk();
-  const returnUrl = new URL('/payments/checkout', window.location.origin);
-  returnUrl.searchParams.set('booking', checkout.bookingId);
+  let returnUrl;
+  if (checkout.giftId) {
+    returnUrl = new URL(`/gifts/${encodeURIComponent(checkout.giftId)}/payment`, window.location.origin);
+  } else {
+    returnUrl = new URL('/payments/checkout', window.location.origin);
+    returnUrl.searchParams.set('booking', checkout.bookingId);
+  }
   return TossPayments(checkout.clientKey)
     .payment({ customerKey: 'ANONYMOUS' })
     .requestPayment({

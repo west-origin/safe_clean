@@ -19,6 +19,7 @@ const renderAt = (path) =>
         <Route path="/friends/search" element={<FriendSearch />} />
         <Route path="/friends/invite/:code" element={<FriendInvite />} />
         <Route path="/friends/blocks" element={<p>차단 목록</p>} />
+        <Route path="/gifts/new" element={<p>선물하기 화면</p>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -37,6 +38,12 @@ describe('친구', () => {
     fireEvent.click(await screen.findByRole('button', { name: '깔끔쟁이#7777 수락' }));
     expect(await screen.findByRole('tab', { name: '친구 3' })).toBeInTheDocument();
     expect(__fake.friend.friends).toContain('f-3');
+  });
+
+  it('친구 줄의 선물 버튼은 그 친구를 고른 선물하기로 간다 (5회차)', async () => {
+    renderAt('/friends');
+    fireEvent.click(await screen.findByRole('button', { name: '청소왕#0420 선물' }));
+    expect(await screen.findByText('선물하기 화면')).toBeInTheDocument();
   });
 
   it('관리 시트에서 차단하면 목록에서 빠진다', async () => {

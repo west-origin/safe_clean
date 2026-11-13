@@ -130,10 +130,14 @@ export default function Home() {
             </span>
           </button>
         </section>
-        <section className={styles.gift} aria-label="청소 선물 안내">
+        {/* 누르면 선물하기 (2026-11-13 친구·선물 5회차). 아래 줄 문구는 Figma GiftBanner 의 CTA 문구 그대로 */}
+        <button type="button" className={styles.gift} onClick={() => navigate('/gifts/new')}>
           <img src={giftArt} width="90" height="86" alt="" />
-          <p className="text-title-card">깨끗함을 넘어, 안심까지 선물하세요</p>
-        </section>
+          <span className={styles.giftText}>
+            <span className="text-title-card">깨끗함을 넘어, 안심까지 선물하세요</span>
+            <span className={cx('text-caption-l', styles.giftCta)}>청소 선물하러 가기 &gt;</span>
+          </span>
+        </button>
       </div>
     </ScreenLayout>
   );

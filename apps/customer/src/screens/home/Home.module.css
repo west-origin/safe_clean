@@ -174,11 +174,25 @@
 .gift {
   display: flex;
   align-items: center;
+  width: 100%;
   gap: var(--spacing-sm);
   margin-top: var(--spacing-xl);
   padding: var(--spacing-sm);
+  border: 0;
   border-radius: var(--radius-md);
   background: var(--raw-home-gift);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+/* 선물 안내 문구 두 줄 (제목 + '청소 선물하러 가기 >') */
+.giftText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+}
+.giftCta {
+  color: var(--raw-home-secondary);
 }
 .gift img {
   flex-shrink: 0;

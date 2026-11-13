@@ -39,9 +39,9 @@ export default function Repair() {
           <PriceGuide guide={guide} />
         </div>
 
-        {/* TODO(figma): "수리 선물하러 가기 >" 의 연결 화면이 Figma 에 없음 */}
+        {/* "수리 선물하러 가기 >" → 선물하기 (연결 화면이 Figma 에 없어 코드에서 정함, 2026-11-13 친구·선물 5회차) */}
         <div className={styles.gift}>
-          <GiftBanner variant="repair" />
+          <GiftBanner variant="repair" onCta={() => navigate('/gifts/new')} />
         </div>
       </div>
     </ScreenLayout>

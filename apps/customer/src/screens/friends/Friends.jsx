@@ -60,7 +60,12 @@ export default function Friends() {
   const rows = data[tab];
   const subtitle = (e) => [e.user.maskedName, e.atLabel].filter(Boolean).join(' · ');
   const actionsFor = (e) => {
-    if (tab === 'friends') return [{ label: C.manage, onClick: () => setManage(e) }];
+    if (tab === 'friends') {
+      return [
+        { label: C.gift, tone: 'primary', ariaLabel: `${e.user.handle} ${C.gift}`, onClick: () => navigate(`/gifts/new?to=${encodeURIComponent(e.user.userId)}`) },
+        { label: C.manage, onClick: () => setManage(e) },
+      ];
+    }
     if (tab === 'received') {
       return [
         { label: C.accept, tone: 'primary', disabled: act.loading, onClick: () => act.run(() => acceptFriendRequest(e.requestId), C.becameFriends) },

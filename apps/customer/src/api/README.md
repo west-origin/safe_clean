@@ -163,3 +163,19 @@ ServiceLivePortrait 가 완료 전에는 10초마다 묻고, `ready` 를 받으�
 
 초대 링크: `invite/inviteLink.js` — `ansimclean://friend-invite/{code}`(Android intent-filter, iOS 는 기존 `ansimclean` 스킴)로 열리면 `App.jsx` 가 코드를 기억하고 `/friends/invite/{code}` 로. 로그인 전이면 가입 뒤 홈이 기억한 코드로 이어 간다. 푸시 `friendRequest` → `/friends?tab=received`.
 가짜 서버: `test/fakeFriends.js` — 친구 f-1·f-2, 받은 요청 f-3, 관계 없는 f-4(`새친구#2026`), 초대 코드 `Invite0001`(f-4)·`Expired001`(만료). `__fake.friend.me.needsNickname = true` 로 닉네임 없는 고객.
+
+## 금액권·선물 — `api/gifts.js` (2026-11-13, 계약 `backend/docs/api.md` '금액권·선물'·'금액권 사용·환불')
+화면(`screens/gifts/*`, 결제 화면의 `CheckoutVoucher`)은 이 함수만 부른다. 응답은 서버 모양 그대로(변환 없음).
+
+| 함수 | 서버 | 화면 계약 |
+|---|---|---|
+| `getGiftCatalog()` | `GET /customer/gifts/catalog` | `{ items: [{ key, group, label, amount, amountLabel }], acceptDays, validDays }` — 선물하기 2단계(그룹별) |
+| `getVouchers()` | `GET /customer/vouchers` | `{ vouchers: [{ id, label, faceAmount, balance, balanceLabel, status, validUntilLabel, giftable, expiringSoon, blockedReason, usable, useBlockedReason }] }` — 선물은 `giftable`, 예약 결제는 `usable` 만 고른다 |
+| `sendGift(req, key)` | `POST /customer/gifts` (+멱등 키) | `{ gift: GiftView, checkout }` — `checkout` 이 있으면(구매) `openPayment(checkout)` → `/gifts/{id}/payment` 로 돌아온다 |
+| `getGifts(box)` · `getGift(id)` | `GET /customer/gifts?box=sent\|received` · `GET /customer/gifts/{id}` | `{ box, gifts }` · `{ gift, checkout }` — `GiftView = { id, direction, method, status, amount, amountLabel, label, message, person: FriendUser, expiresLabel, … }` |
+| `acceptGift` · `rejectGift` · `cancelGift(id)` | `POST /customer/gifts/{id}/accept·reject·cancel` | `{ gift, checkout: null }` |
+| `getBookingVoucher` · `applyVoucher(bookingId, voucherId)` · `removeVoucher` | `GET·POST·DELETE /customer/bookings/{id}/voucher` | `{ voucherId, label, appliedAmount, appliedLabel, remainingDue, remainingLabel, coveredByVoucher }` — 바꾸면 결제 화면이 새 멱등 키로 다시 준비 |
+| `getVoucherRefund(id)` · `requestVoucherRefund(id, account, key)` | `GET·POST /customer/vouchers/{id}/refund` (+멱등 키) | `{ eligible, method, rate, amount, amountLabel, reason, needsAccount, openStatus }` · `{ refundId, method, status, … }` — 계좌번호는 앱에 저장하지 않는다 |
+
+푸시 `gift`(+giftId) → `/gifts/{giftId}`, `voucher` → `/gifts?tab=vouchers`.
+가짜 서버: `test/fakeGifts.js` — 받은 선물 g-1(f-1, 받기 전), 보낸 선물 g-2(f-2 가 받음), 금액권 v-1(선물·사용·카드 환불 가능)·v-2(사용함·30일 안 만료·환불 불가). 예약 금액은 `BOOKING_TOTAL`(85,000원). 결제(토스) 경로는 없어 결제 화면 테스트는 `payments.js` 를 mock 한다.

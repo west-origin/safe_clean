@@ -20,6 +20,8 @@ const MENU_PATHS = {
   inquiry: '/settings/inquiry',
   notice: '/settings/notices',
   friends: '/friends', // 친구·선물 그룹 (2026-11-13, V072)
+  gifts: '/gifts/new', // 선물하기 (V073)
+  giftBox: '/gifts', // 선물함 — 받은·보낸 선물, 내 금액권 (V073)
   terms: '/terms/service',
   privacy: '/terms/privacy',
 };
