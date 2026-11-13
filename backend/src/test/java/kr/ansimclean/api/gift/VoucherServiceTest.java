@@ -118,13 +118,79 @@ class VoucherServiceTest {
         verify(store, never()).insertUse(any(), any(), any(), anyLong(), any());
     }
 
+    // ── 주 N회 요금제 시리즈 (사용자 결정 2026-11-14: 회차 금액 비율로 나눠 쓴다) ──
+
+    /** 가정 주 1회 4회차 329,000 = 82,253 + 82,249 × 3 */
+    private java.util.List<Booking> series(UUID seriesId) {
+        java.util.List<Booking> visits = new java.util.ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            Booking v = TestBookings.weeklyPlanVisit(me, seriesId, LocalDate.of(2026, 11, 23).plusWeeks(i), i == 0 ? 82253 : 82249, "house_weekly_1");
+            when(store.appliedFor(v.getId())).thenReturn(Optional.empty());
+            visits.add(v);
+        }
+        when(bookings.weeklyPlanSeriesOf(me, visits.get(2).getId())).thenReturn(Optional.of(seriesId));
+        when(bookings.lockSeriesVisits(me, seriesId)).thenReturn(visits);
+        when(checkout.closePendingSeriesPayment(seriesId)).thenReturn("none");
+        return visits;
+    }
+
     @Test
-    void 주_N회_요금제_회차에는_아직_금액권을_쓸_수_없다() { // 요금표 전환 2026-11-13 — 한 달치 시리즈 결제와 함께 계산하는 일은 다음 회차
-        Booking visit = TestBookings.weeklyPlanVisit(me, UUID.randomUUID(), LocalDate.of(2026, 11, 20), 82250, "house_weekly_1");
-        when(bookings.lockForUpdate(visit.getId())).thenReturn(visit);
+    void 금액을_회차_금액_비율로_나눈다() {
+        assertThat(VoucherService.split(69000, new long[]{82253, 82249, 82249, 82249})).containsExactly(17251, 17250, 17250, 17249);
+        assertThat(VoucherService.split(329000, new long[]{82253, 82249, 82249, 82249})).containsExactly(82253, 82249, 82249, 82249); // 다 덮으면 회차 금액 그대로
+        assertThat(VoucherService.split(5, new long[]{3, 1, 1})).containsExactly(3, 1, 1);
+        assertThat(java.util.Arrays.stream(VoucherService.split(100001, new long[]{300000, 300000, 300001})).sum()).isEqualTo(100001);
+    }
+
+    @Test
+    void 시리즈에_쓰면_회차마다_몫을_적고_시리즈_대기_주문을_닫는다() {
+        UUID seriesId = UUID.randomUUID();
+        var visits = series(seriesId);
+        var v = voucher(me, me, 69000, 69000, "held", NOW, NOW, NOW.plus(Duration.ofDays(300)));
+        var res = service.apply(me, visits.get(2).getId(), v.id()); // 세 번째 회차에서 열어도 시리즈 전체
+        long[] want = {17251, 17250, 17250, 17249};
+        var order = inOrder(bookings, gifts, checkout);
+        order.verify(bookings).lockSeriesVisits(me, seriesId);
+        order.verify(gifts).lockVoucher(v.id());
+        order.verify(checkout).closePendingSeriesPayment(seriesId);
+        for (int i = 0; i < 4; i++) verify(store).insertUse(v.id(), visits.get(i).getId(), me, want[i], NOW);
+        verify(store).setBalance(v.id(), 0, "used");
+        verify(checkout, never()).closePendingBookingPayment(any());
+        assertThat(visits).allMatch(x -> "unpaid".equals(x.getPaymentStatus())); // 카드 몫이 남았다
+        assertThat(res.bookingId()).isEqualTo(visits.get(2).getId());
+    }
+
+    @Test
+    void 시리즈를_다_덮으면_회차가_결제_완료이고_카드_승인_뒤에는_쓰지_못한다() {
+        UUID seriesId = UUID.randomUUID();
+        var visits = series(seriesId);
+        var v = voucher(me, me, 400000, 400000, "held", NOW, NOW, NOW.plus(Duration.ofDays(300)));
+        service.apply(me, visits.get(2).getId(), v.id());
+        verify(store).setBalance(v.id(), 71000, "held");
+        assertThat(visits).allMatch(x -> "paid".equals(x.getPaymentStatus()));
+
+        UUID other = UUID.randomUUID();
+        var visits2 = series(other);
+        when(checkout.closePendingSeriesPayment(other)).thenReturn("authorized");
         var ok = voucher(me, me, 69000, 69000, "held", NOW, NOW, NOW.plus(Duration.ofDays(300)));
-        assertThatThrownBy(() -> service.apply(me, visit.getId(), ok.id())).hasMessage(VoucherService.WEEKLY_PLAN_BLOCKED);
-        verify(store, never()).insertUse(any(), any(), any(), anyLong(), any());
+        assertCode(() -> service.apply(me, visits2.get(2).getId(), ok.id()), ErrorCode.INVALID_STATE);
+        verify(store, never()).insertUse(eq(ok.id()), any(), any(), anyLong(), any());
+    }
+
+    @Test
+    void 시리즈에서_빼면_회차_몫을_모두_돌려준다() {
+        UUID seriesId = UUID.randomUUID();
+        var visits = series(seriesId);
+        var v = voucher(me, me, 69000, 0, "used", NOW, NOW, NOW.plus(Duration.ofDays(300)));
+        var u0 = new VoucherStore.UseRow(UUID.randomUUID(), v.id(), visits.get(0).getId(), me, 17251, "applied");
+        var u1 = new VoucherStore.UseRow(UUID.randomUUID(), v.id(), visits.get(1).getId(), me, 17250, "applied");
+        when(store.appliedFor(visits.get(0).getId())).thenReturn(Optional.of(u0));
+        when(store.appliedFor(visits.get(1).getId())).thenReturn(Optional.of(u1));
+        when(store.markRestored(any(), eq("removed"), eq(NOW))).thenReturn(1);
+        service.remove(me, visits.get(2).getId());
+        verify(checkout).closePendingSeriesPayment(seriesId);
+        verify(store).markRestored(u0.id(), "removed", NOW);
+        verify(store).markRestored(u1.id(), "removed", NOW);
     }
 
     @Test

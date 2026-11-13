@@ -59,8 +59,10 @@ public class VoucherService {
 
     // ── 예약 결제에 쓰기 ─────────────────────────────────────────────
 
-    /** 이 예약 결제에 쓰는 금액권 (결제 화면) */
+    /** 이 예약 결제에 쓰는 금액권 (결제 화면). 주 N회 요금제 회차면 그 시리즈 한 달치 기준 */
     public BookingVoucherResponse current(UUID me, UUID bookingId) {
+        Optional<UUID> series = bookings.weeklyPlanSeriesOf(me, bookingId);
+        if (series.isPresent()) return seriesResponse(bookingId, bookings.lockSeriesVisits(me, series.get()));
         return response(ownBooking(me, bookingId));
     }
 
@@ -70,10 +72,10 @@ public class VoucherService {
      */
     public BookingVoucherResponse apply(UUID me, UUID bookingId, UUID voucherId) {
         profiles.holdLive(me);
+        Optional<UUID> series = bookings.weeklyPlanSeriesOf(me, bookingId);
+        if (series.isPresent()) return applySeries(me, bookingId, series.get(), voucherId);
         Booking b = ownBooking(me, bookingId);
         if (b.getStatus() == BookingStatus.CANCELLED) throw new ApiException(ErrorCode.INVALID_STATE, "취소된 예약에는 금액권을 쓸 수 없어요");
-        // 주 N회 요금제는 한 달치를 시리즈로 결제한다 — 회차 금액권과 시리즈 결제를 함께 계산하는 일은 다음 회차 (요금표 전환 2026-11-13)
-        if (b.isWeeklyPlan()) throw new ApiException(ErrorCode.INVALID_STATE, WEEKLY_PLAN_BLOCKED);
         Optional<VoucherStore.UseRow> existing = store.appliedFor(bookingId);
         if (existing.isPresent()) {
             if (existing.get().voucherId().equals(voucherId)) return response(b);
@@ -85,18 +87,69 @@ public class VoucherService {
         if (blocked != null) throw new ApiException(ErrorCode.INVALID_STATE, blocked);
         if (!"none".equals(checkout.closePendingBookingPayment(bookingId)))
             throw new ApiException(ErrorCode.INVALID_STATE, "카드 결제를 진행한 예약에는 금액권을 쓸 수 없어요");
-        if (b.getTotalAmount() <= 0) throw new ApiException(ErrorCode.INVALID_STATE, "결제할 금액이 없는 예약이에요");
-        long amount = Math.min(v.balance(), b.getTotalAmount());
+        if (b.getPayableAmount() <= 0) throw new ApiException(ErrorCode.INVALID_STATE, "결제할 금액이 없는 예약이에요"); // 첫 결제 혜택으로 무료인 예약도 (V075)
+        long amount = Math.min(v.balance(), b.getPayableAmount());
         store.insertUse(v.id(), bookingId, me, amount, now);
         long left = v.balance() - amount;
         store.setBalance(v.id(), left, left == 0 ? "used" : "held");
-        if (amount == b.getTotalAmount()) b.recordPayment("paid"); // 금액권이 전부 덮었다 — 카드 결제 없음
+        if (amount == b.getPayableAmount()) b.recordPayment("paid"); // 금액권이 전부 덮었다 — 카드 결제 없음
         return response(b);
+    }
+
+    /**
+     * 주 N회 요금제 시리즈에 금액권 쓰기 (사용자 결정 2026-11-14: 회차 금액 비율로 나눠 쓴다). 시리즈당 1장, 카드 결제 승인 요청 전에만.
+     * 쓸 금액 = min(잔액, 취소되지 않은 회차 금액 합). 회차마다 floor(쓸 금액 × 회차 금액 / 합)을 적고, 남은 원은 앞 회차부터 1원씩(회차 금액을 넘지 않게).
+     * 회차마다 사용 원장 한 줄이라 회차를 취소하면 기존 복원(VoucherRestorer)이 그 회차 몫만 금액권에 돌려주고, 카드 몫은 시리즈 결제 재조정이 부분 취소한다.
+     * 잠금 순서: 시리즈 → 회차 → 금액권 → 결제
+     */
+    private BookingVoucherResponse applySeries(UUID me, UUID bookingId, UUID seriesId, UUID voucherId) {
+        List<Booking> visits = bookings.lockSeriesVisits(me, seriesId);
+        List<Booking> open = visits.stream().filter(x -> x.getStatus() != BookingStatus.CANCELLED).toList();
+        if (open.isEmpty()) throw new ApiException(ErrorCode.INVALID_STATE, "취소된 예약에는 금액권을 쓸 수 없어요");
+        Optional<UUID> existing = visits.stream().map(x -> store.appliedFor(x.getId())).flatMap(Optional::stream).map(VoucherStore.UseRow::voucherId).findFirst();
+        if (existing.isPresent()) {
+            if (existing.get().equals(voucherId)) return seriesResponse(bookingId, visits);
+            throw new ApiException(ErrorCode.INVALID_STATE, "이 예약에는 이미 금액권을 썼어요. 먼저 빼고 다시 골라주세요");
+        }
+        Instant now = clock.now();
+        GiftStore.VoucherRow v = gifts.lockVoucher(voucherId).filter(x -> x.ownerId().equals(me)).orElseThrow(ApiException::notFound);
+        String blocked = useBlockReason(v, now);
+        if (blocked != null) throw new ApiException(ErrorCode.INVALID_STATE, blocked);
+        if (!"none".equals(checkout.closePendingSeriesPayment(seriesId)))
+            throw new ApiException(ErrorCode.INVALID_STATE, "카드 결제를 진행한 예약에는 금액권을 쓸 수 없어요");
+        long sum = open.stream().mapToLong(Booking::getPayableAmount).sum();
+        if (sum <= 0) throw new ApiException(ErrorCode.INVALID_STATE, "결제할 금액이 없는 예약이에요");
+        long amount = Math.min(v.balance(), sum);
+        long[] shares = split(amount, open.stream().mapToLong(Booking::getPayableAmount).toArray());
+        for (int i = 0; i < open.size(); i++) {
+            if (shares[i] > 0) store.insertUse(v.id(), open.get(i).getId(), me, shares[i], now);
+            if (shares[i] == open.get(i).getPayableAmount()) open.get(i).recordPayment("paid"); // 금액권이 그 회차를 다 냈다
+        }
+        long left = v.balance() - amount;
+        store.setBalance(v.id(), left, left == 0 ? "used" : "held");
+        return seriesResponse(bookingId, visits);
+    }
+
+    /** 금액을 회차 금액 비율로 나눈다: 내림 + 남은 원은 앞에서부터 1원씩 (각 몫 ≤ 회차 금액, 합 = amount ≤ 회차 금액 합) */
+    static long[] split(long amount, long[] totals) {
+        long sum = java.util.Arrays.stream(totals).sum();
+        long[] out = new long[totals.length];
+        long given = 0;
+        for (int i = 0; i < totals.length; i++) {
+            out[i] = java.math.BigInteger.valueOf(amount).multiply(java.math.BigInteger.valueOf(totals[i])).divide(java.math.BigInteger.valueOf(sum)).longValueExact();
+            given += out[i];
+        }
+        for (int i = 0; given < amount; i = (i + 1) % totals.length) {
+            if (out[i] < totals[i]) { out[i]++; given++; }
+        }
+        return out;
     }
 
     /** 금액권 빼기 — 카드 결제 승인 요청 전에만. 잔액을 돌려주고 결제 대기 주문은 닫는다 */
     public BookingVoucherResponse remove(UUID me, UUID bookingId) {
         profiles.holdLive(me);
+        Optional<UUID> series = bookings.weeklyPlanSeriesOf(me, bookingId);
+        if (series.isPresent()) return removeSeries(me, bookingId, series.get());
         Booking b = ownBooking(me, bookingId);
         Optional<VoucherStore.UseRow> use = store.appliedFor(bookingId);
         if (use.isEmpty()) return response(b);
@@ -104,11 +157,40 @@ public class VoucherService {
         if (!"none".equals(checkout.closePendingBookingPayment(bookingId)))
             throw new ApiException(ErrorCode.INVALID_STATE, "카드 결제를 진행한 뒤에는 금액권을 뺄 수 없어요");
         restore(use.get(), v, "removed");
-        if (use.get().amount() == b.getTotalAmount()) b.recordPayment("unpaid");
+        if (use.get().amount() == b.getPayableAmount()) b.recordPayment("unpaid");
         return response(b);
     }
 
-    static final String WEEKLY_PLAN_BLOCKED = "정기 요금제 예약에는 금액권을 아직 쓸 수 없어요";
+    /** 시리즈에서 금액권 빼기 — 카드 결제 승인 요청 전에만. 쓰는 중인 회차 몫을 모두 금액권에 돌려준다 */
+    private BookingVoucherResponse removeSeries(UUID me, UUID bookingId, UUID seriesId) {
+        List<Booking> visits = bookings.lockSeriesVisits(me, seriesId);
+        List<VoucherStore.UseRow> uses = visits.stream().map(x -> store.appliedFor(x.getId())).flatMap(Optional::stream).toList();
+        if (uses.isEmpty()) return seriesResponse(bookingId, visits);
+        if (!"none".equals(checkout.closePendingSeriesPayment(seriesId)))
+            throw new ApiException(ErrorCode.INVALID_STATE, "카드 결제를 진행한 뒤에는 금액권을 뺄 수 없어요");
+        for (VoucherStore.UseRow use : uses) {
+            GiftStore.VoucherRow v = gifts.lockVoucher(use.voucherId()).orElseThrow(); // 다시 읽는다 — 앞 회차 복원으로 잔액이 바뀌었다
+            restore(use, v, "removed");
+            visits.stream().filter(x -> x.getId().equals(use.bookingId()) && use.amount() == x.getPayableAmount()).forEach(x -> x.recordPayment("unpaid"));
+        }
+        return seriesResponse(bookingId, visits);
+    }
+
+    /** 시리즈 한 달치 기준 금액권 응답: 쓴 금액 = 취소되지 않은 회차의 금액권 몫 합, 낼 금액 = 그 회차들의 카드 몫 합 */
+    private BookingVoucherResponse seriesResponse(UUID bookingId, List<Booking> visits) {
+        long applied = 0, due = 0;
+        UUID voucherId = null;
+        for (Booking x : visits) {
+            if (x.getStatus() == BookingStatus.CANCELLED) continue;
+            Optional<VoucherStore.UseRow> use = store.appliedFor(x.getId());
+            long a = use.map(VoucherStore.UseRow::amount).orElse(0L);
+            if (use.isPresent()) voucherId = use.get().voucherId();
+            applied += a;
+            due += Math.max(0, x.getPayableAmount() - a);
+        }
+        String label = voucherId == null ? null : gifts.voucher(voucherId).map(GiftStore.VoucherRow::label).orElse(null);
+        return new BookingVoucherResponse(bookingId, voucherId, label, applied, KoreanFormat.won(applied), due, KoreanFormat.won(due), voucherId != null && due == 0);
+    }
 
     /** 사용할 수 없는 이유 (쓸 수 있으면 null). 문구는 코드에서 정함 */
     static String useBlockReason(GiftStore.VoucherRow v, Instant now) {
@@ -141,7 +223,7 @@ public class VoucherService {
         if (b.getStatus() != BookingStatus.CANCELLED) return;
         GiftStore.VoucherRow v = gifts.lockVoucher(use.voucherId()).orElseThrow();
         restore(use, v, "booking_cancelled");
-        if (use.amount() == b.getTotalAmount()) b.recordPayment("refunded"); // 금액권만으로 낸 예약 — 카드 환불은 없다
+        if (use.amount() == b.getPayableAmount()) b.recordPayment("refunded"); // 금액권만으로 낸 예약 — 카드 환불은 없다
     }
 
     @Transactional(readOnly = true)
@@ -158,7 +240,7 @@ public class VoucherService {
     private BookingVoucherResponse response(Booking b) {
         Optional<VoucherStore.UseRow> use = store.appliedFor(b.getId());
         long applied = use.map(VoucherStore.UseRow::amount).orElse(0L);
-        long due = Math.max(0, b.getTotalAmount() - applied);
+        long due = Math.max(0, b.getPayableAmount() - applied);
         String label = use.flatMap(u -> gifts.voucher(u.voucherId())).map(GiftStore.VoucherRow::label).orElse(null);
         return new BookingVoucherResponse(b.getId(), use.map(VoucherStore.UseRow::voucherId).orElse(null), label, applied, KoreanFormat.won(applied),
                 due, KoreanFormat.won(due), use.isPresent() && due == 0);

@@ -108,13 +108,14 @@ public class CheckoutService {
             Booking b = ownBooking(userId, bookingId);
             Payment p = payments.findFirstByBookingIdAndProviderAndStatusNotOrderByCreatedAtDesc(bookingId, "toss", "failed").orElse(null);
             // 금액권을 쓰고 있으면 카드로 낼 금액은 그만큼 줄어든다 (3회차, 예약당 1장)
-            long due = b.getTotalAmount() - gifts.voucherCredit(bookingId);
+            long due = b.getPayableAmount() - gifts.voucherCredit(bookingId); // 첫 결제 혜택 할인(V075)도 뺀다
             if (p != null && "pending".equals(p.getStatus()) && p.getAmount() != due) {
                 p.abandon(VOUCHER_CHANGED, clock.now()); // 금액이 바뀐 옛 대기 주문 — 보통은 금액권을 쓸 때 이미 닫혀 있다
                 p = null;
             }
             if (p == null || "failed".equals(p.getStatus())) {
                 if (b.getStatus() == BookingStatus.CANCELLED || b.getTotalAmount() <= 0) throw new ApiException(ErrorCode.INVALID_STATE, "이 예약은 결제할 수 없어요");
+                if (b.getPayableAmount() <= 0) throw new ApiException(ErrorCode.INVALID_STATE, BENEFIT_COVERED);
                 if (due <= 0) throw new ApiException(ErrorCode.INVALID_STATE, "금액권으로 결제가 끝났어요");
                 p = payments.save(Payment.pending(bookingId, null, "toss", due, clock.now()));
             }
@@ -122,10 +123,29 @@ public class CheckoutService {
         });
     }
 
-    /** 시리즈 결제 준비: 금액 = 취소되지 않은 회차 금액의 합. 대기 주문 금액이 다르면(그 사이 회차 취소) 닫고 새로 만든다 */
+    static final String BENEFIT_COVERED = "첫 결제 혜택으로 결제할 금액이 없어요";
+
+    /** 이 회차에서 카드로 낼 몫 = 회차 금액 − 할인 − 금액권 몫 (금액권은 회차 금액 비율로 나눠 쓴다, 2026-11-14) */
+    private long cardShare(Booking v, boolean applying) {
+        return v.getPayableAmount() - (applying ? gifts.voucherCredit(v.getId()) : gifts.voucherShare(v.getId()));
+    }
+
+    /**
+     * 금액권을 정기 요금제 시리즈에 쓰거나 뺄 때(gift.VoucherService): 시리즈의 살아 있는 카드 결제 상태. 결제 대기 주문이면 닫고 "none".
+     * 부르는 쪽이 시리즈 → 회차 → 금액권을 먼저 잠근다
+     */
+    public String closePendingSeriesPayment(UUID seriesId) {
+        Payment p = payments.findFirstBySeriesIdAndProviderAndStatusNotOrderByCreatedAtDesc(seriesId, "toss", "failed").orElse(null);
+        if (p == null) return "none";
+        p = payments.lockById(p.getId()).orElseThrow();
+        if (p.abandon(VOUCHER_CHANGED, clock.now())) return "none";
+        return "failed".equals(p.getStatus()) ? "none" : p.getStatus();
+    }
+
+    /** 시리즈 결제 준비: 금액 = 취소되지 않은 회차의 카드 몫 합. 대기 주문 금액이 다르면(그 사이 회차 취소·금액권) 닫고 새로 만든다 */
     private CheckoutResponse prepareSeries(UUID userId, UUID seriesId) {
         List<Booking> visits = bookings.lockSeriesVisits(userId, seriesId);
-        long due = visits.stream().filter(v -> v.getStatus() != BookingStatus.CANCELLED).mapToLong(Booking::getTotalAmount).sum();
+        long due = visits.stream().filter(v -> v.getStatus() != BookingStatus.CANCELLED).mapToLong(v -> cardShare(v, true)).sum();
         Payment p = payments.findFirstBySeriesIdAndProviderAndStatusNotOrderByCreatedAtDesc(seriesId, "toss", "failed")
                 .flatMap(found -> payments.lockById(found.getId())).orElse(null);
         if (p != null && "pending".equals(p.getStatus()) && p.getAmount() != due && p.abandon(SERIES_CHANGED, clock.now())) {
@@ -133,7 +153,8 @@ public class CheckoutService {
             p = null;
         }
         if (p == null || "failed".equals(p.getStatus())) {
-            if (due <= 0) throw new ApiException(ErrorCode.INVALID_STATE, "이 예약은 결제할 수 없어요");
+            boolean open = visits.stream().anyMatch(v -> v.getStatus() != BookingStatus.CANCELLED);
+            if (due <= 0) throw new ApiException(ErrorCode.INVALID_STATE, open ? "금액권으로 결제가 끝났어요" : "이 예약은 결제할 수 없어요");
             p = payments.save(Payment.pendingSeries(seriesId, due, clock.now()));
         }
         return seriesResponse(p, visits);
@@ -252,8 +273,9 @@ public class CheckoutService {
             java.util.Set<UUID> have = new java.util.HashSet<>();
             rows.forEach(r -> have.add(r.getBookingId()));
             for (Booking v : visits) {
-                if (paidFor(p, v) && v.getStatus() == BookingStatus.CANCELLED && !have.contains(v.getId()) && v.getTotalAmount() > 0)
-                    refunds.save(PaymentRefund.pendingVisit(p, v.getId(), v.getTotalAmount(), clock.now()));
+                if (!paidFor(p, v) || v.getStatus() != BookingStatus.CANCELLED || have.contains(v.getId())) continue;
+                long card = cardShare(v, false); // 금액권 몫은 VoucherRestorer 가 금액권 잔액으로 돌려준다
+                if (card > 0) refunds.save(PaymentRefund.pendingVisit(p, v.getId(), card, clock.now()));
             }
             next = refunds.findByPaymentIdAndBookingIdIsNotNullOrderByCreatedAtAscIdAsc(id).stream()
                     .filter(r -> "pending".equals(r.getStatus())).findFirst().orElse(null);

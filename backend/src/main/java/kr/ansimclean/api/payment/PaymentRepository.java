@@ -42,7 +42,10 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
                         and not exists (select 1 from payment_refunds r where r.payment_id = p.id))
                     or (p.series_id is not null and p.status in ('paid','partially_refunded')
                         and exists (select 1 from bookings v where v.series_id = p.series_id and v.status = 'cancelled' and v.cancelled_at > p.created_at
-                          and not exists (select 1 from payment_refunds r where r.payment_id = p.id and r.booking_id = v.id))))
+                          and not exists (select 1 from payment_refunds r where r.payment_id = p.id and r.booking_id = v.id)
+                          -- 카드 몫이 있는 회차만 (금액권이 다 낸 회차는 금액권 잔액으로만 돌려준다 — 2026-11-14)
+                          and v.total_amount - v.discount_amount > (select coalesce(sum(u.amount), 0) from voucher_uses u where u.booking_id = v.id
+                                and (u.status = 'applied' or u.restore_reason = 'booking_cancelled')))))
              order by p.next_check_at nulls first, p.id limit 50
             """, nativeQuery = true)
     java.util.List<UUID> findDueIds(java.time.Instant now);

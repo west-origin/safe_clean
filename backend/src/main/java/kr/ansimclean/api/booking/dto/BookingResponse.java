@@ -21,7 +21,14 @@ import java.util.UUID;
  */
 public record BookingResponse(UUID id, String category, String frequency, String date, String time, String roadAddress, String detailAddress,
                               String serviceLabel, String cleaner, boolean managerAssigned, boolean matchingFailed, boolean cancelled, UUID seriesId, List<Visit> visits, String perVisitLabel, long totalAmount, String totalLabel, String homeType,
-                              String pricePlan) {
+                              String pricePlan, long discountAmount, String payLabel) {
+    /** discountAmount = 이 예약(정기면 회차 합)의 첫 결제 혜택 할인, payLabel = 할인 뒤 낼 금액(금액권 전) — 할인이 없으면 totalLabel 과 같다 (V075, 2026-11-14) */
+    public BookingResponse(UUID id, String category, String frequency, String date, String time, String roadAddress, String detailAddress,
+                           String serviceLabel, String cleaner, boolean managerAssigned, boolean matchingFailed, boolean cancelled, UUID seriesId, List<Visit> visits,
+                           String perVisitLabel, long totalAmount, String totalLabel, String homeType, String pricePlan) {
+        this(id, category, frequency, date, time, roadAddress, detailAddress, serviceLabel, cleaner, managerAssigned, matchingFailed, cancelled, seriesId, visits,
+                perVisitLabel, totalAmount, totalLabel, homeType, pricePlan, 0, totalLabel);
+    }
     /** pricePlan = 요금표 요금제 키(house_trial · studio_once · house_weekly_N · studio_weekly_N · hood_600|900|1200, 없으면 null — 요금표 전환 2026-11-13).
      *  _weekly_ 면 결제는 회차가 아니라 한 달치 시리즈 결제다 */
     public BookingResponse(UUID id, String category, String frequency, String date, String time, String roadAddress, String detailAddress,

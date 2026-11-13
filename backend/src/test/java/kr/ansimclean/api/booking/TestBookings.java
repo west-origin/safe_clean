@@ -54,6 +54,15 @@ public final class TestBookings {
         return b;
     }
 
+    /** 후드 분해청소 1회(hood_900 150,000원) — 가정 정기청소 첫 결제 혜택으로 전액 할인 (V075) */
+    public static Booking benefitHood(UUID customerId, LocalDate date) {
+        Booking b = Booking.create(customerId, null, "appliance", null, "oneTime", date, LocalTime.of(10, 0), ROAD, "3층", "서울특별시", "강남구",
+                List.of(), List.of(), List.of(), null, null, new PriceQuote(150000, 0, 150000, 15000, 120), Instant.parse("2026-09-15T05:00:00Z"));
+        b.markPricePlan("hood_900");
+        b.applyDiscount(150000);
+        return b;
+    }
+
     /** 매니저가 수락해 배정된 1회 예약 (assigning → scheduled) */
     public static Booking scheduled(UUID customerId, UUID managerId, LocalDate date, LocalTime time) {
         Booking b = assigning(customerId, date, time);

@@ -88,8 +88,8 @@ class BookingControllerTest {
         mvc.perform(post("/api/v1/customer/bookings/quote").contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isUnauthorized());
 
         // 토큰 "c" = 고객. 서비스가 돌려준 견적이 perVisit·visits·totalLabel·paymentNote·savingNote 이름으로 나가는지
-        customer("c");
-        when(bookings.quote(any())).thenReturn(new QuoteResponse(new QuoteResponse.PerVisit(80000, 0, 80000, "80,000원", "80,000원", null),
+        UUID me = customer("c"); // 견적은 로그인한 고객 id 로 계산한다 — 분해청소 첫 결제 혜택 판정 (V075)
+        when(bookings.quote(org.mockito.ArgumentMatchers.eq(me), any())).thenReturn(new QuoteResponse(new QuoteResponse.PerVisit(80000, 0, 80000, "80,000원", "80,000원", null),
                 List.of(new QuoteResponse.Visit("2026-11-02", "2026년 11월 2일 (월)")), 1, 80000, "80,000원", "결제는 청소 완료 후 진행돼요", "1회 청소보다 회당 20,000원 저렴해요"));
         mvc.perform(post("/api/v1/customer/bookings/quote").header("Authorization", "Bearer c").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
@@ -97,7 +97,8 @@ class BookingControllerTest {
                 .andExpect(jsonPath("$.visits[0].label").value("2026년 11월 2일 (월)"))
                 .andExpect(jsonPath("$.totalLabel").value("80,000원"))
                 .andExpect(jsonPath("$.paymentNote").value("결제는 청소 완료 후 진행돼요"))
-                .andExpect(jsonPath("$.savingNote").value("1회 청소보다 회당 20,000원 저렴해요")); // 정기 할인을 화면이 말해 준다 (사용성 검토)
+                .andExpect(jsonPath("$.savingNote").value("1회 청소보다 회당 20,000원 저렴해요")) // 정기 할인을 화면이 말해 준다 (사용성 검토)
+                .andExpect(jsonPath("$.discountAmount").value(0)).andExpect(jsonPath("$.discountLabel").doesNotExist());
     }
 
     @Test
@@ -189,7 +190,7 @@ class BookingControllerTest {
     @Test
     void 모르는_칸이_있는_본문도_받는다() throws Exception {
         UUID id = customer("c");
-        when(bookings.quote(any())).thenReturn(new QuoteResponse(new QuoteResponse.PerVisit(80000, 0, 80000, "80,000원", "80,000원", null),
+        when(bookings.quote(any(), any())).thenReturn(new QuoteResponse(new QuoteResponse.PerVisit(80000, 0, 80000, "80,000원", "80,000원", null),
                 List.of(), 1, 80000, "80,000원", null, null));
         mvc.perform(post("/api/v1/customer/bookings/quote").header("Authorization", "Bearer c").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"category\":\"home\",\"date\":\"2026-11-02\",\"time\":\"10:00\",\"someFutureField\":\"x\"}"))

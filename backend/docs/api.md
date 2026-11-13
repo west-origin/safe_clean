@@ -1,5 +1,16 @@
 # API 계약
 
+## 첫 결제 혜택·정기 요금제 금액권 (2026-11-14 — 규칙은 domain.md 같은 이름의 절, 친구·선물 7회차, V075)
+
+| 앱 함수 | 메서드 · 경로 | 바뀐 요청 | 바뀐 응답 / 오류 |
+|---|---|---|---|
+| `getBookingQuote(body)` | `POST /customer/bookings/quote` | — (로그인 고객 기준) | `+ discountAmount`(원, 없으면 0)·`discountLabel`("-150,000원")·`discountNote`("가정 정기청소 첫 결제 혜택"). 할인이 있으면 `totalAmount`·`totalLabel` = 할인 뒤 낼 금액, `perVisit` = 할인 전. 분해청소만 |
+| `createBooking(body)` · `getBooking(id)` | `POST /customer/bookings` · `GET /customer/bookings/{id}` | — | `+ discountAmount`·`payLabel`(할인 뒤 낼 금액, 금액권 전 — 할인이 없으면 `totalLabel` 과 같다). 혜택으로 전액 할인된 예약은 결제 완료 상태 |
+| `prepareCheckout(bookingId)` | `POST /customer/bookings/{id}/checkout` | — | 단건: 금액 = 총액 − 할인 − 금액권. 전액 할인이면 `INVALID_STATE` "첫 결제 혜택으로 결제할 금액이 없어요". 시리즈: 금액 = 취소되지 않은 회차의 카드 몫 합, 금액권이 다 덮으면 `INVALID_STATE` "금액권으로 결제가 끝났어요" |
+| `getBookingVoucher` · `applyVoucher` · `removeVoucher` | `GET·POST·DELETE /customer/bookings/{id}/voucher` | — | 주 N회 요금제 회차면 **시리즈 한 달치 기준**: `appliedAmount` = 취소되지 않은 회차의 금액권 몫 합, `remainingDue` = 카드로 낼 한 달 금액. 시리즈당 1장(다른 금액권이 쓰이는 중이면 `INVALID_STATE`), 카드 승인 요청 뒤 `INVALID_STATE`. (6-a 의 "정기 요금제 예약에는 금액권을 아직 쓸 수 없어요" 는 없어졌다) |
+
+회차 취소 뒤: 금액권 몫은 금액권 잔액으로(1분 안), 카드 몫은 토스 부분 취소(재조정 1분). 혜택을 쓴 분해청소를 취소하면 혜택이 돌아온다.
+
 ## 요금표 전환 (2026-11-13 — 규칙은 domain.md '요금표 전환', 친구·선물 6회차)
 
 예약 요청·견적에 칸이 늘었다. 가정·원룸·분해청소는 요금표 요금제로 계산하고, 매장·사무실·입주·수리는 예전 계산 그대로다.
@@ -11,7 +22,7 @@
 | `prepareCheckout(bookingId)` | `POST /customer/bookings/{id}/checkout` | — | 주 N회 요금제 회차면 **그 시리즈의 한 달치 결제**: `bookingId: null`, `+ seriesId`, `amount` = 취소되지 않은 회차 금액 합, `orderName: "안심클린 정기청소 한 달"`. 회차 어디서 불러도 같은 주문. 그 사이 회차가 취소돼 금액이 바뀌면 대기 주문을 닫고 새 주문 |
 | `getPayment(id)` · `confirmPayment(id, …)` | 기존 | — | 시리즈 결제도 같은 경로. 응답 `seriesId` 가 있으면 시리즈 결제(`refundStatus` = 회차 환불 행 중 대기가 있으면 pending, 모두 끝났으면 done) |
 | `getCatalogOptions('appliance')` | `GET /catalog/categories/appliance/options` | — | 유료 옵션 = 콘센트 가림판넬 분리 +20,000 · 자동 소화장치 없는 경우 +20,000 (에어컨·세탁조는 새 예약에서 빠짐) |
-| `applyVoucher(bookingId, …)` | `POST /customer/bookings/{id}/voucher` | — | 주 N회 요금제 회차면 `INVALID_STATE` "정기 요금제 예약에는 금액권을 아직 쓸 수 없어요" |
+| `applyVoucher(bookingId, …)` | `POST /customer/bookings/{id}/voucher` | — | ~~주 N회 요금제 회차면 `INVALID_STATE`~~ → 2026-11-14 부터 시리즈 한 달치에 쓴다(위 '첫 결제 혜택·정기 요금제 금액권' 절) |
 
 회차 취소(기존 `POST /customer/reservations/{id}/cancel`, 기한 규칙 그대로) 뒤 시리즈 결제가 확정돼 있으면 서버가 그 회차 금액만 토스 부분 취소한다(재조정 1분). 그 회차 `payment_status` = `refunded`.
 

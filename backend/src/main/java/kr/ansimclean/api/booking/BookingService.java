@@ -118,6 +118,12 @@ public class BookingService implements ManagerWorkLookup {
     /** 확인 화면 "요금" 행. 저장하지 않는다. 생성 때 같은 계산을 다시 하므로 앱이 본 금액과 다를 수 없다 */
     @Transactional(readOnly = true)
     public QuoteResponse quote(QuoteRequest req) {
+        return quote(null, req);
+    }
+
+    /** 고객 견적 — 분해청소면 그 고객이 가정 정기청소 첫 결제 혜택을 받을 수 있는지 함께 본다(생성 때 잠근 뒤 다시 판정, V075) */
+    @Transactional(readOnly = true)
+    public QuoteResponse quote(UUID customerId, QuoteRequest req) {
         // 생성(doCreate)과 같은 카테고리·날짜·시각·옵션 검사를 먼저 한다 (주소·안내 항목·'수리는 1회만' 검사는 생성에서만)
         catalog.requireCategory(req.category());
         LocalDate date = parseDate(req.date());
@@ -127,7 +133,10 @@ public class BookingService implements ManagerWorkLookup {
         // 요금표 요금제(가정·원룸·분해청소 — 요금표 전환 2026-11-13). 견적에는 고객이 없어 원룸 첫 달 할인은 '받을 수 있다' 로 보이고, 생성 때 다시 판정한다
         String homeType = homeType(req.category(), req.homeType());
         var plan = pricing.plan(req.category(), homeType, req.frequency(), req.visitsPerWeek(), req.hoodSize(), true);
-        if (plan.isPresent()) return planQuote(plan.get(), req.category(), date, req.weekdays(), options);
+        if (plan.isPresent()) {
+            boolean benefit = "appliance".equals(req.category()) && customerId != null && benefits != null && benefits.available(customerId);
+            return planQuote(plan.get(), req.category(), date, req.weekdays(), options, benefit);
+        }
         durationMinutes(req.category(), req.durationHours()); // 생성과 같은 시간 범위를 확인한다.
         PriceQuote q = priceQuote(req.category(), req.frequency(), options, req.durationHours());
         List<LocalDate> dates = "recurring".equals(req.frequency()) ? seriesDates(date) : List.of(date); // 정기청소면 회차 날짜 전부, 1회면 그날 하나
@@ -141,7 +150,7 @@ public class BookingService implements ManagerWorkLookup {
     }
 
     /** 요금제 견적: 회차 날짜(정기면 고른 요일마다 4주)와 회차별 금액. perVisit 는 첫 회차, 총액 = 회차 금액 합 = 결제 금액 */
-    private QuoteResponse planQuote(PricingService.Plan plan, String category, LocalDate date, List<Integer> weekdays, List<CatalogOption> options) {
+    private QuoteResponse planQuote(PricingService.Plan plan, String category, LocalDate date, List<Integer> weekdays, List<CatalogOption> options, boolean benefit) {
         List<LocalDate> dates = plan.weekly() ? BookingSeries.weeklyDates(date, requireWeekdays(plan, date, weekdays), plan.weeks()) : List.of(date);
         List<PriceQuote> quotes = pricing.planVisits(plan, category, options);
         PriceQuote q = quotes.get(0);
@@ -149,8 +158,10 @@ public class BookingService implements ManagerWorkLookup {
         QuoteResponse.PerVisit perVisit = new QuoteResponse.PerVisit(q.base(), q.options(), q.total(), KoreanFormat.won(q.total()),
                 KoreanFormat.won(q.base()), q.options() > 0 ? "+" + KoreanFormat.won(q.options()) : null);
         String note = plan.discount() > 0 ? "첫 달 " + KoreanFormat.won(plan.discount()) + " 할인" : null;
+        long discount = benefit ? total : 0; // 첫 결제 혜택: 분해청소 1회 추가 요금까지 전액 (사용자 결정 2026-11-14)
         return new QuoteResponse(perVisit, dates.stream().map(d -> new QuoteResponse.Visit(d.toString(), KoreanFormat.dateLongWeekday(d))).toList(),
-                dates.size(), total, KoreanFormat.won(total), settings.get(SETTING_PAYMENT_NOTE, String.class), note);
+                dates.size(), total - discount, KoreanFormat.won(total - discount), settings.get(SETTING_PAYMENT_NOTE, String.class), note,
+                discount, discount > 0 ? "-" + KoreanFormat.won(discount) : null, discount > 0 ? BENEFIT_NOTE : null);
     }
 
     /** 주 N회 요금제의 요일 검사: 0~6 서로 다른 N개, 첫 방문일의 요일 포함. 맞으면 그 목록 */
@@ -186,6 +197,12 @@ public class BookingService implements ManagerWorkLookup {
      * 그래서 고쳐서 다시 보낼 수 있는 주소 검사를 횟수 제한보다 먼저 한다. 결과는 첫 회차 기준 응답 + 회차 목록
      */
     private kr.ansimclean.api.profile.FirstCleaningService firstCleaning;
+    /** 가정 정기청소 첫 결제 혜택 (V075). 단위 테스트에서 비워 두면 혜택 없음으로 본다 */
+    private kr.ansimclean.api.profile.FirstPaymentBenefitService benefits;
+    @org.springframework.beans.factory.annotation.Autowired
+    void setBenefits(kr.ansimclean.api.profile.FirstPaymentBenefitService service) { this.benefits = service; }
+    /** 견적·예약 화면의 할인 줄 이름 */
+    public static final String BENEFIT_NOTE = "가정 정기청소 첫 결제 혜택";
     @org.springframework.beans.factory.annotation.Autowired
     void setFirstCleaning(kr.ansimclean.api.profile.FirstCleaningService service) { this.firstCleaning = service; }
 
@@ -255,6 +272,12 @@ public class BookingService implements ManagerWorkLookup {
             if (firstCleaning == null) throw new IllegalStateException("FirstCleaningService required");
             bookings.flush(); // JDBC claim references the booking inserted by Hibernate.
             firstCleaning.claim(customerId, visits.get(0).getId(), road, detail); // 번호·주소당 한 번 (다른 계정이어도)
+        }
+        if (plan.isPresent() && "appliance".equals(req.category()) && benefits != null) {
+            // 가정 정기청소 첫 결제 혜택: 이 분해청소를 전액 무료로 (고객당·집당 한 번, 잠근 뒤 판정 — V075)
+            bookings.flush(); // JDBC 기록이 Hibernate 가 넣은 예약 행을 가리킨다
+            long discount = benefits.claim(customerId, visits.get(0).getId(), visits.get(0).getTotalAmount());
+            if (discount > 0) visits.get(0).applyDiscount(discount);
         }
         List<String> photos = visits.get(0).getRepairPhotos(); // 수리는 1회 예약만 되므로 첫 회차 것이 전부다 (수리가 아니면 빈 목록)
         photoUploads.attach(customerId, photos); // 예약에 붙은 사진은 24시간 정리에서 빠진다. 정리로 이미 지워졌으면 VALIDATION — 없는 파일을 가리키는 예약을 만들지 않는다 (감사 M-04·재감사 2차 #3)

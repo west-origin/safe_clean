@@ -23,4 +23,10 @@ public interface GiftPaymentHooks {
 
     /** 이 예약 결제에 쓰는 중인 금액권 금액(원, 없으면 0) — 카드 결제 금액 = 예약 금액 − 이 값 (3회차) */
     long voucherCredit(UUID bookingId);
+
+    /**
+     * 이 회차 금액 중 금액권이 낸 몫(원) — 쓰는 중이거나, 회차 취소로 금액권에 돌려준 몫까지 (빼기로 되돌린 것은 아니다).
+     * 정기 요금제 시리즈 결제에서 취소된 회차의 카드 환불 = 회차 금액 − 할인 − 이 값 (2026-11-14, 금액권은 회차 금액 비율로 나눠 쓴다)
+     */
+    long voucherShare(UUID bookingId);
 }

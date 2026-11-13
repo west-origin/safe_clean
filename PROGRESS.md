@@ -67,6 +67,16 @@
     - 판단(코드에서 정함): 화면 문구 전부(`mock.js PLAN_COPY`·`PAYMENT_COPY.series`), '10%할인' 은 요금표와 맞지 않아 가정·원룸 정기 카드에서 뺌(매장 등은 그대로), 요일은 주기 화면이 아니라 날짜/시간 화면에서 고름, N개 초과 시 가장 먼저 고른 요일을 뺌, 분해청소 2시간은 앱에도 상수로 둠(`PRICE_PLANS.hood.hours` — 서버 요금표에는 없고 duration_hours), 주 N회를 바꾸면 고른 요일은 앞의 N개만 남김
     - 남은 것: 결제 화면으로 가는 버튼은 예전 사용자 요청으로 빠져 있어(내 예약 카드·완료 화면) 이번에도 진입점은 그대로. 정기 요금제 금액권·첫 결제 혜택(후드 무료·15만 원)은 다음 회차
 
+- [x] 7회차 (2026-11-14): 정기 요금제 금액권 · 가정 정기청소 첫 결제 혜택 자동 적용 (V075, 규칙 `backend/docs/domain.md` '첫 결제 혜택·정기 요금제 금액권')
+  - 결정 기록 (2026-11-14 질의응답): 정기 요금제 금액권은 회차 금액 비율로 나눠 쓴다 · 첫 결제 혜택은 다음 분해청소에 자동 적용(쿠폰 없음) · 대리석 코팅·크랙 15만 원 할인은 이번엔 안내 문구만 · 1가구 1회 = 고객당 1회 + 같은 집 1회
+  - 서버: V075 `bookings.discount_amount`(0 ≤ 할인 ≤ 총액) · `first_payment_benefits`(예약당 하나, 원천 시리즈·주소). `FirstPaymentBenefitService`(profile — 원천 = 결제 확정된 가정 주 N회 시리즈, 같은 집 = 첫 1회 체험과 같은 주소 비교, 고객 → 집 잠금). 분해청소 생성 때 claim → 전액 할인·결제 완료, 견적도 0원 + 할인 줄(`discountAmount·discountLabel·discountNote`), 예약 응답 `discountAmount·payLabel`. 할인은 매니저 몫·수수료에 영향 없음(총액 기준)
+  - 서버: 금액권 시리즈 쓰기·빼기·조회(`VoucherService.applySeries·removeSeries·seriesResponse`, `split` = 내림 + 남은 원 앞에서 1원씩), 시리즈 결제 금액·회차 환불 = 카드 몫(`CheckoutService.cardShare`, 복원된 금액권 몫 포함 `GiftPaymentHooks.voucherShare`), 재조정 대상 SQL 에 카드 몫 조건, `closePendingSeriesPayment`
+  - 앱: 결제 화면이 시리즈 결제에도 금액권 칸(안내 문구 `GIFTS_COPY.perSeries`), 확인 화면 요금에 첫 결제 혜택 할인 줄, 완료 화면 '총 결제 금액' = `payLabel`, 가짜 서버 `__fake.firstPaymentBenefit`
+  - 문서: domain.md · api.md '첫 결제 혜택·정기 요금제 금액권', payments.md 정기 요금제 절, 앱 `api/README.md`
+  - 검증: 백엔드 `verify -DskipITs` 862 통과(+9), 앱 653 → 655 통과, `scripts/verify-first-payment-benefit-v075.mjs`(PGlite) 통과. **IT 미실행**(Docker 없음) — `PricePlanIT` 에 혜택 흐름·시리즈 금액권 분할·회차 취소 두 갈래 환불 2개 추가
+  - 판단(코드에서 정함): 혜택 금액 = 분해청소 총액(추가 요금 포함), 혜택은 쿠폰 목록에 보이지 않음, 원천 시리즈가 나중에 전부 환불돼도 이미 쓴 혜택은 유지, 전액 할인 예약 취소 시 결제 상태 refunded, 금액권 몫이 0원인 회차는 사용 줄을 만들지 않음, 금액권이 시리즈를 다 덮어도 응답·문구는 기존 '금액권으로 결제가 끝났어요', 같은 집 판정은 카카오를 다시 부르지 않고 저장된 필지값·도로명으로, 문구('첫 결제 혜택으로 결제할 금액이 없어요'·'가정 정기청소 첫 결제 혜택'·`perSeries`·`PAYMENT_COPY.series`)
+  - 남은 것: 날짜/시간·옵션 화면 하단 표시 금액은 혜택 전 금액(확인 화면에서 0원) — 앞 화면에도 보이려면 혜택 조회 API 가 필요. 대리석·크랙 15만 원은 수리 결제가 생길 때
+
 ## 매니저 방문 취소 승인·재배정 (2026-11-13 사용자 요청 — 규칙 `backend/docs/domain.md` 같은 이름의 절, 계약 `api.md`)
 매니저 '방문 취소' → 취소 요청 → 어드민 승인 → 24시간 재배정 콜(근처 매니저 전원, 선착순 1명) → 아무도 없으면 어드민 직접 배정. 3회차로 나눈다.
 - [x] 결정 기록 (2026-11-13 질의응답): 전부 승인제(앱 직접 취소 없음) · 승인 취소는 점수 0점(기록만) · 승인 뒤 콜 1번을 24시간 열어 둠(`reassign_window_hours`) · 방문까지 24시간 미만이면 콜 없이 바로 어드민 · 알림은 어드민 앱 푸시 + 관리자 목록 화면 · 어드민 직접 배정 API 이번에 · 상태는 `assigning` + 표시 컬럼(새 상태값 없음)

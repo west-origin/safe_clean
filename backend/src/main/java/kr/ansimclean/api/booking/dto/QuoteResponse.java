@@ -7,7 +7,16 @@ import java.util.List;
 // totalAmount·totalLabel = 1회 금액 × 방문 횟수(원), paymentNote = 결제 안내 문구(app_settings 에서 읽는다).
 /** 견적 (docs/api.md §5.2 getBookingQuote). label 들은 KoreanFormat.won */
 /** savingNote = 정기청소가 1회 청소보다 싼 만큼 (없으면 null) — 화면이 할인을 말해 주지 못했다 (사용성 검토 2026-09-22) */
-public record QuoteResponse(PerVisit perVisit, List<Visit> visits, int visitsPlanned, long totalAmount, String totalLabel, String paymentNote, String savingNote) {
+/**
+ * discountAmount·discountLabel("-150,000원")·discountNote = 첫 결제 혜택 할인 (V075 — 없으면 0·null·null). 할인이 있으면 totalAmount·totalLabel 은 할인 뒤 낼 금액,
+ * perVisit 은 할인 전 금액이다 (2026-11-14)
+ */
+public record QuoteResponse(PerVisit perVisit, List<Visit> visits, int visitsPlanned, long totalAmount, String totalLabel, String paymentNote, String savingNote,
+                            long discountAmount, String discountLabel, String discountNote) {
+    public QuoteResponse(PerVisit perVisit, List<Visit> visits, int visitsPlanned, long totalAmount, String totalLabel, String paymentNote, String savingNote) {
+        this(perVisit, visits, visitsPlanned, totalAmount, totalLabel, paymentNote, savingNote, 0, null, null);
+    }
+
     /** baseLabel·optionsLabel 은 요금 내역을 줄로 보여 주기 위한 것 (옵션이 없으면 optionsLabel = null) */
     // base = 1회 기본요금, options = 유료 옵션 합, total = base + options, label = total 을 "85,000원" 모양으로
     public record PerVisit(long base, long options, long total, String label, String baseLabel, String optionsLabel) {}

@@ -35,6 +35,11 @@ public class GiftPaymentBridge implements GiftPaymentHooks {
     }
 
     @Override
+    public long voucherShare(UUID bookingId) {
+        return vouchers.shareFor(bookingId);
+    }
+
+    @Override
     public Optional<UUID> lockForPayment(UUID giftId) {
         return store.lockGift(giftId).map(g -> {
             store.lockVoucher(g.voucherId());

@@ -70,6 +70,12 @@ public class VoucherStore {
                 .param("b", bookingId).query(Long.class).single();
     }
 
+    /** 이 예약 금액 중 금액권이 낸 몫 — 쓰는 중 + 예약 취소로 돌려준 것 (빼기 removed 는 결제 전이라 셈하지 않는다). 시리즈 회차 카드 환불 계산 */
+    public long shareFor(UUID bookingId) {
+        return jdbc.sql("select coalesce(sum(amount), 0) from voucher_uses where booking_id = :b and (status = 'applied' or restore_reason = 'booking_cancelled')")
+                .param("b", bookingId).query(Long.class).single();
+    }
+
     public UUID insertUse(UUID voucherId, UUID bookingId, UUID customerId, long amount, Instant now) {
         return jdbc.sql("insert into voucher_uses(voucher_id, booking_id, customer_id, amount, status, created_at) values (:v, :b, :c, :a, 'applied', :now) returning id")
                 .param("v", voucherId).param("b", bookingId).param("c", customerId).param("a", amount).param("now", ts(now)).query(UUID.class).single();

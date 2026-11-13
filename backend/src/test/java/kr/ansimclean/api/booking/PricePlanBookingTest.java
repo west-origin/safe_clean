@@ -166,6 +166,56 @@ class PricePlanBookingTest {
         assertThatThrownBy(() -> service.create(BookingServiceTest.CUSTOMER, "k2", noSize)).hasMessage("후드 크기를 골라주세요");
     }
 
+    // ── 가정 정기청소 첫 결제 혜택 (V075, 사용자 결정 2026-11-14): 다음 분해청소 1회를 추가 요금까지 전액 무료로 ──
+    @Test
+    void 첫_결제_혜택이_있으면_분해청소가_전액_할인되고_결제_완료다() {
+        var benefits = mock(kr.ansimclean.api.profile.FirstPaymentBenefitService.class);
+        service.setBenefits(benefits);
+        when(benefits.claim(eq(BookingServiceTest.CUSTOMER), any(), eq(150000L))).thenReturn(150000L);
+        CreateBookingRequest hood = new CreateBookingRequest("appliance", "oneTime", "2026-11-02", "10:00", "서울특별시 강남구 테헤란로 123", null,
+                List.of(), List.of(), List.of(), null, null, null, false, null, null, null, null, "900");
+        BookingResponse res = service.create(BookingServiceTest.CUSTOMER, "k1", hood);
+        Booking saved = savedVisits().get(0);
+        verify(benefits).claim(BookingServiceTest.CUSTOMER, saved.getId(), 150000L);
+        assertThat(saved.getTotalAmount()).isEqualTo(150000); // 매니저 몫·수수료는 정가 기준
+        assertThat(saved.getPlatformFee()).isEqualTo(15000);
+        assertThat(saved.getDiscountAmount()).isEqualTo(150000);
+        assertThat(saved.getPaymentStatus()).isEqualTo("paid");
+        assertThat(res.discountAmount()).isEqualTo(150000);
+        assertThat(res.payLabel()).isEqualTo("0원");
+        assertThat(res.totalLabel()).isEqualTo("150,000원");
+    }
+
+    @Test
+    void 혜택이_없으면_할인_없고_가정_원룸에는_혜택을_묻지_않는다() {
+        var benefits = mock(kr.ansimclean.api.profile.FirstPaymentBenefitService.class);
+        service.setBenefits(benefits);
+        CreateBookingRequest hood = new CreateBookingRequest("appliance", "oneTime", "2026-11-02", "10:00", "서울특별시 강남구 테헤란로 123", null,
+                List.of(), List.of(), List.of(), null, null, null, false, null, null, null, null, "600");
+        BookingResponse res = service.create(BookingServiceTest.CUSTOMER, "k1", hood); // claim → 0 (mock 기본값)
+        assertThat(res.discountAmount()).isZero();
+        assertThat(res.payLabel()).isEqualTo("130,000원");
+        assertThat(savedVisits().get(0).getPaymentStatus()).isEqualTo("unpaid");
+        when(seriesRepo.hasStudioPlan(any())).thenReturn(true);
+        service.create(BookingServiceTest.CUSTOMER, "k2", home("recurring", "house", 1, List.of(0)));
+        verify(benefits, org.mockito.Mockito.times(1)).claim(any(), any(), org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
+    void 견적은_고객이_혜택을_받을_수_있으면_할인_줄과_0원() {
+        var benefits = mock(kr.ansimclean.api.profile.FirstPaymentBenefitService.class);
+        service.setBenefits(benefits);
+        when(benefits.available(BookingServiceTest.CUSTOMER)).thenReturn(true);
+        QuoteRequest hood = new QuoteRequest("appliance", "oneTime", "2026-11-02", "10:00", List.of(), List.of(), null, null, null, null, "1200");
+        QuoteResponse q = service.quote(BookingServiceTest.CUSTOMER, hood);
+        assertThat(q.totalAmount()).isZero();
+        assertThat(q.totalLabel()).isEqualTo("0원");
+        assertThat(q.discountLabel()).isEqualTo("-200,000원");
+        assertThat(q.discountNote()).isEqualTo(BookingService.BENEFIT_NOTE);
+        assertThat(q.perVisit().total()).isEqualTo(200000); // 할인 전 금액
+        assertThat(service.quote(hood).discountAmount()).isZero(); // 고객을 모르면 혜택 없음
+    }
+
     @Test
     void 견적도_같은_요금제_계산이고_원룸_첫_달은_할인_안내() {
         QuoteResponse q = service.quote(new QuoteRequest("home", "recurring", "2026-11-02", "10:00", List.of(), List.of(), null, "house", 3, List.of(0, 2, 4), null));

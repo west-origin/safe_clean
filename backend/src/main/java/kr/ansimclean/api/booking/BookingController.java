@@ -40,8 +40,8 @@ public class BookingController {
 
     /** POST /customer/bookings/quote — 예약 확인 화면의 요금 계산. 저장하지 않는다 */
     @PostMapping("/bookings/quote")
-    public QuoteResponse quote(@Valid @RequestBody QuoteRequest req) {
-        return bookings.quote(req);
+    public QuoteResponse quote(@AuthenticationPrincipal CurrentUser user, @Valid @RequestBody QuoteRequest req) {
+        return bookings.quote(user == null ? null : user.id(), req);
     }
 
     /**

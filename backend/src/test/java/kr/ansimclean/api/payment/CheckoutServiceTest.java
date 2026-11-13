@@ -285,6 +285,49 @@ class CheckoutServiceTest {
         assertThat(visits.get(3).getPaymentStatus()).isEqualTo("unpaid");
     }
 
+    // ── 정기 요금제 금액권 (2026-11-14: 회차 금액 비율로 나눠 쓴다) — 카드 몫 = 회차 금액 − 할인 − 금액권 몫 ──
+    @Test void series_card_amount_is_reduced_by_each_visits_voucher_share() {
+        var visits = seriesVisits();
+        long[] shares = {17251, 17250, 17250, 17249};
+        for (int i = 0; i < 4; i++) when(gifts.voucherCredit(visits.get(i).getId())).thenReturn(shares[i]);
+        when(payments.findFirstBySeriesIdAndProviderAndStatusNotOrderByCreatedAtDesc(series, "toss", "failed")).thenReturn(Optional.empty());
+        assertThat(service.prepare(user, visits.get(1).getId(), "k").amount()).isEqualTo(329000 - 69000);
+
+        for (int i = 0; i < 4; i++) when(gifts.voucherCredit(visits.get(i).getId())).thenReturn(visits.get(i).getTotalAmount());
+        assertThatThrownBy(() -> service.prepare(user, visits.get(1).getId(), "k2")).hasMessageContaining("금액권으로 결제가 끝났어요");
+    }
+
+    @Test void a_cancelled_visit_refunds_only_its_card_share_when_a_voucher_paid_part() {
+        var visits = seriesVisits();
+        var p = seriesPayment(329000 - 69000);
+        p.requestConfirmation("key", 329000 - 69000, now);
+        service.apply(p.getId(), new TossPaymentGateway.Result("key", p.getId().toString(), "DONE", "KRW", 329000 - 69000, 329000 - 69000));
+        visits.get(2).cancel("customer", now.plusSeconds(60), 24);
+        when(gifts.voucherShare(visits.get(2).getId())).thenReturn(17250L); // 복원기가 이미 금액권에 돌려줬어도 몫은 그대로 본다
+        List<PaymentRefund> rows = new ArrayList<>();
+        when(refunds.save(any())).thenAnswer(i -> { rows.add(i.getArgument(0)); return i.getArgument(0); });
+        when(refunds.findByPaymentIdAndBookingIdIsNotNullOrderByCreatedAtAscIdAsc(p.getId())).thenAnswer(i -> List.copyOf(rows));
+        assertThat(service.work(p.getId()).cancelAmount()).isEqualTo(82249L - 17250L);
+
+        // 금액권이 다 낸 회차는 카드 환불 행이 없다
+        visits.get(3).cancel("customer", now.plusSeconds(60), 24);
+        when(gifts.voucherShare(visits.get(3).getId())).thenReturn(82249L);
+        service.work(p.getId());
+        assertThat(rows).extracting(PaymentRefund::getBookingId).containsExactly(visits.get(2).getId());
+    }
+
+    // ── 첫 결제 혜택 (V075): 전액 할인된 분해청소는 결제할 금액이 없다 ──
+    @Test void a_fully_discounted_benefit_booking_needs_no_card() {
+        Booking hood = TestBookings.benefitHood(user, LocalDate.of(2026, 9, 22));
+        when(bookings.lockForUpdate(hood.getId())).thenReturn(hood);
+        when(payments.findFirstByBookingIdAndProviderAndStatusNotOrderByCreatedAtDesc(hood.getId(), "toss", "failed")).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.prepare(user, hood.getId(), "k")).hasMessage(CheckoutService.BENEFIT_COVERED);
+        assertThat(hood.getPaymentStatus()).isEqualTo("paid");
+        hood.cancel("customer", now, 24);
+        assertThat(hood.getPaymentStatus()).isEqualTo("refunded");
+        verify(payments, never()).save(any());
+    }
+
     @Test void others_cannot_read_a_series_payment() {
         seriesVisits();
         var p = seriesPayment(329000);

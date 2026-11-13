@@ -65,6 +65,7 @@ public final class BookingMapper {
         List<BookingResponse.Visit> visitRows = visits.stream()
                 .map(v -> new BookingResponse.Visit(v.getId(), v.getServiceDate().toString(), KoreanFormat.dateLongWeekday(v.getServiceDate()))).toList();
         long total = visits.stream().mapToLong(Booking::getTotalAmount).sum(); // 회차 금액의 합 — 취소된 회차도 visits 에 있으면 더한다
+        long discount = visits.stream().mapToLong(Booking::getDiscountAmount).sum(); // 첫 결제 혜택 할인 (V075)
         // perVisitLabel = 이 회차 금액("85,000원"), totalAmount/totalLabel = 위 합계.
         // matchingFailed = 매칭 실패 표시가 남아 있는가 (배정되면 Booking.assign 이 지운다 — 매니저가 있으면 늘 false).
         // cancelled = 취소된 예약인가 — 매칭 실패 표시 없이(콜이 나가 있거나 밤 보류 중) 취소된 수리 예약을 다시 열어도 완료 화면이 '배정 중' 대신
@@ -72,7 +73,7 @@ public final class BookingMapper {
         return new BookingResponse(b.getId(), b.getCategoryKey(), b.getFrequency(), b.getServiceDate().toString(), KoreanFormat.hhmm(b.getServiceTime()),
                 b.getRoadAddress(), b.getDetailAddress(), categoryLabel, cleaner, b.getManagerId() != null, b.getMatchingFailedAt() != null,
                 b.getStatus() == BookingStatus.CANCELLED, b.getSeriesId(), visitRows,
-                KoreanFormat.won(b.getTotalAmount()), total, KoreanFormat.won(total), b.getHomeType(), b.getPricePlan());
+                KoreanFormat.won(b.getTotalAmount()), total, KoreanFormat.won(total), b.getHomeType(), b.getPricePlan(), discount, KoreanFormat.won(total - discount));
     }
 
     /** 예약 상태 → 카드가 들어갈 탭 키: done / cancelled / 그 밖은 upcoming(예정) */

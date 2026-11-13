@@ -141,6 +141,11 @@ public class Booking {
     @Column(name = "platform_fee", nullable = false)
     private long platformFee;
 
+    // 할인 금액 (V075 — 가정 정기청소 첫 결제 혜택으로 분해청소 무료). 고객이 낼 금액 = totalAmount − discountAmount − 금액권.
+    // 매니저 몫·수수료는 totalAmount 기준 그대로다 (할인은 회사 부담)
+    @Column(name = "discount_amount", nullable = false)
+    private long discountAmount;
+
     @Column(name = "duration_minutes", nullable = false) // 예상 소요 시간(분) — endsAt 계산에 쓴다
     private int durationMinutes;
 
@@ -309,6 +314,17 @@ public class Booking {
 
     /** 만들 때 요금제 키를 적는다 (BookingService.doCreate 만, 저장 전) */
     void markPricePlan(String key) { this.pricePlan = key; }
+
+    public long getDiscountAmount() { return discountAmount; }
+    /** 금액권·카드 결제 전 고객이 낼 금액 (총액 − 할인) */
+    public long getPayableAmount() { return totalAmount - discountAmount; }
+
+    /** 첫 결제 혜택 할인을 적는다 (예약 생성 때 한 번 — BookingService). 전액이면 낼 금액이 없어 결제 완료로 둔다 */
+    void applyDiscount(long amount) {
+        if (amount < 0 || amount > totalAmount) throw new IllegalArgumentException("discount");
+        discountAmount = amount;
+        if (amount > 0 && amount == totalAmount) paymentStatus = "paid";
+    }
     public String getFrequency() { return frequency; }
     public LocalDate getServiceDate() { return serviceDate; }
     public LocalTime getServiceTime() { return serviceTime; }
@@ -558,6 +574,12 @@ public class Booking {
         cancelledAt = now;
         cancelReason = reason;
         status = BookingStatus.CANCELLED;
+        releaseFullDiscount();
+    }
+
+    /** 혜택으로 전액 무료였던 예약이 취소되면 결제 상태를 '환불'로 (돌려줄 돈은 없다 — 혜택은 FirstPaymentBenefitService 가 돌려준다) */
+    private void releaseFullDiscount() {
+        if (discountAmount > 0 && discountAmount == totalAmount) paymentStatus = "refunded";
     }
 
     /** 시스템 취소(방문일 경과 등). 기한 검사 없음 */
@@ -567,6 +589,7 @@ public class Booking {
         cancelledAt = now;
         cancelReason = reason;
         status = BookingStatus.CANCELLED;
+        releaseFullDiscount();
     }
 
     /**
