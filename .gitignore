@@ -31,3 +31,6 @@ key.properties
 /artifacts/payment-test-tmp/
 /artifacts/payment-*.log
 /artifacts/payment-db-validation.json
+
+# 로컬 iOS 빌드·아카이브 산출물 (xcodebuild 출력, 1GB 이상)
+/build/
