@@ -1266,3 +1266,4 @@ Figma 매니저 페이지(22화면)에 로그인·가입 화면이 없어 사용
   - PricePlanIT: 테스트가 JDBC 에 Instant 를 바로 넘김 → Timestamp.
   - CatalogIT 확인 문구: 앱 화면(mock CONFIRM_COPY, e84cb34 에서 변경)과 서버 app_settings.confirm_copy(V005 옛 문구)가 달랐다 → **V076** 이 서버 문구를 앱과 같게(옛 문구 그대로일 때만). 화면은 앱 상수를 직접 써서 사용자에게 보이는 변화는 없다.
   - 고객 앱 Reservations 포커스 테스트가 CI 에서만 실패 → waitFor 로 기다림.
+- [x] 3차(남은 12개): 작업 시작 때 촬영 공간이 비어 있고 매니저가 등록한 공간마다 전 사진 3장이 필요한 규칙(e84cb34)에 맞춰 `ItSupport.confirmBeforePhotos` 가 공간이 없으면 '거실' 등록 후 3장씩 채운다 · CleaningPhotoIT 는 주방을 등록한 뒤 찍고 사진 수 6장 · 원룸 라벨·2시간 단정 · MatchingIT 의 9/19(토) 예약은 근무일(9/21 월)로 · PricePlanIT 은 멈춘 시계 때문에 취소 시각 = 결제 시각이라 환불 대상에서 빠져 움직이는 시계로.

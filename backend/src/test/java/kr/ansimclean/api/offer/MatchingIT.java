@@ -456,7 +456,7 @@ class MatchingIT {
         assertThat(calls(b)).isEmpty();
         assertThat(offers.findByBookingId(x).stream().filter(Offer::isPending)).isEmpty();
 
-        UUID y = createBooking("2026-09-19", "10:00");
+        UUID y = createBooking("2026-09-21", "10:00"); // 월요일 — 9/19 는 토요일이라 기본 근무시간(월~금) 매니저에게 콜이 가지 않는다
         assertThat(accept(a, offerFor(a, y))).isEqualTo(200);
         UUID request = requestCancel(a, y);
         mvc.perform(post("/api/v1/customer/reservations/" + y + "/cancel").header("Authorization", customer.bearer())).andExpect(status().isOk());
@@ -530,7 +530,7 @@ class MatchingIT {
         assertThat(liveSessions.count()).isEqualTo(1);
         assertThat(checklist.findByBookingIdOrderBySort(x)).hasSize(9);
         mvc.perform(get("/api/v1/manager/schedule").param("from", "2026-09-22").param("to", "2026-09-22").header("Authorization", a.bearer()))
-                .andExpect(jsonPath("$.week[0].items[0].time").value("14:00 - 17:00"));
+                .andExpect(jsonPath("$.week[0].items[0].time").value("14:00 - 16:00")); // 원룸 1회 2시간
     }
 
     // 일정 변경으로 a 에게 간 우선 콜을 a 가 거절 → 회차는 그대로(2) 두고 b 에게 일반 콜이 간다
@@ -567,7 +567,7 @@ class MatchingIT {
     // 9/21(월)·9/22(화) 는 두 매니저의 기본 근무일이다. 17:00·18:00 에 시작하는 3시간 예약 모두 a·b 가 콜을 받는지 본다
     @Test
     void 근무_종료를_넘겨_끝나는_예약도_시작이_근무시간_안이면_기본_근무시간_매니저에게_콜이_간다() throws Exception { // 자체 점검 #16 후속 (사용자 결정 2026-09-27)
-        UUID late = createBooking("2026-09-21", "17:00"); // 가정 3시간 → 20:00 에 끝난다, 두 매니저 모두 09~18시
+        UUID late = createBooking("2026-09-21", "17:00"); // 원룸 2시간 → 19:00 에 끝난다, 두 매니저 모두 09~18시
         assertThat(offers.findByBookingId(late)).extracting(Offer::getManagerId).containsExactlyInAnyOrder(a.id(), b.id());
         UUID last = createBooking("2026-09-22", "18:00"); // 근무 종료 시각에 시작하는 마지막 슬롯도 (21:00 에 끝난다)
         assertThat(offers.findByBookingId(last)).extracting(Offer::getManagerId).containsExactlyInAnyOrder(a.id(), b.id());

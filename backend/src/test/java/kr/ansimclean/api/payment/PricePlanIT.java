@@ -38,9 +38,11 @@ import static org.mockito.Mockito.*;
 class PricePlanIT {
     @Container @ServiceConnection static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16-alpine");
     static final Instant NOW = Instant.parse("2026-09-15T05:00:00Z");
+    // 움직이는 시계: 환불 대상 조건이 '결제 뒤에 취소된 회차'(cancelled_at > 결제 created_at)라 멈춘 시계에서는 같은 시각이 돼 빠진다
+    static final kr.ansimclean.api.MutableClock CLOCK = new kr.ansimclean.api.MutableClock(NOW, ZoneOffset.UTC);
     @TestConfiguration(proxyBeanMethods = false)
     static class FixedClock {
-        @Bean @Primary AppClock paymentClock() { return new AppClock(Clock.fixed(NOW, ZoneOffset.UTC)); }
+        @Bean @Primary AppClock paymentClock() { return new AppClock(CLOCK); }
     }
     @Autowired ProfileService profiles;
     @Autowired BookingService bookings;
@@ -79,6 +81,9 @@ class PricePlanIT {
         return visits;
     }
 
+    @org.junit.jupiter.api.BeforeEach
+    void resetClock() { CLOCK.set(NOW); } // 테스트 순서와 무관하게 같은 시각에서 시작
+
     @Test void one_month_series_payment_and_visit_share_refund() {
         var user = ItSupport.signedUp(profiles, jwt, "customer", "요금제테스트");
         List<UUID> ids = weeklySeries(user.id());
@@ -99,6 +104,7 @@ class PricePlanIT {
         assertThat(jdbc.queryForList("select payment_status from bookings where series_id = ?", String.class, series)).containsOnly("paid");
 
         // 세 번째 회차만 취소 → 재조정이 회차 몫(82,249)만 부분 취소
+        CLOCK.set(NOW.plusSeconds(60)); // 결제 1분 뒤 취소
         bookings.cancel(user.id(), ids.get(2), new CancelRequest("customer", false));
         when(gateway.lookup(first.orderId())).thenReturn(paid);
         var partial = new TossPaymentGateway.Result(req.paymentKey(), first.orderId(), "PARTIAL_CANCELED", "KRW", 329000, 329000 - 82249);
@@ -176,6 +182,7 @@ class PricePlanIT {
         when(gateway.confirm(order.orderId(), req.paymentKey(), 329000 - 69000)).thenReturn(paid);
         dispatcher.dispatchBatch();
 
+        CLOCK.set(NOW.plusSeconds(60)); // 결제 1분 뒤 취소
         bookings.cancel(user.id(), ids.get(2), new CancelRequest("customer", false)); // 셋째 회차 82,249 = 금액권 17,250 + 카드 64,999
         restorer.run();
         assertThat(jdbc.queryForObject("select balance from vouchers where id = ?", Long.class, voucher)).isEqualTo(17250);

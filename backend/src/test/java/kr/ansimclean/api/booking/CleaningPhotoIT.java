@@ -137,6 +137,10 @@ class CleaningPhotoIT {
         assertThat(living.get("afterUrl").isNull()).isTrue();
         String livingId = living.get("id").asString();
         assertThat(living.get("beforeUrl").asString()).isEqualTo("signed:" + job + "/" + livingId + "-before.png");
+        // 등록하지 않은 공간은 찍을 수 없다 → 주방을 등록한 뒤 찍는다
+        mvc.perform(multipart(base).file(png()).param("location", "주방").header("Authorization", manager.bearer())).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/manager/jobs/" + job + "/rooms").header("Authorization", manager.bearer())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"주방\"}")).andExpect(status().isOk());
         mvc.perform(multipart(base).file(png()).param("location", "주방").header("Authorization", manager.bearer())).andExpect(status().isOk());
 
         // 고객: 아직 끝나지 않았다
@@ -164,7 +168,7 @@ class CleaningPhotoIT {
 
         mvc.perform(get(base).header("Authorization", manager.bearer()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.max").value(10))
-                .andExpect(jsonPath("$.photos.length()").value(4)).andExpect(jsonPath("$.photos[0].location").value("거실 소파 앞"));
+                .andExpect(jsonPath("$.photos.length()").value(6)).andExpect(jsonPath("$.photos[0].location").value("거실 소파 앞")); // 두 공간 × 3장
 
         // 한 곳만 후 사진이 있으면 완료 불가. 모든 공간의 후 사진을 찍어야 완료된다.
         mvc.perform(post("/api/v1/manager/jobs/" + job + "/complete").header("Authorization", manager.bearer())).andExpect(status().isBadRequest());
@@ -173,7 +177,7 @@ class CleaningPhotoIT {
         mvc.perform(post("/api/v1/manager/jobs/" + job + "/complete").header("Authorization", manager.bearer())).andExpect(status().isOk());
         mvc.perform(get("/api/v1/customer/bookings/" + job + "/photos").header("Authorization", customer.bearer()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.ready").value(true))
-                .andExpect(jsonPath("$.photos.length()").value(4))
+                .andExpect(jsonPath("$.photos.length()").value(6))
                 .andExpect(jsonPath("$.photos[0].id").value(livingId))
                 .andExpect(jsonPath("$.photos[0].afterUrl").value("signed:" + second));
 
@@ -182,13 +186,15 @@ class CleaningPhotoIT {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("INVALID_STATE"));
         mvc.perform(delete(base + "/" + livingId).header("Authorization", manager.bearer())).andExpect(status().isConflict());
         mvc.perform(get(base).header("Authorization", manager.bearer())).andExpect(status().isOk());
-        assertThat(jdbc.queryForObject("select count(*) from cleaning_photos where booking_id = ?::uuid", Integer.class, job.toString())).isEqualTo(4);
+        assertThat(jdbc.queryForObject("select count(*) from cleaning_photos where booking_id = ?::uuid", Integer.class, job.toString())).isEqualTo(6);
     }
 
     @Test
     void 지우기와_남의_예약() throws Exception {
         UUID job = started();
         String base = "/api/v1/manager/jobs/" + job + "/photos";
+        mvc.perform(post("/api/v1/manager/jobs/" + job + "/rooms").header("Authorization", manager.bearer())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"거실\"}")).andExpect(status().isOk());
         String id = read(mvc.perform(multipart(base).file(png()).param("location", "거실").header("Authorization", manager.bearer())).andExpect(status().isOk())).get("id").asString();
         mvc.perform(delete(base + "/" + id).header("Authorization", manager.bearer())).andExpect(status().isNoContent());
         mvc.perform(delete(base + "/" + id).header("Authorization", manager.bearer())).andExpect(status().isNotFound());

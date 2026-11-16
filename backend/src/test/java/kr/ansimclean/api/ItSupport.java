@@ -75,18 +75,30 @@ public final class ItSupport {
         jdbc.execute("truncate table profiles, idempotency_keys, phone_verifications, outbox_events, livekit_events cascade");
     }
 
-    /** 현재 필수 공간마다 실제 사진 API로 전 사진을 올리고 확정한다. 이미 올린 공간은 유지한다. */
+    /**
+     * 필수 공간마다 실제 사진 API로 전 사진을 3장까지 채우고 확정한다(JobMediaService: 공간마다 3장). 이미 올린 사진은 유지한다.
+     * 작업을 시작하면 촬영 공간이 비어 있고 매니저가 현장에서 등록한다 — 아직 없으면 '거실' 한 곳을 등록한다
+     */
     public static void confirmBeforePhotos(MockMvc mvc, UUID job, User manager) throws Exception {
         String base = "/api/v1/manager/jobs/" + job + "/photos";
         var json = JsonMapper.builder().build();
         var list = json.readTree(mvc.perform(get(base)
                 .header("Authorization", manager.bearer())).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+        if (list.get("requiredRooms").isEmpty()) {
+            mvc.perform(post("/api/v1/manager/jobs/" + job + "/rooms").header("Authorization", manager.bearer())
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{\"name\":\"거실\"}")).andExpect(status().isOk());
+            list = json.readTree(mvc.perform(get(base)
+                    .header("Authorization", manager.bearer())).andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+        }
         for (var room : list.get("requiredRooms")) {
-            if (list.get("photos").valueStream().anyMatch(p -> room.asString().equals(p.get("location").asString()))) continue;
-            mvc.perform(multipart(base).file(photo())
-                    .param("location", room.asString()).header("Authorization", manager.bearer()))
-                    .andExpect(status().isOk());
+            long have = list.get("photos").valueStream().filter(p -> room.asString().equals(p.get("location").asString())).count();
+            for (long i = have; i < 3; i++) {
+                mvc.perform(multipart(base).file(photo())
+                        .param("location", room.asString()).header("Authorization", manager.bearer()))
+                        .andExpect(status().isOk());
+            }
         }
         mvc.perform(post(base + "/confirm-before")
                 .header("Authorization", manager.bearer())).andExpect(status().isOk());

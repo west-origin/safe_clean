@@ -151,7 +151,7 @@ class BookingFlowIT {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         String id = json.readTree(created).get("id").asString();
 
-        mvc.perform(get("/api/v1/customer/bookings/" + id).header("Authorization", auth)).andExpect(status().isOk()).andExpect(jsonPath("$.serviceLabel").value("가정 청소"));
+        mvc.perform(get("/api/v1/customer/bookings/" + id).header("Authorization", auth)).andExpect(status().isOk()).andExpect(jsonPath("$.serviceLabel").value("원룸 청소"));
         // saveAddress → 주소 목록에 남고 첫 주소라 기본 주소
         mvc.perform(get("/api/v1/customer/addresses/default").header("Authorization", auth)).andExpect(status().isOk()).andExpect(jsonPath("$.roadAddress").value("서울특별시 강남구 테헤란로 123"));
         // 주소 관리에서 다른 주소를 기본으로 → 예약 "기존 주소" 가 바뀐다 (직접 사용 점검 U15 — 부분 유니크 인덱스를 실제 DB 에서)
