@@ -157,7 +157,7 @@ class MatchingIT {
         assertThat(calls(a)).hasSize(1);
         assertThat(calls(b)).hasSize(1);
         assertThat(calls(a).get(0).get("title").asString()).isEqualTo("9월 17일 목요일 오전 10:00");
-        assertThat(calls(a).get(0).get("pay").asString()).isEqualTo("90,000원"); // 100,000 − 10%
+        assertThat(calls(a).get(0).get("pay").asString()).isEqualTo("62,100원"); // 원룸 1회 69,000 − 수수료 10%
         assertThat(calls(a).get(0).get("note").asString()).isEqualTo("특이사항: 반려동물이 있어요");
 
         UUID offerA = offerFor(a, bookingId);
@@ -169,7 +169,7 @@ class MatchingIT {
         assertThat(calls(b)).isEmpty();
 
         mvc.perform(get("/api/v1/manager/jobs/" + bookingId).header("Authorization", a.bearer()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("scheduled")).andExpect(jsonPath("$.pay").value("90,000원"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("scheduled")).andExpect(jsonPath("$.pay").value("62,100원"));
         mvc.perform(get("/api/v1/manager/jobs/" + bookingId).header("Authorization", b.bearer())).andExpect(status().isNotFound());
         assertThat(liveSessions.findById(bookingId)).isPresent();
         assertThat(checklist.findByBookingIdOrderBySort(bookingId)).hasSize(9);
@@ -429,7 +429,7 @@ class MatchingIT {
                         .content("{\"managerId\":\"" + b.id() + "\"}"))
                 .andExpect(status().isOk());
         assertThat(bookingStatus(x)).isEqualTo("scheduled");
-        mvc.perform(get("/api/v1/manager/jobs/" + x).header("Authorization", b.bearer())).andExpect(status().isOk()).andExpect(jsonPath("$.pay").value("90,000원"));
+        mvc.perform(get("/api/v1/manager/jobs/" + x).header("Authorization", b.bearer())).andExpect(status().isOk()).andExpect(jsonPath("$.pay").value("62,100원"));
         mvc.perform(get("/api/v1/admin/reassignments").header("Authorization", admin)).andExpect(jsonPath("$.length()").value(0));
         assertThat(jdbc.queryForObject("select count(*) from activity_logs where action = 'booking.assign' and target_id = ?", Integer.class, x.toString())).isEqualTo(1);
     }

@@ -112,10 +112,10 @@ class BookingFlowIT {
 
     /**
      * 예약 생성 요청 본문(JSON 문자열). 주소·요청사항은 고정이고 반복·날짜·시각·무료 옵션만 바꾼다. saveAddress=true 라 주소 목록에도 남는다.
-     * 1회 = 가정 청소(요금표: 첫 1회 체험), 정기 = 매장 청소 — 가정·원룸 정기는 주 N회 요금제(PricePlanBookingTest)라 매월 1회 정기는 매장으로 본다 (요금표 전환 2026-11-13)
+     * 1회 = 원룸 청소(요금표 studio_once — 가정 첫 1회 체험은 휴대폰 인증·번호/주소당 한 번), 정기 = 매장 청소 — 가정·원룸 정기는 주 N회 요금제(PricePlanBookingTest)라 매월 1회 정기는 매장으로 본다 (요금표 전환 2026-11-13)
      */
     String body(String frequency, String date, String time, List<String> free) {
-        String category = "recurring".equals(frequency) ? "\"store\"" : "\"home\",\"homeType\":\"house\"";
+        String category = "recurring".equals(frequency) ? "\"store\"" : "\"home\",\"homeType\":\"studio\"";
         return "{\"category\":" + category + ",\"frequency\":\"" + frequency + "\",\"date\":\"" + date + "\",\"time\":\"" + time + "\"," +
                 "\"roadAddress\":\"서울특별시 강남구 테헤란로 123\",\"detailAddress\":\"3층\",\"freeOptions\":" + jsonList(free) +
                 ",\"paidOptions\":[],\"notices\":[],\"request\":\"잘 부탁드려요\",\"saveAddress\":true}";
@@ -137,7 +137,7 @@ class BookingFlowIT {
     // 견적의 회당 금액을 먼저 받아 두고, 1회 예약이라 생성 응답의 totalAmount 가 그 값과 같아야 한다
     @Test
     void 일회_예약_생성_목록_변경_취소() throws Exception {
-        String home = "{\"category\":\"home\",\"homeType\":\"house\",\"frequency\":\"oneTime\",\"date\":\"2026-09-17\",\"time\":\"10:00\",\"freeOptions\":[\"dishes\"],\"paidOptions\":[]}";
+        String home = "{\"category\":\"home\",\"homeType\":\"studio\",\"frequency\":\"oneTime\",\"date\":\"2026-09-17\",\"time\":\"10:00\",\"freeOptions\":[\"dishes\"],\"paidOptions\":[]}";
         String quote = mvc.perform(post("/api/v1/customer/bookings/quote").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON).content(home))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.visitsPlanned").value(1)).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         long perVisit = json.readTree(quote).get("perVisit").get("total").asLong();
@@ -267,7 +267,7 @@ class BookingFlowIT {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("VALIDATION"));
         // 9/19 토요일도 선택한 날짜로 견적을 받는다. 저장 없이 기존 테스트 데이터는 유지한다.
         mvc.perform(post("/api/v1/customer/bookings/quote").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"category\":\"home\",\"homeType\":\"house\",\"frequency\":\"oneTime\",\"date\":\"2026-09-19\",\"time\":\"10:00\"}"))
+                        .content("{\"category\":\"home\",\"homeType\":\"studio\",\"frequency\":\"oneTime\",\"date\":\"2026-09-19\",\"time\":\"10:00\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.visits[0].date").value("2026-09-19"));
         // 10:30 은 운영 시간대(app_settings.time_slots)에 없는 시각 — 같은 409
         mvc.perform(post("/api/v1/customer/bookings").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)

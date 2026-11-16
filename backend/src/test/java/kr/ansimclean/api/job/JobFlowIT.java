@@ -193,15 +193,15 @@ class JobFlowIT {
         assertThat(done.get("summary").get(0).get("value").asString()).isEqualTo("09:50 - 13:00");
         assertThat(done.get("summary").get(2).get("value").asString()).isEqualTo("9개 중 1개 완료");
         assertThat(done.get("summary").get(3).get("value").asString()).isEqualTo("기록 없음");
-        assertThat(done.get("payout").get("amount").asString()).isEqualTo("90,000원");
+        assertThat(done.get("payout").get("amount").asString()).isEqualTo("62,100원");
         // 완료와 같은 트랜잭션에서 정산 행이 생겼다: 정산 목록(이번 달 합계·항목 상태 settlementPending)·상세 금액,
         // 매니저 프로필 stats[1](완료 청소 건수), 고객 예약 목록에서 이 예약이 완료(done) 탭에 들어갔는지
         JsonNode settlement = getJson("/api/v1/manager/settlements");
-        assertThat(settlement.get("monthly").get("amount").asString()).isEqualTo("90,000원");
+        assertThat(settlement.get("monthly").get("amount").asString()).isEqualTo("62,100원");
         assertThat(settlement.get("items").get(0).get("status").asString()).isEqualTo("settlementPending");
         assertThat(settlement.get("items").get(0).get("title").asString()).isEqualTo("강남구 기본청소");
         String sid = settlement.get("items").get(0).get("id").asString();
-        assertThat(getJson("/api/v1/manager/settlements/" + sid).get("final").get("value").asString()).isEqualTo("90,000원");
+        assertThat(getJson("/api/v1/manager/settlements/" + sid).get("final").get("value").asString()).isEqualTo("62,100원");
         mvc.perform(get("/api/v1/manager/profile").header("Authorization", manager.bearer())).andExpect(jsonPath("$.stats[1].value").value("1건"));
         String reservations = mvc.perform(get("/api/v1/customer/reservations").header("Authorization", customer.bearer())).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         assertThat(json.readTree(reservations).get("reservations").valueStream().filter(r -> r.get("id").asString().equals(today1.toString())).findFirst().orElseThrow().get("tab").asString()).isEqualTo("done");

@@ -1260,3 +1260,9 @@ Figma 매니저 페이지(22화면)에 로그인·가입 화면이 없어 사용
 - [x] 그 뒤 단계에서 걸렸을 린트 오류 5개: 관리자 배너·공지 편집이 effect 안에서 setState(렌더 중 한 번 채우기로), V075 검증 스크립트의 지역 함수 `use` 가 React 훅으로 오인(`addUse`). 로컬 iOS 빌드 폴더 `build/` 를 ESLint 제외에 추가.
 - [x] 원인 3 (backend, 1차 수정 뒤 드러남): V074 의 `$json${ … }$json$` 를 Flyway 가 `${…}` 자리표시자로 읽어 파싱 실패 — **개발·운영 배포에서도 V074 에서 기동이 멈췄을 문제**. 쓰는 자리표시자가 없어 `application.yml` 에 `spring.flyway.placeholder-replacement: false`(체크섬은 원문 기준이라 기존 DB 영향 없음). Flyway 를 직접 부르는 `SchedulerLockIT` 도 같은 설정 + 역할 준비.
 - [x] 고객 앱 목 모드 실행 설정 `customer-mock-auth`(5179, 가짜 Supabase 공개값) 를 `.claude/launch.json` 에 추가 — 기존 `customer-mock` 은 Supabase 설정이 없어 시작 화면에서 멈춘다.
+- [x] 2차(마이그레이션이 통과한 뒤 드러난 IT 47개 실패, 11-12 이후 한 번도 안 돈 것):
+  - 37개: 테스트 예약이 '가정 첫 1회 체험'이라 휴대폰 인증·번호/주소당 한 번 규칙(V061·V063)에 409 → 테스트 예약을 언제나 가능한 '원룸 1회'(studio_once 69,000원)로. 콜·정산 금액 단정 90,000원 → 62,100원(69,000 − 10%).
+  - AuthFlowIT 고객 흐름: 고객 휴대폰 가입·비밀번호 로그인·비밀번호 탈퇴가 403 인지 보고, 소셜 1단계 프로필부터 주소 → 주거 → 약관 → 홈을 본다(소셜 프로필 자동 생성은 auth.users 가 필요해 IT 밖).
+  - PricePlanIT: 테스트가 JDBC 에 Instant 를 바로 넘김 → Timestamp.
+  - CatalogIT 확인 문구: 앱 화면(mock CONFIRM_COPY, e84cb34 에서 변경)과 서버 app_settings.confirm_copy(V005 옛 문구)가 달랐다 → **V076** 이 서버 문구를 앱과 같게(옛 문구 그대로일 때만). 화면은 앱 상수를 직접 써서 사용자에게 보이는 변화는 없다.
+  - 고객 앱 Reservations 포커스 테스트가 CI 에서만 실패 → waitFor 로 기다림.

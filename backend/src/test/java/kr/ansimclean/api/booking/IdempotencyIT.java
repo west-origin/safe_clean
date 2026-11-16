@@ -101,7 +101,7 @@ class IdempotencyIT {
 
     /** 1회 가정 청소 생성 본문. request(요청사항) 글자만 바꿔 '같은 본문 / 다른 본문' 을 만든다 */
     String body(String request) {
-        return "{\"category\":\"home\",\"homeType\":\"house\",\"frequency\":\"oneTime\",\"date\":\"" + date + "\",\"time\":\"10:00\",\"roadAddress\":\"부산광역시 중앙대로 2127-23\"," +
+        return "{\"category\":\"home\",\"homeType\":\"studio\",\"frequency\":\"oneTime\",\"date\":\"" + date + "\",\"time\":\"10:00\",\"roadAddress\":\"부산광역시 중앙대로 2127-23\"," +
                 "\"freeOptions\":[],\"paidOptions\":[],\"notices\":[],\"request\":\"" + request + "\"}";
     }
 

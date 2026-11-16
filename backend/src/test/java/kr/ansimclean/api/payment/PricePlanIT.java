@@ -71,7 +71,7 @@ class PricePlanIT {
                     insert into bookings(id, customer_id, series_id, category_key, home_type, frequency, service_date, service_time,
                     starts_at, ends_at, road_address, sido, sigungu, base_amount, options_amount, total_amount, platform_fee, duration_minutes, status, price_plan)
                     values (?, ?, ?, 'home', 'house', 'recurring', ?, '10:00', ?, ?, '서울특별시 강남구 테헤란로 123', '서울특별시', '강남구', ?, 0, ?, ?, 180, 'requested', 'house_weekly_1')
-                    """, id, customer, series, d, AppClock.toInstant(d, LocalTime.of(10, 0)), AppClock.toInstant(d, LocalTime.of(13, 0)),
+                    """, id, customer, series, d, java.sql.Timestamp.from(AppClock.toInstant(d, LocalTime.of(10, 0))), java.sql.Timestamp.from(AppClock.toInstant(d, LocalTime.of(13, 0))), // JDBC 는 Instant 를 바로 못 받는다
                     amount, amount, amount / 10);
             visits.add(id);
         }
