@@ -26,7 +26,11 @@ class SchedulerLockIT {
     @BeforeAll
     static void schema() {
         var ds = new DriverManagerDataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
-        Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate();
+        // 서버와 같은 Flyway 설정: 자리표시자 치환 끔(application.yml) + Supabase 역할 준비(application-test.yml init-sqls)
+        Flyway.configure().dataSource(ds).locations("classpath:db/migration").placeholderReplacement(false)
+                .initSql("do $$ begin if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if; "
+                        + "if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if; end $$")
+                .load().migrate();
         jdbc = new JdbcTemplate(ds);
     }
 

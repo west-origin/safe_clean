@@ -1258,4 +1258,5 @@ Figma 매니저 페이지(22화면)에 로그인·가입 화면이 없어 사용
 - [x] 원인 1 (backend): 11-12 부터 Testcontainers Postgres 에 Supabase 역할 `anon` 이 없어 V061(`revoke … from anon, authenticated`, 존재 검사 없음)이 실패 → IT 110개 전부 컨텍스트 오류. 커밋된 마이그레이션은 못 고치므로(§11-4) `application-test.yml` 의 `spring.flyway.init-sqls` 로 테스트 DB 에 두 역할을 없을 때만 만든다. 운영·개발 Supabase 는 test 프로필을 켜지 않아 영향 없음. 이 맥은 Docker 가 없어 IT 는 CI 에서 확인.
 - [x] 원인 2 (apps): 앱 mock(예약 확인 문구·가전 유료 옵션)이 바뀐 뒤 계약 스냅숏 `backend/src/test/resources/mock-shapes` 를 다시 만들지 않았다 → `node scripts/backend-mock-export.mjs shapes` 로 갱신.
 - [x] 그 뒤 단계에서 걸렸을 린트 오류 5개: 관리자 배너·공지 편집이 effect 안에서 setState(렌더 중 한 번 채우기로), V075 검증 스크립트의 지역 함수 `use` 가 React 훅으로 오인(`addUse`). 로컬 iOS 빌드 폴더 `build/` 를 ESLint 제외에 추가.
+- [x] 원인 3 (backend, 1차 수정 뒤 드러남): V074 의 `$json${ … }$json$` 를 Flyway 가 `${…}` 자리표시자로 읽어 파싱 실패 — **개발·운영 배포에서도 V074 에서 기동이 멈췄을 문제**. 쓰는 자리표시자가 없어 `application.yml` 에 `spring.flyway.placeholder-replacement: false`(체크섬은 원문 기준이라 기존 DB 영향 없음). Flyway 를 직접 부르는 `SchedulerLockIT` 도 같은 설정 + 역할 준비.
 - [x] 고객 앱 목 모드 실행 설정 `customer-mock-auth`(5179, 가짜 Supabase 공개값) 를 `.claude/launch.json` 에 추가 — 기존 `customer-mock` 은 Supabase 설정이 없어 시작 화면에서 멈춘다.

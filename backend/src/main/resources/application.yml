@@ -32,6 +32,9 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    # ${…} 자리표시자 치환을 끈다. 쓰는 마이그레이션이 없고, V074 의 JSON 달러 인용($json${ …)을 자리표시자로 오인해 기동이 멈췄다.
+    # 체크섬은 원문 기준이라 이미 적용된 DB 에 영향 없다
+    placeholder-replacement: false
   http:
     client:
       connect-timeout: 5s            # Supabase Auth/Storage·Solapi 호출. 없으면 외부 장애가 요청 스레드·DB 커넥션을 무한 점유한다
