@@ -3,7 +3,7 @@
 // 이 파일에는 테스트 사이에 가짜 서버 상태를 비우는 코드가 없다 — 앞 테스트에서 취소·추가한 예약이 뒤 테스트에도 남는다.
 // within(요소): 그 요소 안에서만 찾는다 (같은 이름의 버튼이 카드와 시트에 모두 있을 때 구분).
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import Reservations from './Reservations.jsx';
 import CustomerFooter from '../CustomerFooter.jsx';
@@ -62,7 +62,8 @@ describe('Reservations 흐름', () => {
   it('홈에서 지정한 예약 카드에 로딩 후 포커스한다', async () => {
     renderScreen('r2');
     const card = await screen.findByRole('article', { name: '사무실' });
-    expect(card).toHaveFocus();
+    // 포커스는 카드가 그려진 뒤 effect 에서 옮긴다 — 느린 CI 에서는 한 박자 늦을 수 있어 기다린다
+    await waitFor(() => expect(card).toHaveFocus());
     expect(screen.getByRole('tab', { name: /예정/, selected: true })).toBeInTheDocument();
   });
 
