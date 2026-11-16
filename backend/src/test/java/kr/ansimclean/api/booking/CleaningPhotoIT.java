@@ -167,7 +167,7 @@ class CleaningPhotoIT {
         verify(storage).delete(CleaningPhotoService.BUCKET, first);
 
         mvc.perform(get(base).header("Authorization", manager.bearer()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.max").value(10))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.max").value(CleaningPhotoService.MAX_PHOTOS))
                 .andExpect(jsonPath("$.photos.length()").value(6)).andExpect(jsonPath("$.photos[0].location").value("거실 소파 앞")); // 두 공간 × 3장
 
         // 한 곳만 후 사진이 있으면 완료 불가. 모든 공간의 후 사진을 찍어야 완료된다.

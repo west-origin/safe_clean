@@ -188,10 +188,10 @@ class JobFlowIT {
         finishMedia(today1);
         mvc.perform(post("/api/v1/manager/jobs/" + today1 + "/complete").header("Authorization", manager.bearer()).header("Idempotency-Key", "c1")).andExpect(status().isOk());
         mvc.perform(get("/api/v1/manager/jobs/active").header("Authorization", manager.bearer())).andExpect(status().isNotFound());
-        // 완료 화면 요약 행: [0] 청소 시간 [1] 총 소요 [2] 체크리스트(묶음 3개의 항목 9개 중 위에서 체크한 1개) [3] 촬영 기록(녹화가 없어 '기록 없음')
+        // 완료 화면 요약 행: [0] 청소 시간 [1] 총 소요 [2] 체크리스트(템플릿 9개 + 등록한 공간 1개 중 위에서 체크한 1개) [3] 촬영 기록(녹화가 없어 '기록 없음')
         JsonNode done = getJson("/api/v1/manager/jobs/last-completed");
         assertThat(done.get("summary").get(0).get("value").asString()).isEqualTo("09:50 - 13:00");
-        assertThat(done.get("summary").get(2).get("value").asString()).isEqualTo("9개 중 1개 완료");
+        assertThat(done.get("summary").get(2).get("value").asString()).isEqualTo("10개 중 1개 완료"); // 템플릿 9개 + 현장에서 등록한 공간(거실)의 "청소 완료" 1개
         assertThat(done.get("summary").get(3).get("value").asString()).isEqualTo("기록 없음");
         assertThat(done.get("payout").get("amount").asString()).isEqualTo("62,100원");
         // 완료와 같은 트랜잭션에서 정산 행이 생겼다: 정산 목록(이번 달 합계·항목 상태 settlementPending)·상세 금액,
