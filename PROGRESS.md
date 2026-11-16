@@ -1253,3 +1253,9 @@ Figma 매니저 페이지(22화면)에 로그인·가입 화면이 없어 사용
 - [x] ui: `OtpCodeField`(새, 6칸 + 투명 input 하나, one-time-code, timer 슬롯) · `TextField icon` · `InfoNote icon`·`tone="neutral"` — 갤러리·테스트 추가. 판단: 세 가지 모두 Figma 에 없어 코드에서 정함.
 - [x] 검증: 앱 201파일·575개, check:tokens·lint·build 통과. 에뮬레이터에서 두 화면 확인(이미 인증한 테스트 계정이라 2단계 화면은 WebView 디버거로 전송 응답만 흉내 내 확인 — 코드 변경 없음).
 - [x] (2026-11-10) 테스트 계정 인증 초기화 SQL `docs/auth/reset-test-phone-proof.sql`(개발 프로젝트 SQL Editor 전용, 사용법 phone-otp.md). 사용자가 실행 → 앱에서 미인증 시트 다시 뜸 확인 → 새 2단계 화면으로 실서버 재실측: otp 200 → 2단계 이동 → 가상 SMS → 123456 입력 즉시 자동 확인(verify 200, 버튼 안 누름) → 주기 화면 복귀. 지금 이 계정은 다시 +821000000001 인증 상태.
+
+## 2026-11-16 GitHub CI 복구 (사용자 요청 "깃 실패가 보이는데 정상적으로 커밋·푸시")
+- [x] 원인 1 (backend): 11-12 부터 Testcontainers Postgres 에 Supabase 역할 `anon` 이 없어 V061(`revoke … from anon, authenticated`, 존재 검사 없음)이 실패 → IT 110개 전부 컨텍스트 오류. 커밋된 마이그레이션은 못 고치므로(§11-4) `application-test.yml` 의 `spring.flyway.init-sqls` 로 테스트 DB 에 두 역할을 없을 때만 만든다. 운영·개발 Supabase 는 test 프로필을 켜지 않아 영향 없음. 이 맥은 Docker 가 없어 IT 는 CI 에서 확인.
+- [x] 원인 2 (apps): 앱 mock(예약 확인 문구·가전 유료 옵션)이 바뀐 뒤 계약 스냅숏 `backend/src/test/resources/mock-shapes` 를 다시 만들지 않았다 → `node scripts/backend-mock-export.mjs shapes` 로 갱신.
+- [x] 그 뒤 단계에서 걸렸을 린트 오류 5개: 관리자 배너·공지 편집이 effect 안에서 setState(렌더 중 한 번 채우기로), V075 검증 스크립트의 지역 함수 `use` 가 React 훅으로 오인(`addUse`). 로컬 iOS 빌드 폴더 `build/` 를 ESLint 제외에 추가.
+- [x] 고객 앱 목 모드 실행 설정 `customer-mock-auth`(5179, 가짜 Supabase 공개값) 를 `.claude/launch.json` 에 추가 — 기존 `customer-mock` 은 Supabase 설정이 없어 시작 화면에서 멈춘다.

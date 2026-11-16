@@ -32,3 +32,11 @@ logging:
   structured:
     format:
       console:
+
+# Supabase 에만 있는 역할(anon·authenticated)을 Testcontainers Postgres 에도 만든다.
+# V061 이 이 역할에서 권한을 거두는데(존재 검사 없음) 커밋된 마이그레이션은 고칠 수 없어(CLAUDE.md §11-4) 테스트 DB 쪽을 맞춘다.
+# Flyway 가 연결을 얻을 때마다 실행되므로 이미 있으면 건너뛴다. 운영·개발 Supabase 에는 test 프로필이 켜지지 않는다
+spring:
+  flyway:
+    init-sqls:
+      - "do $$ begin if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if; if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if; end $$"
