@@ -21,12 +21,12 @@ export default function AdminBannerEdit() {
   const [file, setFile] = useState(null); // 새로 고른 이미지 (없으면 기존 이미지 그대로)
   const [preview, setPreview] = useState(null); // 미리보기 주소 (고른 파일 또는 서버 이미지)
   const [deleteOpen, setDeleteOpen] = useState(false);
-  useEffect(() => {
-    if (!data || draft) return;
+  // 불러온 값으로 입력칸을 한 번 채운다 (렌더 중 한 번만 — effect 로 하면 한 번 더 그린다)
+  if (data && !draft) {
     const b = data[1];
     setDraft({ title: b?.title ?? '', description: b?.description ?? '', startsOn: b?.startsOn ?? '', endsOn: b?.endsOn ?? '' });
     setPreview(b?.imageUrl ?? null);
-  }, [data, draft]);
+  }
   // 고른 파일의 미리보기 주소는 화면을 떠날 때·다른 파일을 고를 때 풀어 준다
   useEffect(() => () => { if (file && preview?.startsWith('blob:')) URL.revokeObjectURL(preview); }, [file, preview]);
 

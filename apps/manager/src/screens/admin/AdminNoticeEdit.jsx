@@ -2,7 +2,7 @@
 // 또는 공지 한 줄(/admin/notices/:id) → 여기. 보여줄 앱(고객·매니저·전체) · 제목 · 내용을 쓰고 올리거나 저장한다. 기존 공지는 삭제도 된다(확인 시트).
 // 성공하면 목록으로 돌아가며 토스트. 서버 검사 문구(VALIDATION)는 버튼 위에 그대로 보인다.
 // 기존 ui 프리미티브(ScreenLayout·NavBar·SegmentedControl·TextField·TextArea·Button·Sheet)만 조립한다. 문구는 api/mock.js ADMIN_NOTICE_COPY.
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ScreenLayout, NavBar, SegmentedControl, TextField, TextArea, Button, Sheet, ActionError, ScreenError, ScreenLoading, useAsync, useAction, showToast, cx } from '@ansimclean/ui';
 import { getAdminNoticeCopy, getAdminNotice, createAdminNotice, updateAdminNotice, deleteAdminNotice, newNoticeKey } from '../../api/manager.js';
@@ -21,11 +21,11 @@ export default function AdminNoticeEdit() {
   const [draft, setDraft] = useState(null); // { audience, title, body } — 불러온 뒤 채운다
   const [submitKey] = useState(() => newNoticeKey()); // 새 공지 한 번에 키 하나 (재시도해도 두 번 올리지 않게)
   const [deleteOpen, setDeleteOpen] = useState(false);
-  useEffect(() => {
-    if (!data || draft) return;
+  // 불러온 값으로 입력칸을 한 번 채운다 (렌더 중 한 번만 — effect 로 하면 한 번 더 그린다)
+  if (data && !draft) {
     const notice = data[1];
     setDraft(notice ? { audience: notice.audience, title: notice.title, body: notice.body } : { audience: 'customer', title: '', body: '' });
-  }, [data, draft]);
+  }
 
   const save = useAction(async () => {
     if (isNew) await createAdminNotice({ ...draft, submitKey });

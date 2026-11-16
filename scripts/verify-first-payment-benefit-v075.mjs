@@ -108,11 +108,11 @@ const V = (await q(`insert into vouchers(owner_id, purchaser_id, catalog_key, la
   values ($1, $1, 'house_weekly_1', '가정 정기청소 주 1회', 100000, 0, 'used', now() + interval '1 year') returning id`, [A]))[0].id;
 const visits = [];
 for (let i = 0; i < 3; i++) visits.push(await booking(A, { seriesId: SA, total: 100000 }));
-const use = (b, amount, status, reason = null) => db.query(`insert into voucher_uses(voucher_id, booking_id, customer_id, amount, status, restore_reason, restored_at)
+const addUse = (b, amount, status, reason = null) => db.query(`insert into voucher_uses(voucher_id, booking_id, customer_id, amount, status, restore_reason, restored_at)
   values ($1, $2, $3, $4, $5, $6, $7)`, [V, b, A, amount, status, reason, reason ? new Date() : null]);
-await use(visits[0], 30000, 'applied');
-await use(visits[1], 30000, 'restored', 'booking_cancelled');
-await use(visits[2], 30000, 'restored', 'removed');
+await addUse(visits[0], 30000, 'applied');
+await addUse(visits[1], 30000, 'restored', 'booking_cancelled');
+await addUse(visits[2], 30000, 'restored', 'removed');
 const SHARE = `select coalesce(sum(amount), 0) as s from voucher_uses where booking_id = $1 and (status = 'applied' or restore_reason = 'booking_cancelled')`;
 assert.deepEqual(await Promise.all(visits.map(async b => Number((await q(SHARE, [b]))[0].s))), [30000, 30000, 0]);
 
