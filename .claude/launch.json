@@ -29,6 +29,24 @@
       "port": 5175
     },
     {
+      "name": "customer-mock-auth",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "VITE_API_MOCK=1",
+        "VITE_SUPABASE_URL=http://127.0.0.1:9",
+        "VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_mock",
+        "npm",
+        "run",
+        "dev",
+        "-w",
+        "apps/customer",
+        "--",
+        "--port",
+        "5179"
+      ],
+      "port": 5179
+    },
+    {
       "name": "manager-mock",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
