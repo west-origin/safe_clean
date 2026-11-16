@@ -18,15 +18,15 @@
   ],
   "paid": [
     {
-      "key": "ac",
-      "label": "에어컨\n분해 청소",
-      "price": "+40,000원",
+      "key": "panel",
+      "label": "콘센트 가림판넬\n분리",
+      "price": "+20,000원",
       "icon": 3
     },
     {
-      "key": "washer",
-      "label": "세탁조\n살균",
-      "price": "+25,000원",
+      "key": "noExtinguisher",
+      "label": "자동 소화장치\n없는 경우",
+      "price": "+20,000원",
       "icon": 4
     }
   ],
